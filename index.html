@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Jazz Gtr"/>
+  <meta name="theme-color" content="#07070f"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/icon.svg"/>
+  <title>Jazz Guitar Voicings</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      background: #07070f;
+      color: #d0d0e8;
+      font-family: 'Courier New', monospace;
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Ensure touch targets meet 44px iOS minimum */
+    button {
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+      min-height: 44px;
+      touch-action: manipulation;
+    }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #0d0d1e; }
+    ::-webkit-scrollbar-thumb { background: #28284a; border-radius: 2px; }
+    /* Safe-area insets for notched iPads / iPhones */
+    #root { padding-bottom: env(safe-area-inset-bottom); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+    }
+  </script>
+</body>
+</html>

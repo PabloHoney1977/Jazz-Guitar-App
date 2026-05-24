@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\pehre\\\\Projects\\\\Jazz Guitar App\" -Recurse | Select-Object FullName, @{N='KB';E={[math]::Round\\($_.Length/1KB,1\\)}} | Format-Table -AutoSize)"
+    ]
+  }
+}

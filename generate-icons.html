@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<!-- Open this file in any browser, then click the buttons to download the PNG icons.
+     Place the downloaded files in the icons/ folder. -->
+<html>
+<head><title>Generate Icons</title>
+<style>
+  body{font-family:monospace;background:#111;color:#eee;padding:30px;}
+  button{margin:10px;padding:14px 24px;font-size:1rem;cursor:pointer;background:#1a2a3a;color:#4ECDC4;border:1px solid #4ECDC4;border-radius:6px;}
+  canvas{display:block;margin:10px;border:1px solid #333;}
+</style>
+</head>
+<body>
+<h2 style="color:#d4a855">Jazz Guitar — Icon Generator</h2>
+<p>Click each button to download the PNG. Move the files into the <code>icons/</code> folder.</p>
+<button onclick="gen(192,'icon-192.png')">Download icon-192.png</button>
+<button onclick="gen(512,'icon-512.png')">Download icon-512.png</button>
+<button onclick="gen(180,'apple-touch-icon.png')">Download apple-touch-icon.png (180px)</button>
+<div id="previews"></div>
+<script>
+function draw(ctx, size) {
+  const s = size;
+  const r = s * 0.176; // corner radius ~90/512
+
+  // Background
+  ctx.fillStyle = '#07070f';
+  ctx.beginPath();
+  ctx.moveTo(r, 0); ctx.lineTo(s-r, 0);
+  ctx.arcTo(s, 0, s, r, r);
+  ctx.lineTo(s, s-r);
+  ctx.arcTo(s, s, s-r, s, r);
+  ctx.lineTo(r, s);
+  ctx.arcTo(0, s, 0, s-r, r);
+  ctx.lineTo(0, r);
+  ctx.arcTo(0, 0, r, 0, r);
+  ctx.closePath();
+  ctx.fill();
+
+  const sc = s / 512;
+
+  // Nut (gold bar)
+  ctx.fillStyle = '#d4a855';
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath();
+  ctx.roundRect(110*sc, 66*sc, 292*sc, 14*sc, 5*sc);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // Fret lines
+  ctx.strokeStyle = '#2a2848';
+  [[158],[250],[342],[420]].forEach(([y]) => {
+    ctx.lineWidth = 4*sc;
+    ctx.beginPath(); ctx.moveTo(110*sc, y*sc); ctx.lineTo(402*sc, y*sc); ctx.stroke();
+  });
+
+  // String lines
+  ctx.strokeStyle = '#3a3860';
+  [155, 236, 316, 395].forEach((x, i) => {
+    ctx.lineWidth = (2.5 + i * 0.3) * sc;
+    ctx.beginPath(); ctx.moveTo(x*sc, 80*sc); ctx.lineTo(x*sc, 420*sc); ctx.stroke();
+  });
+
+  // Chord dots with glow
+  const dots = [
+    {x:395, y:112, color:'#FF6B6B'},
+    {x:316, y:204, color:'#4ECDC4'},
+    {x:236, y:112, color:'#74C0FC'},
+    {x:155, y:296, color:'#FFD43B'},
+  ];
+  dots.forEach(d => {
+    // glow
+    const g = ctx.createRadialGradient(d.x*sc, d.y*sc, 0, d.x*sc, d.y*sc, 50*sc);
+    g.addColorStop(0, d.color + 'aa');
+    g.addColorStop(1, d.color + '00');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(d.x*sc, d.y*sc, 50*sc, 0, Math.PI*2); ctx.fill();
+    // dot
+    ctx.fillStyle = d.color;
+    ctx.beginPath(); ctx.arc(d.x*sc, d.y*sc, 30*sc, 0, Math.PI*2); ctx.fill();
+  });
+
+  // "JG" text
+  ctx.fillStyle = '#d4a855';
+  ctx.globalAlpha = 0.88;
+  ctx.font = `700 ${54*sc}px Georgia, serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('JG', 256*sc, 490*sc);
+  ctx.globalAlpha = 1;
+}
+
+function gen(size, filename) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  draw(ctx, size);
+
+  // Preview
+  const prev = document.getElementById('previews');
+  const label = document.createElement('div');
+  label.style.color = '#aaa'; label.style.margin = '10px 10px 0';
+  label.textContent = filename + ' (' + size + 'px)';
+  prev.appendChild(label);
+  prev.appendChild(canvas);
+
+  // Download
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = filename;
+  a.click();
+}
+</script>
+</body>
+</html>

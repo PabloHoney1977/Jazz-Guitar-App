@@ -1,0 +1,29 @@
+{
+  "name": "Jazz Guitar Voicings",
+  "short_name": "Jazz Gtr",
+  "description": "Drop 2, Drop 3, Shell, Rootless voicings with chord-scales and II-V-I views",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#07070f",
+  "theme_color": "#07070f",
+  "orientation": "any",
+  "categories": ["music", "education"],
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
