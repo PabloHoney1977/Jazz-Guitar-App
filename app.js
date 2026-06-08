@@ -237,6 +237,41 @@ function precomputeKS(ctx){
   return bufs;
 }
 
+// ── Chord preview audio (module-level, shared across all ChordBoxes) ──
+let _previewCtx=null;
+let _previewBufs=null;
+function getPreviewAudio(){
+  try{
+    if(!_previewCtx||_previewCtx.state==='closed'){
+      _previewCtx=new (window.AudioContext||window.webkitAudioContext)();
+      _previewBufs=precomputeKS(_previewCtx);
+    }
+    if(_previewCtx.state==='suspended') _previewCtx.resume();
+    return[_previewCtx,_previewBufs];
+  }catch(ex){return[null,null];}
+}
+function playChordPreview(voicing,strings){
+  if(!voicing) return;
+  try{
+    const [ctx,bufs]=getPreviewAudio();
+    if(!ctx||!bufs) return;
+    strings.forEach((si,i)=>{
+      const fret=voicing.frets[i];
+      const midi=OPEN_MIDI[si]+fret;
+      const pc=((midi%12)+12)%12;
+      const startTime=ctx.currentTime+i*0.030;
+      const src=ctx.createBufferSource();
+      src.buffer=bufs[pc];
+      src.playbackRate.value=Math.pow(2,(midi-(48+pc))/12);
+      const gain=ctx.createGain();
+      gain.gain.setValueAtTime(0.55,startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001,startTime+2.0);
+      src.connect(gain);gain.connect(ctx.destination);
+      src.start(startTime);src.stop(startTime+2.2);
+    });
+  }catch(ex){}
+}
+
 // ── NeckSVG ───────────────────────────────────────────────────────────
 function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
   hlTc=hlTc||TC;
@@ -256,9 +291,9 @@ function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
         e('feMerge',null,e('feMergeNode',{in:'b'}),e('feMergeNode',{in:'SourceGraphic'}))
       ),
       e('linearGradient',{id:'neckBg',x1:'0',y1:'0',x2:'1',y2:'0'},
-        e('stop',{offset:'0%',stopColor:'#1c1508'}),
-        e('stop',{offset:'60%',stopColor:'#130e05'}),
-        e('stop',{offset:'100%',stopColor:'#0c0902'})
+        e('stop',{offset:'0%',style:{stopColor:'var(--neck-wood1)'}}),
+        e('stop',{offset:'60%',style:{stopColor:'var(--neck-wood2)'}}),
+        e('stop',{offset:'100%',style:{stopColor:'var(--neck-wood3)'}})
       ),
       e('linearGradient',{id:'nutG',x1:'0',y1:'0',x2:'0',y2:'1'},
         e('stop',{offset:'0%',stopColor:'#e8c870'}),
@@ -266,27 +301,27 @@ function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
       )
     ),
     e('rect',{x:PL-22,y:PT-13,width:NF*FW+28,height:5*SH+26,rx:7,fill:'url(#neckBg)'}),
-    e('rect',{x:PL-22,y:PT-13,width:NF*FW+28,height:5*SH+26,rx:7,fill:'none',stroke:'#2a1f08',strokeWidth:1}),
+    e('rect',{x:PL-22,y:PT-13,width:NF*FW+28,height:5*SH+26,rx:7,fill:'none',style:{stroke:'var(--neck-edge)'},strokeWidth:1}),
     e('rect',{x:PL-9,y:PT-11,width:8,height:5*SH+22,fill:'url(#nutG)',rx:2}),
     Array.from({length:NF},(_,k)=>k+1).map(k=>
       e('line',{key:'fl'+k,x1:PL+k*FW,y1:PT-10,x2:PL+k*FW,y2:PT+5*SH+10,
-        stroke:k===12?'#4a3520':'#2e2010',strokeWidth:k===12?2.5:1.5})
+        style:{stroke:k===12?'var(--neck-fret12)':'var(--neck-fret)'},strokeWidth:k===12?2.5:1.5})
     ),
     SINGLE_INLAYS.map(f=>
-      e('ellipse',{key:'il'+f,cx:nx(f),cy:PT+2.5*SH,rx:5.5,ry:4.5,fill:'#2e2010'})
+      e('ellipse',{key:'il'+f,cx:nx(f),cy:PT+2.5*SH,rx:5.5,ry:4.5,style:{fill:'var(--neck-inlay)'}})
     ),
-    e('ellipse',{key:'12a',cx:nx(12),cy:PT+1.5*SH,rx:5.5,ry:4.5,fill:'#2e2010'}),
-    e('ellipse',{key:'12b',cx:nx(12),cy:PT+3.5*SH,rx:5.5,ry:4.5,fill:'#2e2010'}),
+    e('ellipse',{key:'12a',cx:nx(12),cy:PT+1.5*SH,rx:5.5,ry:4.5,style:{fill:'var(--neck-inlay)'}}),
+    e('ellipse',{key:'12b',cx:nx(12),cy:PT+3.5*SH,rx:5.5,ry:4.5,style:{fill:'var(--neck-inlay)'}}),
     Array.from({length:6},(_,si)=>
       e('line',{key:'st'+si,x1:PL-22,y1:sy(si),x2:PL+NF*FW+8,y2:sy(si),
         stroke:`rgba(220,195,130,${0.30+si*0.09})`,strokeWidth:0.4+si*0.26})
     ),
     [1,3,5,7,9,12,15].map(f=>
-      e('text',{key:'fn'+f,x:nx(f),y:H-8,textAnchor:'middle',fill:'#9a8850',fontSize:9,fontFamily:MONO},f)
+      e('text',{key:'fn'+f,x:nx(f),y:H-8,textAnchor:'middle',style:{fill:'var(--neck-lbl)'},fontSize:9,fontFamily:MONO},f)
     ),
     STR_NAMES.map((n,si)=>
       e('text',{key:'sl'+si,x:PL-26,y:sy(si),textAnchor:'end',dominantBaseline:'middle',
-        fill:'#9a8850',fontSize:9.5,fontFamily:MONO},n)
+        style:{fill:'var(--neck-lbl)'},fontSize:9.5,fontFamily:MONO},n)
     ),
     (scalePos||[]).map((p,i)=>
       e('g',{key:'sp'+i},
@@ -330,7 +365,7 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
   const showNut=SF===1;
   const sx=i=>PL+i*SS;
   const fy=f=>PT+(f-SF)*FS+FS/2;
-  return e('div',{onClick,style:{cursor:'pointer',flexShrink:0}},
+  return e('div',{onClick:()=>{playChordPreview(voicing,strings);if(onClick)onClick();},style:{cursor:'pointer',flexShrink:0}},
     e('svg',{width:W,height:H,viewBox:`0 0 ${W} ${H}`},
       e('rect',{width:W,height:H,rx:9,fill:selected?'var(--cb-sel)':'var(--cb-bg)',stroke:selected?'#4ECDC4':BORDER,strokeWidth:selected?2:1.5}),
       e('text',{x:W/2,y:20,textAnchor:'middle',fill:selected?'#4ECDC4':BTN_OFF,fontSize:13,fontWeight:selected?'bold':'normal',fontFamily:MONO},invLabel),
@@ -442,13 +477,14 @@ const BEAT_MAP=[
 
 // ── IIVIView ──────────────────────────────────────────────────────────
 function IIVIView({keyIdx}){
-  const [strSetIdx,setStrSetIdx]=useState(2);
+  const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(localStorage.getItem('jg-strSet')||'2',10));
   const [invIdxs,setInvIdxs]=useState([0,0,0]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
   const [isPlaying,setIsPlaying]=useState(false);
-  const [bpm,setBpm]=useState(120);
-  const [bassEnabled,setBassEnabled]=useState(true);
-  const [metronomeEnabled,setMetronomeEnabled]=useState(true);
+  const [bpm,setBpm]=useState(()=>parseInt(localStorage.getItem('jg-bpm')||'120',10));
+  const [bassEnabled,setBassEnabled]=useState(()=>localStorage.getItem('jg-bass')!=='false');
+  const [metronomeEnabled,setMetronomeEnabled]=useState(()=>localStorage.getItem('jg-met')!=='false');
+  const [isMinor,setIsMinor]=useState(()=>localStorage.getItem('jg-minor')==='true');
   const [playingChordIdx,setPlayingChordIdx]=useState(null);
   const [playingBar,setPlayingBar]=useState(null);
 
@@ -463,17 +499,31 @@ function IIVIView({keyIdx}){
   const chordsRef=useRef(null);
   const ksBufsRef=useRef(null);
   const clickBufsRef=useRef(null);
+  const wafPlayerRef=useRef(null);
+  const wafReadyRef=useRef(false);
+  const wafFontLoadedRef=useRef(false);
+  const tapTimesRef=useRef([]);
   bpmRef.current=bpm;
   bassRef.current=bassEnabled;
   metronomeRef.current=metronomeEnabled;
 
+  useEffect(()=>{localStorage.setItem('jg-strSet',strSetIdx);},[strSetIdx]);
+  useEffect(()=>{localStorage.setItem('jg-bpm',bpm);},[bpm]);
+  useEffect(()=>{localStorage.setItem('jg-bass',bassEnabled);},[bassEnabled]);
+  useEffect(()=>{localStorage.setItem('jg-met',metronomeEnabled);},[metronomeEnabled]);
+  useEffect(()=>{localStorage.setItem('jg-minor',isMinor);},[isMinor]);
+
   // II=deg1, V=deg4, I=deg0
-  const chords=[1,4,0].map(deg=>{
+  // Major: IIm7 – V7 – Imaj7   Minor: IIm7b5 – V7 – Im7
+  const MIN_Q  =['m7b5','dom7','m7'];
+  const MIN_SYM=['ø7',  '7',   'm7'];
+  const chords=[1,4,0].map((deg,idx)=>{
     const rootPC=(KEYS[keyIdx].root+MAJOR_SCALE[deg])%12;
-    const quality=QTYPES[deg];
+    const quality=isMinor?MIN_Q[idx]:QTYPES[deg];
     const tones=getChordTones(rootPC,quality);
+    const sym=isMinor?MIN_SYM[idx]:QSYMS[deg];
     return{rootPC,quality,tones,dnames:DNAMES[quality],
-      name:nn(rootPC,keyIdx)+QSYMS[deg],roman:ROMAN[deg]};
+      name:nn(rootPC,keyIdx)+sym,roman:ROMAN[deg]};
   });
   chordsRef.current=chords;
 
@@ -481,8 +531,8 @@ function IIVIView({keyIdx}){
   const ss=D2_SETS[ssIdx].s;
   const ac=chords[activeChordIdx];
 
-  const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx]);
-  const activeVoicings=useMemo(()=>D2_INV.map(inv=>calcVoicing(ss,inv.a,ac.tones)),[activeChordIdx,strSetIdx,keyIdx]);
+  const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx,isMinor]);
+  const activeVoicings=useMemo(()=>D2_INV.map(inv=>calcVoicing(ss,inv.a,ac.tones)),[activeChordIdx,strSetIdx,keyIdx,isMinor]);
   const highlight=useMemo(()=>{
     const v=activeVoicings[invIdxs[activeChordIdx]];
     if(!v) return null;
@@ -490,19 +540,54 @@ function IIVIView({keyIdx}){
       const si=ss[i],ti=ac.tones.indexOf((OPEN_PC[si]+f)%12);
       return{s:si,f,ti,dl:ti>=0?ac.dnames[ti]:''};
     });
-  },[activeVoicings,invIdxs,activeChordIdx,strSetIdx]);
+  },[activeVoicings,invIdxs,activeChordIdx,strSetIdx,isMinor]);
+
+  function loadBassFont(ctx){
+    if(!window.WebAudioFontPlayer) return;
+    wafReadyRef.current=false;
+    const player=new window.WebAudioFontPlayer();
+    wafPlayerRef.current=player;
+    const fontVar='_tone_0320_Acoustic_Bass_sf2_file';
+    function decodeFont(){
+      player.loader.decodeAfterLoading(ctx,fontVar);
+      player.loader.waitLoad(()=>{wafReadyRef.current=true;});
+    }
+    if(wafFontLoadedRef.current||window[fontVar]){
+      wafFontLoadedRef.current=true;
+      decodeFont();
+    } else {
+      const s=document.createElement('script');
+      s.src='https://surikov.github.io/webaudiofont/npm/dist/sf2js/0320_Acoustic_Bass_sf2_file.js';
+      s.crossOrigin='anonymous';
+      s.onload=()=>{wafFontLoadedRef.current=true;decodeFont();};
+      s.onerror=()=>{};
+      document.head.appendChild(s);
+    }
+  }
 
   function playBassNote(ctx,pc,startTime,beatDur,accent){
+    const midiNote=36+((pc%12+12)%12); // C2–B2 register
+    const vol=accent?1.0:0.65;
+    // Real samples via WebAudioFont
+    const player=wafPlayerRef.current;
+    const fontVar='_tone_0320_Acoustic_Bass_sf2_file';
+    if(player&&wafReadyRef.current&&window[fontVar]){
+      try{
+        player.queueWaveTable(ctx,ctx.destination,window[fontVar],startTime,midiNote,beatDur*0.88,vol);
+        return;
+      }catch(e){}
+    }
+    // Fallback: KS one octave down
     const bufs=ksBufsRef.current;
     if(!bufs) return;
     const normalPc=(pc%12+12)%12;
     const src=ctx.createBufferSource();
     src.buffer=bufs[normalPc];
+    src.playbackRate.value=0.5;
     const gain=ctx.createGain();
-    const pk=accent?0.78:0.50;
+    const pk=accent?0.70:0.44;
     gain.gain.setValueAtTime(pk,startTime);
-    gain.gain.setValueAtTime(pk*0.80,startTime+0.05);
-    gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.94);
+    gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.92);
     src.connect(gain);gain.connect(ctx.destination);
     src.start(startTime);src.stop(startTime+beatDur);
   }
@@ -518,6 +603,7 @@ function IIVIView({keyIdx}){
     audioCtxRef.current=ctx;
     ksBufsRef.current=precomputeKS(ctx);
     clickBufsRef.current={accent:makeClickBuf(ctx,1200,0.90),normal:makeClickBuf(ctx,800,0.55)};
+    if(bassRef.current) loadBassFont(ctx);
     nextTimeRef.current=ctx.currentTime+0.05;
     beatRef.current=0;
     const gen=++genRef.current;
@@ -553,6 +639,19 @@ function IIVIView({keyIdx}){
     setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
   }
 
+  function handleTap(){
+    const now=Date.now();
+    const recent=tapTimesRef.current.filter(t=>now-t<3000);
+    recent.push(now);
+    tapTimesRef.current=recent;
+    if(recent.length>=2){
+      const intervals=[];
+      for(let i=1;i<recent.length;i++) intervals.push(recent[i]-recent[i-1]);
+      const avg=intervals.reduce((s,v)=>s+v,0)/intervals.length;
+      setBpm(Math.max(40,Math.min(300,Math.round(60000/avg))));
+    }
+  }
+
   // cleanup on unmount
   useEffect(()=>()=>{
     genRef.current++;
@@ -560,15 +659,19 @@ function IIVIView({keyIdx}){
     if(audioCtxRef.current)audioCtxRef.current.close();
   },[]);
 
-  // stop when key changes
+  // stop when key or mode changes
   useEffect(()=>{
     genRef.current++;
     clearTimeout(timerRef.current);
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
     setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
-  },[keyIdx]);
+    setInvIdxs([0,0,0]);setActiveChordIdx(0);
+  },[keyIdx,isMinor]);
 
   const BAR_ROMAN=['II','V','I','I'];
+  const modeBtn=(act,col,actBg)=>({padding:'6px 13px',borderRadius:5,cursor:'pointer',
+    fontFamily:MONO,fontSize:'0.78rem',border:'1px solid '+(act?col:BTN_BRD),
+    background:act?actBg:'transparent',color:act?col:BTN_OFF,fontWeight:act?700:400,minHeight:44});
   const playBtn={padding:'6px 18px',background:isPlaying?ACT_RED:ACT_TEAL,
     border:'1px solid '+(isPlaying?'#FF6B6B':'#4ECDC4'),borderRadius:6,
     color:isPlaying?'#FF6B6B':'#4ECDC4',cursor:'pointer',fontFamily:MONO,
@@ -576,6 +679,9 @@ function IIVIView({keyIdx}){
   const bpmStepBtn={padding:'4px 11px',background:'transparent',
     border:'1px solid '+BTN_BRD,borderRadius:4,color:BTN_OFF,cursor:'pointer',
     fontFamily:MONO,fontSize:'0.9rem',minHeight:44};
+  const tapBtn={padding:'6px 10px',background:'transparent',
+    border:'1px solid '+BTN_BRD,borderRadius:4,color:BTN_OFF,cursor:'pointer',
+    fontFamily:MONO,fontSize:'0.78rem',minHeight:44};
   const bassBtn={padding:'6px 14px',background:bassEnabled?ACT_BLUE:'transparent',
     border:'1px solid '+(bassEnabled?'#74C0FC':BTN_BRD),borderRadius:6,
     color:bassEnabled?'#74C0FC':BTN_OFF,cursor:'pointer',fontFamily:MONO,
@@ -591,7 +697,10 @@ function IIVIView({keyIdx}){
       e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'STRING SET'),
       D2_SETS.map((set,i)=>
         e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
-      )
+      ),
+      e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginLeft:8}},'MODE'),
+      e('button',{onClick:()=>setIsMinor(false),style:modeBtn(!isMinor,'#4ECDC4',ACT_TEAL)},'MAJOR'),
+      e('button',{onClick:()=>setIsMinor(true), style:modeBtn(isMinor, '#C084FC',ACT_PUR)}, 'MINOR')
     ),
     // Play-along controls
     e('div',{style:{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginBottom:10,
@@ -604,15 +713,27 @@ function IIVIView({keyIdx}){
         e('span',{style:{minWidth:38,textAlign:'center',color:'var(--txt)',fontFamily:MONO,fontSize:'0.92rem',
           padding:'0 4px'}},bpm),
         e('button',{onClick:()=>setBpm(b=>Math.min(300,b+5)),style:bpmStepBtn},'+'),
-        e('span',{style:{fontSize:'0.75rem',color:HINT,marginLeft:2}})
+        e('button',{onClick:handleTap,style:tapBtn},'TAP')
       ),
       e('button',{onClick:()=>setBassEnabled(v=>!v),style:bassBtn},'♩ BASS'),
-      e('button',{onClick:()=>setMetronomeEnabled(v=>!v),style:metBtn},'◉ CLICK'),
-      isPlaying&&playingBar!==null
-        ?e('span',{style:{fontSize:'0.8rem',color:'#FFD43B',fontFamily:MONO,
-            padding:'4px 10px',border:'1px solid #4a3a00',borderRadius:4,background:ACT_YEL}},
-            'Bar '+(playingBar+1)+' · '+BAR_ROMAN[playingBar])
-        :null
+      e('button',{onClick:()=>setMetronomeEnabled(v=>!v),style:metBtn},'◉ CLICK')
+    ),
+    // 4-cell form tracker — always visible, highlights current bar during playback
+    e('div',{style:{display:'flex',gap:5,marginBottom:10}},
+      BAR_ROMAN.map((r,i)=>{
+        const ci=i<2?i:2;
+        const lit=isPlaying&&playingBar===i;
+        return e('div',{key:i,style:{
+          flex:1,textAlign:'center',padding:'5px 4px',borderRadius:5,fontFamily:MONO,
+          border:'1px solid '+(lit?'#FFD43B':BORDER),
+          background:lit?ACT_YEL:BG2,
+          color:lit?'#FFD43B':BTN_OFF,
+          transition:'background 0.08s,border-color 0.08s,color 0.08s'
+        }},
+          e('div',{style:{fontSize:'0.62rem',opacity:0.7,letterSpacing:'1px',marginBottom:2}},r),
+          e('div',{style:{fontSize:'0.82rem',fontWeight:lit?700:400}},chords[ci].name)
+        );
+      })
     ),
     // Neck label
     e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginBottom:4}},
@@ -669,7 +790,9 @@ function IIVIView({keyIdx}){
     e('div',{style:{marginTop:12,padding:'8px 12px',background:BG2,border:'1px solid '+BORDER,
       borderRadius:6,fontSize:'0.79rem',color:HINT,lineHeight:1.6}},
       e('span',{style:{color:GOLD,fontWeight:700}},'Voice leading tip: '),
-      'Keep common tones, move others by step. Classic: IIm7 3rd inv → V7 2nd inv → Imaj7 root pos, all on the same string set.'
+      isMinor
+        ?'Minor II–V–I: the ♭5 of IIø resolves up a half-step to the 5th of Im7. Classic path: IIø 3rd inv → V7 2nd inv → Im7 root pos.'
+        :'Major II–V–I: keep common tones, move others by step. Classic: IIm7 3rd inv → V7 2nd inv → Imaj7 root pos, all on the same string set.'
     )
   );
 }
@@ -928,7 +1051,8 @@ function GuideView(){
 
 // ── App ───────────────────────────────────────────────────────────────
 function App(){
-  const [theme,setTheme]=useState('dark');
+  const [theme,setTheme]=useState(()=>localStorage.getItem('jg-theme')||'dark');
+  const [showOnboarding,setShowOnboarding]=useState(()=>!localStorage.getItem('jg-visited'));
   function toggleTheme(){
     const next=theme==='dark'?'light':'dark';
     setTheme(next);
@@ -936,9 +1060,15 @@ function App(){
     const m=document.getElementById('theme-meta');
     if(m) m.content=next==='dark'?'#07070f':'#f5f5fa';
   }
+  useEffect(()=>{
+    document.documentElement.dataset.theme=theme;
+    const m=document.getElementById('theme-meta');
+    if(m) m.content=theme==='dark'?'#07070f':'#f5f5fa';
+    localStorage.setItem('jg-theme',theme);
+  },[theme]);
   // Global state
-  const [key,setKey]=useState(0);
-  const [viewMode,setViewMode]=useState('diatonic'); // 'diatonic'|'iivi'|'custom'|'guide'
+  const [key,setKey]=useState(()=>parseInt(localStorage.getItem('jg-key')||'0',10));
+  const [viewMode,setViewMode]=useState(()=>localStorage.getItem('jg-viewMode')||'diatonic'); // 'diatonic'|'iivi'|'custom'|'guide'
   // Diatonic state
   const [deg,setDeg]=useState(0);
   const [vType,setVType]=useState('drop2');
@@ -952,6 +1082,8 @@ function App(){
   const [customTypeIdx,setCustomTypeIdx]=useState(2);
 
   useEffect(()=>{setScaleIdx(0);},[deg]);
+  useEffect(()=>{localStorage.setItem('jg-key',key);},[key]);
+  useEffect(()=>{localStorage.setItem('jg-viewMode',viewMode);},[viewMode]);
 
   const quality=QTYPES[deg];
   const rootPC=(KEYS[key].root+MAJOR_SCALE[deg])%12;
@@ -1039,6 +1171,26 @@ function App(){
 
   return e('div',{style:{background:BG,minHeight:'100vh',color:'var(--txt)',fontFamily:MONO,padding:'14px'}},
 
+    // Onboarding banner (first visit only)
+    showOnboarding?e('div',{style:{
+      display:'flex',alignItems:'flex-start',gap:12,padding:'10px 14px',
+      background:'#091a2a',border:'1px solid #1a3a5a',borderRadius:7,marginBottom:12,
+      fontSize:'0.82rem',color:'#9ab8d8',lineHeight:1.6}},
+      e('div',{style:{flex:1}},
+        e('span',{style:{color:'#4ECDC4',fontWeight:700}},'New here? '),
+        'This app teaches jazz guitar chord voicings — Drop 2, Drop 3, Shell, and the II–V–I progression. ',
+        e('button',{onClick:()=>{setViewMode('guide');setShowOnboarding(false);localStorage.setItem('jg-visited','1');},
+          style:{background:'transparent',border:'none',color:'#4ECDC4',cursor:'pointer',
+            fontFamily:MONO,fontSize:'0.82rem',textDecoration:'underline',padding:0}},
+          'Open the Guide'),
+        ' to get started.'
+      ),
+      e('button',{onClick:()=>{setShowOnboarding(false);localStorage.setItem('jg-visited','1');},
+        style:{background:'transparent',border:'none',color:'#4a6a8a',cursor:'pointer',
+          fontFamily:MONO,fontSize:'1rem',padding:'0 4px',lineHeight:1,minHeight:0}},
+        '✕')
+    ):null,
+
     // Header
     e('div',{style:{display:'flex',alignItems:'baseline',gap:12,marginBottom:14,
       paddingBottom:12,borderBottom:'1px solid '+BORDER,flexWrap:'wrap'}},
@@ -1063,7 +1215,7 @@ function App(){
     e('div',{style:{display:'flex',gap:4,marginBottom:12,flexWrap:'wrap',alignItems:'center'}},
       e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginRight:4}},'VIEW'),
       ['diatonic','iivi','custom','guide'].map(id=>{
-        const lbls={diatonic:'Diatonic',iivi:'II–V–I',custom:'Custom',guide:'Guide'};
+        const lbls={diatonic:'Chords in Key',iivi:'II–V–I',custom:'Any Chord',guide:'Guide'};
         return e('button',{key:id,onClick:()=>setViewMode(id),style:viewBtnStyle(id)},lbls[id]);
       })
     ),
