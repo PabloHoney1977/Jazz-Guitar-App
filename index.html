@@ -6,22 +6,37 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Jazz Gtr"/>
-  <meta name="theme-color" content="#07070f"/>
+  <meta name="theme-color" id="theme-meta" content="#07070f"/>
   <link rel="manifest" href="manifest.json"/>
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
   <title>Jazz Guitar Voicings</title>
   <style>
+    :root {
+      --bg: #07070f; --bg2: #0d0d1e; --brd: #22223a;
+      --lbl: #a8a8cc; --hint: #9898bc; --btn-off: #8888b8; --btn-brd: #28284a;
+      --txt: #d0d0e8; --neck-wrap: #05050e;
+      --act-teal: #0a1a1a; --act-red: #1a0808; --act-gold: #1a1402;
+      --act-grn: #081a0e; --act-blue: #080f1a; --act-yel: #1a1400; --act-pur: #1a0a28;
+      --gold-txt: #d4a855;
+    }
+    :root[data-theme="light"] {
+      --bg: #f7f7fc; --bg2: #ededf7; --brd: #c4c4dc;
+      --lbl: #4a4a72; --hint: #686898; --btn-off: #505078; --btn-brd: #c4c4dc;
+      --txt: #18182e; --neck-wrap: #e8e4de;
+      --act-teal: #dff5f0; --act-red: #ffe8e8; --act-gold: #fdf8e0;
+      --act-grn: #e8f8ea; --act-blue: #e8f0fc; --act-yel: #fff8cc; --act-pur: #f5e8fc;
+      --gold-txt: #9a6618;
+    }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { -webkit-text-size-adjust: 100%; font-size: 18px; }
     @media (min-width: 768px) { html { font-size: 22px; } }
     body {
-      background: #07070f;
-      color: #d0d0e8;
+      background: var(--bg);
+      color: var(--txt);
       font-family: 'Courier New', monospace;
       overscroll-behavior: none;
       -webkit-tap-highlight-color: transparent;
     }
-    /* Ensure touch targets meet 44px iOS minimum */
     button {
       font-family: 'Courier New', monospace;
       cursor: pointer;
@@ -29,9 +44,8 @@
       touch-action: manipulation;
     }
     ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: #0d0d1e; }
-    ::-webkit-scrollbar-thumb { background: #28284a; border-radius: 2px; }
-    /* Safe-area insets for notched iPads / iPhones */
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--btn-brd); border-radius: 2px; }
     #root { padding-bottom: env(safe-area-inset-bottom); }
   </style>
 </head>
