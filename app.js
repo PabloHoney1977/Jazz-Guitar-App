@@ -237,6 +237,41 @@ function precomputeKS(ctx){
   return bufs;
 }
 
+// ── Chord preview audio (module-level, shared across all ChordBoxes) ──
+let _previewCtx=null;
+let _previewBufs=null;
+function getPreviewAudio(){
+  try{
+    if(!_previewCtx||_previewCtx.state==='closed'){
+      _previewCtx=new (window.AudioContext||window.webkitAudioContext)();
+      _previewBufs=precomputeKS(_previewCtx);
+    }
+    if(_previewCtx.state==='suspended') _previewCtx.resume();
+    return[_previewCtx,_previewBufs];
+  }catch(ex){return[null,null];}
+}
+function playChordPreview(voicing,strings){
+  if(!voicing) return;
+  try{
+    const [ctx,bufs]=getPreviewAudio();
+    if(!ctx||!bufs) return;
+    strings.forEach((si,i)=>{
+      const fret=voicing.frets[i];
+      const midi=OPEN_MIDI[si]+fret;
+      const pc=((midi%12)+12)%12;
+      const startTime=ctx.currentTime+i*0.030;
+      const src=ctx.createBufferSource();
+      src.buffer=bufs[pc];
+      src.playbackRate.value=Math.pow(2,(midi-(48+pc))/12);
+      const gain=ctx.createGain();
+      gain.gain.setValueAtTime(0.55,startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001,startTime+2.0);
+      src.connect(gain);gain.connect(ctx.destination);
+      src.start(startTime);src.stop(startTime+2.2);
+    });
+  }catch(ex){}
+}
+
 // ── NeckSVG ───────────────────────────────────────────────────────────
 function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
   hlTc=hlTc||TC;
@@ -330,7 +365,7 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
   const showNut=SF===1;
   const sx=i=>PL+i*SS;
   const fy=f=>PT+(f-SF)*FS+FS/2;
-  return e('div',{onClick,style:{cursor:'pointer',flexShrink:0}},
+  return e('div',{onClick:()=>{playChordPreview(voicing,strings);if(onClick)onClick();},style:{cursor:'pointer',flexShrink:0}},
     e('svg',{width:W,height:H,viewBox:`0 0 ${W} ${H}`},
       e('rect',{width:W,height:H,rx:9,fill:selected?'var(--cb-sel)':'var(--cb-bg)',stroke:selected?'#4ECDC4':BORDER,strokeWidth:selected?2:1.5}),
       e('text',{x:W/2,y:20,textAnchor:'middle',fill:selected?'#4ECDC4':BTN_OFF,fontSize:13,fontWeight:selected?'bold':'normal',fontFamily:MONO},invLabel),
@@ -442,14 +477,14 @@ const BEAT_MAP=[
 
 // ── IIVIView ──────────────────────────────────────────────────────────
 function IIVIView({keyIdx}){
-  const [strSetIdx,setStrSetIdx]=useState(2);
+  const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(localStorage.getItem('jg-strSet')||'2',10));
   const [invIdxs,setInvIdxs]=useState([0,0,0]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
   const [isPlaying,setIsPlaying]=useState(false);
-  const [bpm,setBpm]=useState(120);
-  const [bassEnabled,setBassEnabled]=useState(true);
-  const [metronomeEnabled,setMetronomeEnabled]=useState(true);
-  const [isMinor,setIsMinor]=useState(false);
+  const [bpm,setBpm]=useState(()=>parseInt(localStorage.getItem('jg-bpm')||'120',10));
+  const [bassEnabled,setBassEnabled]=useState(()=>localStorage.getItem('jg-bass')!=='false');
+  const [metronomeEnabled,setMetronomeEnabled]=useState(()=>localStorage.getItem('jg-met')!=='false');
+  const [isMinor,setIsMinor]=useState(()=>localStorage.getItem('jg-minor')==='true');
   const [playingChordIdx,setPlayingChordIdx]=useState(null);
   const [playingBar,setPlayingBar]=useState(null);
 
@@ -467,9 +502,16 @@ function IIVIView({keyIdx}){
   const wafPlayerRef=useRef(null);
   const wafReadyRef=useRef(false);
   const wafFontLoadedRef=useRef(false);
+  const tapTimesRef=useRef([]);
   bpmRef.current=bpm;
   bassRef.current=bassEnabled;
   metronomeRef.current=metronomeEnabled;
+
+  useEffect(()=>{localStorage.setItem('jg-strSet',strSetIdx);},[strSetIdx]);
+  useEffect(()=>{localStorage.setItem('jg-bpm',bpm);},[bpm]);
+  useEffect(()=>{localStorage.setItem('jg-bass',bassEnabled);},[bassEnabled]);
+  useEffect(()=>{localStorage.setItem('jg-met',metronomeEnabled);},[metronomeEnabled]);
+  useEffect(()=>{localStorage.setItem('jg-minor',isMinor);},[isMinor]);
 
   // II=deg1, V=deg4, I=deg0
   // Major: IIm7 – V7 – Imaj7   Minor: IIm7b5 – V7 – Im7
@@ -597,6 +639,19 @@ function IIVIView({keyIdx}){
     setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
   }
 
+  function handleTap(){
+    const now=Date.now();
+    const recent=tapTimesRef.current.filter(t=>now-t<3000);
+    recent.push(now);
+    tapTimesRef.current=recent;
+    if(recent.length>=2){
+      const intervals=[];
+      for(let i=1;i<recent.length;i++) intervals.push(recent[i]-recent[i-1]);
+      const avg=intervals.reduce((s,v)=>s+v,0)/intervals.length;
+      setBpm(Math.max(40,Math.min(300,Math.round(60000/avg))));
+    }
+  }
+
   // cleanup on unmount
   useEffect(()=>()=>{
     genRef.current++;
@@ -624,6 +679,9 @@ function IIVIView({keyIdx}){
   const bpmStepBtn={padding:'4px 11px',background:'transparent',
     border:'1px solid '+BTN_BRD,borderRadius:4,color:BTN_OFF,cursor:'pointer',
     fontFamily:MONO,fontSize:'0.9rem',minHeight:44};
+  const tapBtn={padding:'6px 10px',background:'transparent',
+    border:'1px solid '+BTN_BRD,borderRadius:4,color:BTN_OFF,cursor:'pointer',
+    fontFamily:MONO,fontSize:'0.78rem',minHeight:44};
   const bassBtn={padding:'6px 14px',background:bassEnabled?ACT_BLUE:'transparent',
     border:'1px solid '+(bassEnabled?'#74C0FC':BTN_BRD),borderRadius:6,
     color:bassEnabled?'#74C0FC':BTN_OFF,cursor:'pointer',fontFamily:MONO,
@@ -655,15 +713,27 @@ function IIVIView({keyIdx}){
         e('span',{style:{minWidth:38,textAlign:'center',color:'var(--txt)',fontFamily:MONO,fontSize:'0.92rem',
           padding:'0 4px'}},bpm),
         e('button',{onClick:()=>setBpm(b=>Math.min(300,b+5)),style:bpmStepBtn},'+'),
-        e('span',{style:{fontSize:'0.75rem',color:HINT,marginLeft:2}})
+        e('button',{onClick:handleTap,style:tapBtn},'TAP')
       ),
       e('button',{onClick:()=>setBassEnabled(v=>!v),style:bassBtn},'♩ BASS'),
-      e('button',{onClick:()=>setMetronomeEnabled(v=>!v),style:metBtn},'◉ CLICK'),
-      isPlaying&&playingBar!==null
-        ?e('span',{style:{fontSize:'0.8rem',color:'#FFD43B',fontFamily:MONO,
-            padding:'4px 10px',border:'1px solid #4a3a00',borderRadius:4,background:ACT_YEL}},
-            'Bar '+(playingBar+1)+' · '+BAR_ROMAN[playingBar])
-        :null
+      e('button',{onClick:()=>setMetronomeEnabled(v=>!v),style:metBtn},'◉ CLICK')
+    ),
+    // 4-cell form tracker — always visible, highlights current bar during playback
+    e('div',{style:{display:'flex',gap:5,marginBottom:10}},
+      BAR_ROMAN.map((r,i)=>{
+        const ci=i<2?i:2;
+        const lit=isPlaying&&playingBar===i;
+        return e('div',{key:i,style:{
+          flex:1,textAlign:'center',padding:'5px 4px',borderRadius:5,fontFamily:MONO,
+          border:'1px solid '+(lit?'#FFD43B':BORDER),
+          background:lit?ACT_YEL:BG2,
+          color:lit?'#FFD43B':BTN_OFF,
+          transition:'background 0.08s,border-color 0.08s,color 0.08s'
+        }},
+          e('div',{style:{fontSize:'0.62rem',opacity:0.7,letterSpacing:'1px',marginBottom:2}},r),
+          e('div',{style:{fontSize:'0.82rem',fontWeight:lit?700:400}},chords[ci].name)
+        );
+      })
     ),
     // Neck label
     e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginBottom:4}},
@@ -981,7 +1051,8 @@ function GuideView(){
 
 // ── App ───────────────────────────────────────────────────────────────
 function App(){
-  const [theme,setTheme]=useState('dark');
+  const [theme,setTheme]=useState(()=>localStorage.getItem('jg-theme')||'dark');
+  const [showOnboarding,setShowOnboarding]=useState(()=>!localStorage.getItem('jg-visited'));
   function toggleTheme(){
     const next=theme==='dark'?'light':'dark';
     setTheme(next);
@@ -989,9 +1060,15 @@ function App(){
     const m=document.getElementById('theme-meta');
     if(m) m.content=next==='dark'?'#07070f':'#f5f5fa';
   }
+  useEffect(()=>{
+    document.documentElement.dataset.theme=theme;
+    const m=document.getElementById('theme-meta');
+    if(m) m.content=theme==='dark'?'#07070f':'#f5f5fa';
+    localStorage.setItem('jg-theme',theme);
+  },[theme]);
   // Global state
-  const [key,setKey]=useState(0);
-  const [viewMode,setViewMode]=useState('diatonic'); // 'diatonic'|'iivi'|'custom'|'guide'
+  const [key,setKey]=useState(()=>parseInt(localStorage.getItem('jg-key')||'0',10));
+  const [viewMode,setViewMode]=useState(()=>localStorage.getItem('jg-viewMode')||'diatonic'); // 'diatonic'|'iivi'|'custom'|'guide'
   // Diatonic state
   const [deg,setDeg]=useState(0);
   const [vType,setVType]=useState('drop2');
@@ -1005,6 +1082,8 @@ function App(){
   const [customTypeIdx,setCustomTypeIdx]=useState(2);
 
   useEffect(()=>{setScaleIdx(0);},[deg]);
+  useEffect(()=>{localStorage.setItem('jg-key',key);},[key]);
+  useEffect(()=>{localStorage.setItem('jg-viewMode',viewMode);},[viewMode]);
 
   const quality=QTYPES[deg];
   const rootPC=(KEYS[key].root+MAJOR_SCALE[deg])%12;
@@ -1092,6 +1171,26 @@ function App(){
 
   return e('div',{style:{background:BG,minHeight:'100vh',color:'var(--txt)',fontFamily:MONO,padding:'14px'}},
 
+    // Onboarding banner (first visit only)
+    showOnboarding?e('div',{style:{
+      display:'flex',alignItems:'flex-start',gap:12,padding:'10px 14px',
+      background:'#091a2a',border:'1px solid #1a3a5a',borderRadius:7,marginBottom:12,
+      fontSize:'0.82rem',color:'#9ab8d8',lineHeight:1.6}},
+      e('div',{style:{flex:1}},
+        e('span',{style:{color:'#4ECDC4',fontWeight:700}},'New here? '),
+        'This app teaches jazz guitar chord voicings — Drop 2, Drop 3, Shell, and the II–V–I progression. ',
+        e('button',{onClick:()=>{setViewMode('guide');setShowOnboarding(false);localStorage.setItem('jg-visited','1');},
+          style:{background:'transparent',border:'none',color:'#4ECDC4',cursor:'pointer',
+            fontFamily:MONO,fontSize:'0.82rem',textDecoration:'underline',padding:0}},
+          'Open the Guide'),
+        ' to get started.'
+      ),
+      e('button',{onClick:()=>{setShowOnboarding(false);localStorage.setItem('jg-visited','1');},
+        style:{background:'transparent',border:'none',color:'#4a6a8a',cursor:'pointer',
+          fontFamily:MONO,fontSize:'1rem',padding:'0 4px',lineHeight:1,minHeight:0}},
+        '✕')
+    ):null,
+
     // Header
     e('div',{style:{display:'flex',alignItems:'baseline',gap:12,marginBottom:14,
       paddingBottom:12,borderBottom:'1px solid '+BORDER,flexWrap:'wrap'}},
@@ -1116,7 +1215,7 @@ function App(){
     e('div',{style:{display:'flex',gap:4,marginBottom:12,flexWrap:'wrap',alignItems:'center'}},
       e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginRight:4}},'VIEW'),
       ['diatonic','iivi','custom','guide'].map(id=>{
-        const lbls={diatonic:'Diatonic',iivi:'II–V–I',custom:'Custom',guide:'Guide'};
+        const lbls={diatonic:'Chords in Key',iivi:'II–V–I',custom:'Any Chord',guide:'Guide'};
         return e('button',{key:id,onClick:()=>setViewMode(id),style:viewBtnStyle(id)},lbls[id]);
       })
     ),

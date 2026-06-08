@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="Jazz Gtr"/>
   <meta id="theme-meta" name="theme-color" content="#07070f"/>
   <link rel="manifest" href="manifest.json"/>
+  <script>(function(){var t=localStorage.getItem('jg-theme');if(t==='light')document.documentElement.dataset.theme='light';})();</script>
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
   <title>Jazz Guitar Voicings</title>
   <style>
@@ -29,9 +30,6 @@
       --note-non-chord: rgba(255,255,255,0.04); --note-non-chord-txt: #6060a0; --note-iv-txt: #484870;
       --act-gold: #1a1402; --act-red: #1a0808; --act-teal: #081a1a;
       --act-blue: #081520; --act-pur: #1a0a28; --act-yel: #181200;
-      --neck-wood1: #1c1508; --neck-wood2: #130e05; --neck-wood3: #0c0902;
-      --neck-edge: #2a1f08; --neck-fret: #2e2010; --neck-fret12: #4a3520;
-      --neck-inlay: #2e2010; --neck-lbl: #9a8850;
     }
     :root[data-theme="light"] {
       --bg: #f5f5fa; --bg2: #eaeaf5; --brd: #b8b8d8;
@@ -47,9 +45,6 @@
       --note-non-chord: rgba(0,0,0,0.07); --note-non-chord-txt: #505090; --note-iv-txt: #6060a0;
       --act-gold: #fff8e0; --act-red: #ffe8e8; --act-teal: #d8f5f0;
       --act-blue: #e0eefa; --act-pur: #f5e0fc; --act-yel: #fffbe0;
-      --neck-wood1: #c8a870; --neck-wood2: #b89050; --neck-wood3: #a07830;
-      --neck-edge: #8a6030; --neck-fret: #7a5828; --neck-fret12: #9a7040;
-      --neck-inlay: #7a5828; --neck-lbl: #7a5828;
     }
 
     body {
@@ -75,7 +70,6 @@
   <div id="root"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
-  <script src="https://surikov.github.io/webaudiofont/npm/dist/WebAudioFontPlayer.js" crossorigin="anonymous"></script>
   <script src="app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
