@@ -952,99 +952,187 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
 
 // ── GuideView ─────────────────────────────────────────────────────────
 function GuideView(){
-  const S={marginBottom:18,padding:'14px 16px',background:BG2,border:'1px solid '+BORDER,borderRadius:8};
+  const [expanded,setExpanded]=useState({});
+  function tog(id){setExpanded(s=>({...s,[id]:!s[id]?true:undefined}));}
+  const S={marginBottom:14,padding:'14px 16px',background:BG2,border:'1px solid '+BORDER,borderRadius:8};
   const H={fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:'var(--scale-name)',marginBottom:8};
   const P={fontSize:'0.80rem',lineHeight:1.75,color:'var(--txt)',fontFamily:MONO,marginBottom:8};
   const LI={fontSize:'0.80rem',lineHeight:1.7,color:'var(--txt)',fontFamily:MONO,paddingLeft:16};
   const HL={color:'var(--scale-name)',fontWeight:700};
-  const TC4={color:'#4ECDC4'};
-  const TRD={color:'#FF6B6B'};
-  const TBL={color:'#74C0FC'};
-  const TYL={color:'#FFD43B'};
-  function sec(title,...children){
-    return e('div',{style:S},e('div',{style:H},title),...children);
-  }
-  function p(...kids){return e('p',{style:P},...kids);}
+  const TC4={color:'#4ECDC4'};const TRD={color:'#FF6B6B'};
+  const TBL={color:'#74C0FC'};const TYL={color:'#FFD43B'};
+  function sec(title,...ch){return e('div',{style:S},e('div',{style:H},title),...ch);}
+  function p(...k){return e('p',{style:P},...k);}
   function ul(...items){return e('ul',{style:{listStyle:'none',margin:'0 0 8px'}},
-    ...items.map((it,i)=>e('li',{key:i,style:LI},'• ',it)));
+    ...items.map((it,i)=>e('li',{key:i,style:LI},'• ',it)));}
+  function callout(...k){
+    return e('div',{style:{background:'#091a2a',border:'1px solid #1a3a5a',borderRadius:6,
+      padding:'8px 12px',marginBottom:8,fontSize:'0.79rem',lineHeight:1.7,color:'#9ab8d8',fontFamily:MONO}},...k);
+  }
+  function gloss(id,term,short,...detail){
+    const open=expanded['g_'+id];
+    return e('div',{key:id,style:{borderBottom:'1px solid '+BORDER,paddingBottom:8,marginBottom:8,cursor:'pointer'},
+      onClick:()=>tog('g_'+id)},
+      e('div',{style:{display:'flex',gap:6,alignItems:'baseline'}},
+        e('span',{style:{color:GOLD,fontSize:'0.85rem',flexShrink:0,fontFamily:MONO}},open?'▾':'▸'),
+        e('span',{style:{fontFamily:MONO,fontSize:'0.84rem',fontWeight:700,color:'var(--txt)'}},term),
+        !open&&e('span',{style:{fontSize:'0.79rem',color:HINT,fontFamily:MONO}},' — '+short)
+      ),
+      open&&e('div',{style:{marginTop:6,paddingLeft:16}},
+        ...detail.map((d,i)=>e('p',{key:i,style:{...P,marginBottom:4}},d))
+      )
+    );
   }
   return e('div',{style:{maxWidth:780}},
-    sec('1 · The Core Shift: Power Chords → 7th Chords',
-      p('In blues and rock you rely on power chords and the pentatonic scale. Jazz extends every chord with a 7th — and often a 9th, 11th, or 13th. Each diatonic chord has a fixed ',e('b',{style:HL},'quality'),':'),
-      ul(
-        e('span',null,e('b',{style:TC4},'Imaj7'),'  — major 7th — stable home base'),
-        e('span',null,e('b',{style:TRD},'IIm7'),'  — minor 7th — mild tension, wants to resolve'),
-        e('span',null,e('b',{style:TYL},'V7'),'   — dominant 7th — strong pull back to I'),
-        e('span',null,e('b',{style:TBL},'IVmaj7'),' — bright, floating quality (#11 is common)'),
-        e('span',null,e('b',null,'IIIm7'),' / ',e('b',null,'VIm7'),' — minor colour in the key'),
-        e('span',null,e('b',{style:{color:'#C084FC'}},'VIIm7♭5'),' — half-diminished, dark tension')
-      ),
-      p('Drop barre chords and power chords for now. Your primary tool in jazz is the ',e('b',{style:HL},'Drop 2 voicing'),' — a four-note shape that plays cleanly on any string set.')
+    sec('Start Here — For Blues & Rock Players',
+      p('You already know the foundation. Power chords gave you intervals. Blues gave you tension and resolution. The pentatonic scale taught you "inside" vs "outside." Jazz builds directly on all of that.'),
+      p('The key shift: jazz chords have ',e('b',{style:HL},'four notes'),' instead of two or three. A G power chord (G+D) becomes Gmaj7 (G+B+D+F#). A plain G7 — which you likely already play in blues — stays a G7. You are not starting from zero.'),
+      callout(e('b',null,'What this app shows you: '),'How to finger those 4-note chords up and down the neck in every position, how they connect smoothly (voice leading), and how the core jazz progression (II–V–I) is built from them. Click any chord diagram to hear it.')
     ),
-    sec('2 · Drop 2 Voicings: Your New Vocabulary',
-      p('A Drop 2 takes a closed-position four-note chord and drops the second-highest note down an octave. The result lies naturally under the hand and sounds full on guitar.'),
-      p('Each chord has four inversions — same notes, different bass tone:'),
+    sec('1 · The Four Chord Qualities',
+      p('All jazz harmony uses four chord types. You likely know two already:'),
       ul(
-        'Root position  — 5th in bass',
-        '1st inversion  — 7th in bass',
-        '2nd inversion  — 3rd in bass',
-        '3rd inversion  — root in bass'
+        e('span',null,e('b',{style:TC4},'Major 7 (maj7)'),' — ',e('i',null,'stable, "jazzy"'),'. The I and IV chords in a major key. Built from root–3–5–7. Think the lush opening chord of a jazz ballad.'),
+        e('span',null,e('b',{style:TRD},'Minor 7 (m7)'),' — ',e('i',null,'smooth, darker'),'. Common in rock (Em7, Am7). Built from root–♭3–5–♭7. The II and VI chords in a major key.'),
+        e('span',null,e('b',{style:TYL},'Dominant 7 (7)'),' — ',e('i',null,'bluesy tension'),'. The exact same G7, C7, D7 from a 12-bar blues. Built from root–3–5–♭7. The V chord. Creates the strongest pull toward resolution.'),
+        e('span',null,e('b',{style:{color:'#C084FC'}},'Half-diminished (m7♭5 / ø7)'),' — ',e('i',null,'dark, unstable'),'. Uncommon in rock. Built from root–♭3–♭5–♭7. The VII chord in major keys; the II chord in minor II–V–I.')
       ),
-      p('Work through all four inversions on the ',e('b',{style:TC4},'4-3-2-1 string set'),' first (top four strings). Then learn the same inversions on ',e('b',null,'5-4-3-2'),' and ',e('b',null,'6-5-4-3'),'. Use the ',e('b',{style:HL},'Diatonic view'),' to explore every inversion for every chord in your chosen key.')
+      callout(e('b',null,'Blues shortcut: '),'In a 12-bar blues your IV7 and V7 create and release tension. The II–V–I works the same way — IIm7 sets up tension, V7 heightens it, Imaj7 resolves it. You already hear this motion; jazz just names and systematises it.')
+    ),
+    sec('2 · Drop 2 — The Core Guitar Shape',
+      p('A ',e('b',{style:HL},'Drop 2'),' voicing takes four chord notes stacked tightly and moves the second-highest note down an octave. The result fits naturally across four adjacent guitar strings.'),
+      p('Each chord has four ',e('b',{style:HL},'inversions'),' — same notes, different note in the bass:'),
+      ul(
+        e('span',null,e('b',null,'Root position'),' — root in the bass (most stable)'),
+        e('span',null,e('b',null,'1st inversion'),' — 3rd in the bass'),
+        e('span',null,e('b',null,'2nd inversion'),' — 5th in the bass'),
+        e('span',null,e('b',null,'3rd inversion'),' — 7th in the bass (creates the most forward motion)')
+      ),
+      callout('Click any chord diagram in the app to hear it played. Click a different inversion of the same chord — notice it\'s the same four notes, voiced at different positions up the neck.')
     ),
     sec('3 · The II–V–I: The Backbone of Jazz',
-      p('The II–V–I is the fundamental jazz progression — analogous to the I–IV–V in blues. It appears in virtually every jazz standard, in every key, sometimes multiple times per chorus.'),
-      p(e('b',{style:HL},'In the key of C:'),'  Dm7  →  G7  →  Cmaj7'),
-      p('Standard length: ',e('b',null,'II = 1 bar, V = 1 bar, I = 2 bars'),'.'),
-      p('The IIm7 and V7 share three notes. The tritone in the V7 (3rd to 7th) resolves by half-step into the Imaj7. That pull is the engine of jazz harmony.'),
-      p('Use the ',e('b',{style:HL},'II–V–I view'),' with play-along to drill this progression. Choose a II voicing and the app will auto-select voice-led inversions for V and I.')
-    ),
-    sec('4 · Voice Leading: How to Sound Like Jazz',
-      p('Voice leading means moving each note as little as possible between chords. Instead of jumping shapes up the neck, let notes flow by step or half-step.'),
-      p(e('b',{style:HL},'The classic voice-led II–V–I on the top string set:')),
+      p('The II–V–I is to jazz what I–IV–V is to blues. It appears in virtually every jazz standard, in every key, often multiple times per chorus.'),
+      p(e('b',{style:HL},'In C major:  '),e('b',{style:TRD},'Dm7'),' (II) → ',e('b',{style:TYL},'G7'),' (V) → ',e('b',{style:TC4},'Cmaj7'),' (I)'),
       ul(
-        'IIm7  3rd inversion  →  V7  2nd inversion  →  Imaj7  root position',
-        'Each note moves only a half- or whole-step between chords',
-        'The 7th of IIm7 becomes the 3rd of V7 — this "guide tone" connection is the key sound'
+        e('span',null,e('b',{style:TRD},'IIm7'),' — mild tension, sets up the progression'),
+        e('span',null,e('b',{style:TYL},'V7'),' — strong tension; the ♭7 and 3rd form a tritone that pulls hard to resolution'),
+        e('span',null,e('b',{style:TC4},'Imaj7'),' — resolution, home; in minor II–V–I this becomes Im7')
       ),
-      p('The play-along auto-selects the smoothest V and I inversions from whatever II inversion you choose. Practise until changing between these shapes feels as natural as a pentatonic lick.')
+      p('Standard timing: II = 1 bar, V = 1 bar, I = 2 bars. The ',e('b',{style:HL},'II–V–I view'),' lets you drill this with play-along. Pick a II inversion and the app auto-selects smooth V and I inversions.')
     ),
-    sec('5 · Chord-Scale Relationships',
-      p('Every chord quality has one or more compatible scales. Start diatonic (inside the key), then explore colours outside it:'),
+    sec('4 · Voice Leading: The Jazz Secret',
+      p(e('b',{style:HL},'Voice leading'),' means moving each note of a chord to the nearest possible note in the next chord, instead of jumping positions up and down the neck.'),
+      p('Rock analogy: when you stay in one neck position and slide or lift one finger to change chords, that\'s basic voice leading. Jazz formalises this — find the inversion of the next chord that requires the least movement.'),
+      p(e('b',{style:HL},'Classic voice-led II–V–I path (top strings, key of C):')),
       ul(
-        e('span',null,e('b',{style:TC4},'Imaj7'),'   → Ionian (plain major) or ',e('b',null,'Lydian'),' (#11 — bright, floating)'),
-        e('span',null,e('b',{style:TRD},'IIm7'),'    → ',e('b',null,'Dorian'),' (nat. 6 brightens minor) — the jazz minor scale'),
-        e('span',null,e('b',{style:TYL},'V7'),'      → Mixolydian (safe) or ',e('b',null,'Altered'),' (b9 #9 b5 — maximum tension)'),
-        e('span',null,e('b',null,'IVmaj7'),'  → Lydian — the natural scale for this chord'),
-        e('span',null,e('b',{style:{color:'#C084FC'}},'VIIm7♭5'),' → Locrian nat.2 (softer) or Locrian (full tension)')
+        'Dm7 3rd inversion → G7 2nd inversion → Cmaj7 root position',
+        'Each note moves by a half-step or whole-step — no jumping across the neck',
+        'The 3rd and 7th of each chord (the "guide tones") resolve by half-step into the next chord'
       ),
-      p('The Diatonic view shows each scale on the neck. Chord tones are coloured; scale non-chord-tones appear faintly. Spend time learning the ',e('b',{style:TYL},'Altered scale'),' over the V7 — it is the defining sound of modern jazz.')
+      callout(e('b',null,'Guide tones: '),'The 3rd and 7th of a chord are its most important notes — they define its quality. In G7, the 3rd (B) and ♭7 (F) form a tritone. When G7 resolves to Cmaj7, B moves to C or stays, and F resolves down to E. These half-step resolutions are the engine of jazz harmony.')
     ),
-    sec('6 · Using This App: A Practice Routine',
+    sec('5 · Scales Over Chords',
+      p('In blues you play pentatonic over everything. In jazz, each chord quality has its own compatible scale, letting you improvise with precise harmonic colour.'),
+      p('Start diatonic (only using notes in the key), then explore outside:'),
       ul(
-        e('span',null,e('b',{style:HL},'Week 1'),': One key, one string set (4-3-2-1). Play all seven diatonic chords, root position Drop 2 only. Say the chord name aloud.'),
-        e('span',null,e('b',{style:HL},'Week 2'),': Add all four inversions for each chord. Now you have 28 shapes in the key. Cycle: I → II → III → IV → V → VI → VII → I.'),
-        e('span',null,e('b',{style:HL},'Week 3'),': Focus on II–V–I. Learn the classic voice-led sequence. Run it with play-along at 60 BPM, bass on.'),
-        e('span',null,e('b',{style:HL},'Week 4'),': Transpose to a new key. Repeat. Aim for all 12 keys over 3 months.'),
-        e('span',null,e('b',{style:HL},'Ongoing'),': Open the Scale panel. Over the V7, switch to Altered and learn to hear the tension. Over IIm7, use Dorian. Start transcribing.')
+        e('span',null,e('b',{style:TC4},'Over Imaj7'),' → Ionian (plain major) or Lydian — adds a #11, floating and bright'),
+        e('span',null,e('b',{style:TRD},'Over IIm7'),' → Dorian — like natural minor with a natural 6th; the standard jazz minor sound'),
+        e('span',null,e('b',{style:TYL},'Over V7'),' → Mixolydian (safe, major with ♭7) or ',e('b',null,'Altered'),' (♭9 ♯9 ♯11 ♭13 — maximum tension, the bebop sound)'),
+        e('span',null,e('b',null,'Over IVmaj7'),' → Lydian'),
+        e('span',null,e('b',{style:{color:'#C084FC'}},'Over VIIm7♭5'),' → Locrian nat.2 (softer) or Locrian')
+      ),
+      callout(e('b',null,'Practical start: '),'Just play diatonically for now. When the V7 hits, try adding a ♭9 or ♯9 to your licks — you\'re naturally leaning toward the Altered sound. The Diatonic view shows scales on the neck so you can see exactly which notes are available.')
+    ),
+    sec('6 · Practice Routine',
+      ul(
+        e('span',null,e('b',{style:HL},'Week 1'),': One key (C to start). In "Chords in Key," go through all 7 chords, root position Drop 2 only, on the 4-3-2-1 string set. Click each to hear it. Say the chord name aloud.'),
+        e('span',null,e('b',{style:HL},'Week 2'),': All 4 inversions of each chord — 28 shapes total. Cycle: Imaj7 root → 1st → 2nd → 3rd → IIm7 root → ... Keep tempo slow and even.'),
+        e('span',null,e('b',{style:HL},'Week 3'),': Switch to II–V–I. Pick your favourite II inversion. Hit Play at 60 BPM with bass on. Follow the chord labels and shapes as the progression loops.'),
+        e('span',null,e('b',{style:HL},'Week 4'),': New key — G is a good second choice. Repeat the full sequence. Aim for all 12 keys over 3 months.'),
+        e('span',null,e('b',{style:HL},'Ongoing'),': Open the Scale panel in Chords in Key. Over the V7, switch to Altered and hear the tension. Start transcribing simple melodies from recordings.')
+      )
+    ),
+    e('div',{style:S},
+      e('div',{style:H},'Glossary — click any term'),
+      gloss('7th','7th chord','A chord built from 4 notes instead of 3 — adds a 7th interval.',
+        'A triad (power chord + major third) has 3 notes: root–3rd–5th. A 7th chord adds one more third on top: the 7th. This extra note creates the richer, more complex sound of jazz. The 7th can be major (a half-step below the octave, giving maj7), minor/flat (a whole-step below, giving dominant 7 or minor 7), or diminished.',
+        'In practice: a plain "G" triad is G–B–D. "Gmaj7" adds F#. "G7" adds F♮ (flat 7). "Gm7" adds both ♭3 and ♭7: G–B♭–D–F.'
+      ),
+      gloss('maj7','Major 7 (maj7)','The "jazzy" stable chord — the 7th is a half-step below the octave.',
+        'Spelled root–3–5–7: Cmaj7 = C–E–G–B. The major 7th (B in C major) creates a lush, slightly tense sound — it sits one half-step below the octave C, like a gentle lean toward resolution that never quite arrives. This is the I chord in a major key.',
+        'Rock references: the Bm7 → Amaj7 in "Something" by The Beatles, bossa nova guitar, Steely Dan\'s sophisticated chord sound. Major 7 is the defining colour of jazz ballads and smooth pop.'
+      ),
+      gloss('dom7','Dominant 7 (7)','The "bluesy" tension chord — creates strong pull toward resolution.',
+        'Spelled root–3–5–♭7: G7 = G–B–D–F. The ♭7 (F) and the 3rd (B) are 6 half-steps apart — a tritone, the maximally tense interval. This creates a powerful pull toward the I chord a fifth below (G7 resolves to C).',
+        'You already play these in blues: G7–C7–D7 in a 12-bar in G. In jazz the V7 is this chord, and it\'s the engine of the II–V–I. Adding altered tensions (♭9, ♯9, ♭13) makes it progressively "jazzier."'
+      ),
+      gloss('m7','Minor 7 (m7)','A smooth, darker chord — less tense than dominant 7.',
+        'Spelled root–♭3–5–♭7: Dm7 = D–F–A–C. The flat 3rd gives it a minor quality; the flat 7th (shared with dominant 7) prevents it from feeling fully settled. It\'s mid-air — not tense enough to demand resolution, not stable enough to feel like home.',
+        'Em7, Am7, Dm7 all appear in rock and pop. In jazz the IIm7 chord is the starting point of the II–V–I. Dorian mode (natural minor with a raised 6th) is the standard improv scale choice over IIm7.'
+      ),
+      gloss('halfdim','Half-diminished (m7♭5, ø7)','A tense chord with a flattened 5th — rarer in rock, common in jazz.',
+        'Spelled root–♭3–♭5–♭7: Bm7♭5 in C major = B–D–F–A. The flattened 5th adds instability beyond a regular minor 7. This chord naturally occurs on the VII degree of a major scale and on the II degree of a minor scale (where it\'s labelled IIø or IIm7♭5).',
+        'In the app, switch to Minor mode in the II–V–I view to hear this chord as the IIø chord. It resolves through the V7 (usually with a ♭9) to the Im7.'
+      ),
+      gloss('inv','Inversion','Which note of the chord is at the lowest pitch.',
+        'All four inversions of Cmaj7 contain the same four notes: C, E, G, B. The difference is which note sits at the bottom. Root position: C in bass. 1st inversion: E in bass. 2nd inversion: G in bass. 3rd inversion: B in bass.',
+        'Why it matters: different inversions place the chord at different positions on the neck, creating different bass motion and voice leading possibilities. The 3rd inversion (7th in bass) creates the most forward momentum into the next chord. Mixing inversions is how you voice-lead a progression smoothly.'
+      ),
+      gloss('drop2','Drop 2','A specific way to arrange 4 chord notes across 4 adjacent guitar strings.',
+        'Start with a "closed" position chord — all four notes stacked as tightly as possible within one octave. Take the second-highest note and move it down one octave. This spreads the chord across the strings in a natural, playable span.',
+        'Example: Cmaj7 closed = E–G–B–C (low to high, all within one octave). Drop 2: take the B (2nd from top) and drop it an octave → B–E–G–C. This maps neatly to strings 4-3-2-1. Drop 2 is the most common jazz guitar voicing because the physical span fits the human hand and the chord sounds full without being muddy.'
+      ),
+      gloss('vl','Voice leading','Moving each note of a chord to the nearest note in the next chord.',
+        'Instead of jumping shapes around the neck, find the inversion of the next chord where each individual note moves the smallest possible distance — ideally a half-step or whole-step. Each "voice" (string) leads smoothly to its counterpart.',
+        'In practice: if you play Dm7 3rd inversion then G7 2nd inversion, each string only moves 1–2 frets. Compare that to jumping from open Dm7 to a 3rd-fret barre G7 — same chords, much bigger movement. Voice-led changes sound connected and intentional rather than choppy.',
+        'The II–V–I view\'s play-along auto-selects the best V and I inversions based on whichever II inversion you pick.'
+      ),
+      gloss('guide','Guide tones','The 3rd and 7th of a chord — the notes that define its quality and move most dramatically.',
+        'The root and 5th of a chord are "neutral" — they identify the chord but don\'t tell you much about its quality. The 3rd tells you major vs. minor. The 7th tells you major 7 vs. dominant 7 vs. minor 7. These two notes are called guide tones.',
+        'In a G7 → Cmaj7 resolution: the 3rd of G7 (B) resolves up a half-step to C (the root of Cmaj7), and the 7th of G7 (F) resolves down a half-step to E (the 3rd of Cmaj7). These two half-step movements are the engine of jazz harmony. Practise hearing them in the play-along bass line.'
+      ),
+      gloss('diat','Diatonic','Using only the 7 notes of the key — playing "inside."',
+        'The C major scale has 7 notes: C D E F G A B. Any note, chord, or phrase using only these 7 notes is "diatonic to C major." The 7 diatonic chords of C major are: Cmaj7, Dm7, Em7, Fmaj7, G7, Am7, Bm7♭5.',
+        '"Chromatic" or "outside" means using notes not in the key. Jazz soloists move in and out deliberately — inside for stability, outside for tension. The Chords in Key view shows all 7 diatonic chords; the Scale panel shows exactly which scale notes are available over each one.'
+      ),
+      gloss('shell','Shell voicing','A 3-note chord using just root, 3rd, and 7th — the 5th is omitted.',
+        'The 5th adds little harmonic information that the other notes don\'t already provide, so shells strip it out, leaving a minimal but complete harmonic statement. The result is open-sounding and leaves room for other instruments.',
+        'Shell Form A uses skip-string layouts (e.g., strings 6-4-3). Form B uses adjacent strings (e.g., strings 6-5-4). Shells are often the first step toward playing with a bassist, since they leave the low end uncluttered. Find them in the Any Chord view under "Shell."'
+      ),
+      gloss('rootless','Rootless voicing','A 4-note chord where the 9th replaces the root.',
+        'When a bassist plays the root, your guitar chord can drop the root entirely and substitute the 9th (an octave above the 2nd scale degree). The chord becomes richer and more complex, and doesn\'t double the bass player\'s note.',
+        'Type A voicings (3-5-7-9) have the 3rd at the bottom. Type B (7-9-3-5) have the 7th at the bottom. These are the voicings you\'ll hear Bill Evans and other jazz pianists use. On guitar they live on the middle strings (4-3-2-1 or 5-4-3-2). Find them in Any Chord view under "Rootless."'
+      ),
+      gloss('arp','Arpeggio','Playing chord notes one at a time instead of simultaneously.',
+        'An arpeggio is the melodic version of a chord — the notes played in sequence like a harp (the word comes from the Italian "arpa"). Every chord position on the neck can become a melodic pattern by playing the notes one at a time.',
+        'In jazz improv, arpeggios outline the chord changes with precision: instead of running a pentatonic lick through everything, you follow the exact chord tones. This is fundamental to bebop — Charlie Parker and Dizzy Gillespie improvised by rapidly arpeggiating through the chord changes. The Arpeggio view shows all chord-tone positions across the neck.'
+      ),
+      gloss('modes','Modes (Dorian, Lydian, Mixolydian, Altered...)','Scales built from the same notes as a major scale but starting on a different degree.',
+        'The C major scale is C D E F G A B. If you start on D and play through all 7 notes back to D, you get D Dorian: D E F G A B C. Same notes as C major, different starting pitch — and a completely different flavour. Each of the 7 starting positions creates a different mode.',
+        'Dorian (start on 2nd degree): minor feel with a natural 6th — the standard scale for IIm7. Lydian (4th degree): major feel with a raised 4th (#11) — bright, floating, for Imaj7 or IVmaj7. Mixolydian (5th degree): major feel with a ♭7 — the sound of dominant 7. Altered (7th mode of melodic minor): all tensions altered (♭9 ♯9 ♭13) — maximum outside tension over V7.',
+        'Start diatonic. As your ear develops, let the modes label what you\'re already hearing.'
+      ),
+      gloss('roman','Roman numerals (I, II, V...)','Labels for chord positions in a key — work the same in any key.',
+        'In C major: I=Cmaj7, II=Dm7, III=Em7, IV=Fmaj7, V=G7, VI=Am7, VII=Bm7♭5. In G major: I=Gmaj7, II=Am7, V=D7. The Roman numeral names the scale degree; the chord quality (maj7, m7, 7) is stated separately. This lets musicians say "II–V–I in B♭" and every player knows exactly which chords are meant.',
+        'Upper-case numerals (I, II, V) are used for all chords in jazz shorthand — the quality is indicated by the suffix. Lower-case (i, ii) sometimes indicates minor in classical notation, but in jazz the written suffix (m7, maj7) does that job instead.'
       )
     ),
     sec('7 · Next Steps & Listening',
       p('This app covers the core vocabulary. Beyond it:'),
       ul(
-        e('span',null,e('b',null,'Shell voicings'),' — R + 7 + 3, three strings. Minimal, leaves room for a bass player.'),
-        e('span',null,e('b',null,'Rootless voicings'),' — 9th replaces root. Floats over a walking bass line.'),
-        'Drop 3 voicings, extensions (9ths, 11ths, 13ths), tritone substitution, reharmonisation.'
+        e('span',null,e('b',null,'Rootless voicings'),' — richer sound for playing with a bassist; see Any Chord view'),
+        e('span',null,e('b',null,'Drop 3'),' — similar to Drop 2, with a string gap; useful for bass-note chord melodies'),
+        'Extensions (9ths, 11ths, 13ths), tritone substitution, reharmonisation, comping rhythms.'
       ),
-      p(e('b',{style:HL},'Transcribe these players:')),
+      p(e('b',{style:HL},'Players to study:')),
       ul(
-        e('span',null,e('b',null,'Wes Montgomery'),' — warmth, octaves, seamless single-line comping'),
-        e('span',null,e('b',null,'Joe Pass'),' — solo jazz guitar master; walking bass + chords simultaneously'),
-        e('span',null,e('b',null,'Pat Martino'),' — linear, aggressive, post-bop lines'),
-        e('span',null,e('b',null,'Jim Hall'),' — space, restraint, and voice-leading perfection'),
-        e('span',null,e('b',null,'Kurt Rosenwinkel'),' — modern harmony, complex extensions')
+        e('span',null,e('b',null,'Wes Montgomery'),' — warmth, soulful feel, octave technique; most accessible entry point from rock/blues'),
+        e('span',null,e('b',null,'Joe Pass'),' — solo jazz guitar; walking bass + chords simultaneously; study his solo recordings'),
+        e('span',null,e('b',null,'Pat Martino'),' — aggressive post-bop, strong connection to blues-rock energy'),
+        e('span',null,e('b',null,'Jim Hall'),' — space, restraint, textbook voice leading in every phrase'),
+        e('span',null,e('b',null,'Kurt Rosenwinkel'),' — modern harmony, complex extensions, guitar-forward sound')
       ),
-      p('Start with a standard: ',e('b',{style:HL},'Autumn Leaves'),', ',e('b',{style:HL},'All The Things You Are'),', or ',e('b',{style:HL},'There Will Never Be Another You'),'. Learn the melody first, then the chords, then comp along to a recording.')
+      p('Start with a standard: ',e('b',{style:HL},'Autumn Leaves'),' (minor and major II–V–I back to back), ',e('b',{style:HL},'All The Things You Are'),' (moves through many keys), or ',e('b',{style:HL},'There Will Never Be Another You'),' (clear changes, medium tempo). Learn the melody first, then the chords, then comp along to a recording.')
     )
   );
 }
@@ -1197,14 +1285,20 @@ function App(){
       e('span',{style:{fontFamily:SERIF,fontSize:'1.45rem',fontWeight:700,color:'var(--scale-name)'}},'Jazz Guitar Voicings'),
       e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',textTransform:'uppercase',flexGrow:1}},
         'Drop 2 · Drop 3 · Shell · Rootless · Arpeggio · Parent Scales'),
+      e('button',{onClick:()=>setViewMode('guide'),style:{
+        padding:'4px 12px',borderRadius:4,cursor:'pointer',fontFamily:MONO,fontSize:'0.72rem',
+        border:'1px solid '+(viewMode==='guide'?'#4ECDC4':BTN_BRD),
+        background:viewMode==='guide'?ACT_TEAL:BG2,
+        color:viewMode==='guide'?'#4ECDC4':BTN_OFF,
+        minHeight:36,flexShrink:0}},'? Guide'),
       e('button',{onClick:toggleTheme,style:{padding:'4px 12px',borderRadius:4,cursor:'pointer',
         fontFamily:MONO,fontSize:'0.72rem',border:'1px solid '+BTN_BRD,background:BG2,
         color:BTN_OFF,minHeight:36,flexShrink:0}},
         theme==='dark'?'☀ Light':'☾ Dark')
     ),
 
-    // Key selector (hidden in custom mode — key not relevant there)
-    viewMode!=='custom'?e('div',{style:{marginBottom:10}},
+    // Key selector (hidden in custom/guide mode)
+    viewMode!=='custom'&&viewMode!=='guide'?e('div',{style:{marginBottom:10}},
       e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginBottom:6}},'KEY'),
       e('div',{style:{display:'flex',flexWrap:'wrap',gap:3}},
         KEYS.map((k,i)=>e('button',{key:i,onClick:()=>setKey(i),style:keyBtnStyle(i)},k.name))
@@ -1214,8 +1308,8 @@ function App(){
     // View mode switcher
     e('div',{style:{display:'flex',gap:4,marginBottom:12,flexWrap:'wrap',alignItems:'center'}},
       e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginRight:4}},'VIEW'),
-      ['diatonic','iivi','custom','guide'].map(id=>{
-        const lbls={diatonic:'Chords in Key',iivi:'II–V–I',custom:'Any Chord',guide:'Guide'};
+      ['diatonic','iivi','custom'].map(id=>{
+        const lbls={diatonic:'Chords in Key',iivi:'II–V–I',custom:'Any Chord'};
         return e('button',{key:id,onClick:()=>setViewMode(id),style:viewBtnStyle(id)},lbls[id]);
       })
     ),
