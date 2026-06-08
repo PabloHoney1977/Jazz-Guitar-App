@@ -1,6 +1,6 @@
 "use strict";
 const e = React.createElement;
-const {useState, useMemo, useEffect} = React;
+const {useState, useMemo, useEffect, useRef} = React;
 
 // ── Tuning ───────────────────────────────────────────────────────────
 const OPEN_MIDI=[40,45,50,55,59,64];
@@ -372,11 +372,35 @@ const mkSsBtn=(active)=>({
   color:active?'#74C0FC':BTN_OFF,fontWeight:active?700:400,minHeight:44,
 });
 
+// beat index → [chordIdx (0=II,1=V,2=I), toneIdx]
+const BEAT_MAP=[
+  [0,0],[0,1],[0,2],[0,3],  // bar 1: IIm7  R  b3  5  b7
+  [1,0],[1,1],[1,2],[1,3],  // bar 2: V7    R   3  5  b7
+  [2,0],[2,1],[2,2],[2,3],  // bar 3: Imaj7 R   3  5  Δ7
+  [2,0],[2,2],[2,1],[2,0],  // bar 4: Imaj7 R   5  3  R
+];
+
 // ── IIVIView ──────────────────────────────────────────────────────────
 function IIVIView({keyIdx}){
   const [strSetIdx,setStrSetIdx]=useState(2);
   const [invIdxs,setInvIdxs]=useState([0,0,0]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
+  const [isPlaying,setIsPlaying]=useState(false);
+  const [bpm,setBpm]=useState(120);
+  const [bassEnabled,setBassEnabled]=useState(false);
+  const [playingChordIdx,setPlayingChordIdx]=useState(null);
+  const [playingBar,setPlayingBar]=useState(null);
+
+  const audioCtxRef=useRef(null);
+  const timerRef=useRef(null);
+  const nextTimeRef=useRef(0);
+  const beatRef=useRef(0);
+  const genRef=useRef(0);
+  const bpmRef=useRef(bpm);
+  const bassRef=useRef(bassEnabled);
+  const chordsRef=useRef(null);
+  bpmRef.current=bpm;
+  bassRef.current=bassEnabled;
 
   // II=deg1, V=deg4, I=deg0
   const chords=[1,4,0].map(deg=>{
@@ -386,6 +410,7 @@ function IIVIView({keyIdx}){
     return{rootPC,quality,tones,dnames:DNAMES[quality],
       name:nn(rootPC,keyIdx)+QSYMS[deg],roman:ROMAN[deg]};
   });
+  chordsRef.current=chords;
 
   const ssIdx=Math.min(strSetIdx,D2_SETS.length-1);
   const ss=D2_SETS[ssIdx].s;
@@ -402,6 +427,87 @@ function IIVIView({keyIdx}){
     });
   },[activeVoicings,invIdxs,activeChordIdx,strSetIdx]);
 
+  function playBassNote(ctx,pc,startTime,beatDur,accent){
+    const midi=48+((pc%12+12)%12);
+    const freq=440*Math.pow(2,(midi-69)/12);
+    const osc=ctx.createOscillator();
+    const filt=ctx.createBiquadFilter();
+    const gain=ctx.createGain();
+    osc.type='triangle';
+    osc.frequency.value=freq;
+    filt.type='lowpass';
+    filt.frequency.value=900;
+    filt.Q.value=0.7;
+    const pk=accent?0.48:0.30;
+    gain.gain.setValueAtTime(0,startTime);
+    gain.gain.linearRampToValueAtTime(pk,startTime+0.018);
+    gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.88);
+    osc.connect(filt);filt.connect(gain);gain.connect(ctx.destination);
+    osc.start(startTime);osc.stop(startTime+beatDur);
+  }
+
+  function startPlayback(){
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    audioCtxRef.current=ctx;
+    nextTimeRef.current=ctx.currentTime+0.05;
+    beatRef.current=0;
+    const gen=++genRef.current;
+    setIsPlaying(true);
+    function tick(){
+      if(!audioCtxRef.current) return;
+      const beatDur=60/bpmRef.current;
+      while(nextTimeRef.current < audioCtxRef.current.currentTime+0.12){
+        const beat=beatRef.current%16;
+        const bar=Math.floor(beat/4);
+        const [ci,ti]=BEAT_MAP[beat];
+        const delay=Math.max(0,(nextTimeRef.current-audioCtxRef.current.currentTime)*1000);
+        setTimeout(()=>{if(genRef.current===gen){setPlayingChordIdx(ci);setPlayingBar(bar);}},delay);
+        if(bassRef.current && chordsRef.current){
+          playBassNote(ctx,chordsRef.current[ci].tones[ti],nextTimeRef.current,beatDur,beat%4===0);
+        }
+        nextTimeRef.current+=beatDur;
+        beatRef.current++;
+      }
+      timerRef.current=setTimeout(tick,25);
+    }
+    tick();
+  }
+
+  function stopPlayback(){
+    genRef.current++;
+    clearTimeout(timerRef.current);
+    if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
+    setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
+  }
+
+  // cleanup on unmount
+  useEffect(()=>()=>{
+    genRef.current++;
+    clearTimeout(timerRef.current);
+    if(audioCtxRef.current)audioCtxRef.current.close();
+  },[]);
+
+  // stop when key changes
+  useEffect(()=>{
+    genRef.current++;
+    clearTimeout(timerRef.current);
+    if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
+    setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
+  },[keyIdx]);
+
+  const BAR_ROMAN=['II','V','I','I'];
+  const playBtn={padding:'6px 18px',background:isPlaying?'#1a0808':'#081a0e',
+    border:'1px solid '+(isPlaying?'#FF6B6B':'#4ECDC4'),borderRadius:6,
+    color:isPlaying?'#FF6B6B':'#4ECDC4',cursor:'pointer',fontFamily:MONO,
+    fontSize:'0.85rem',fontWeight:'bold',letterSpacing:'1px',minHeight:44};
+  const bpmStepBtn={padding:'4px 11px',background:'transparent',
+    border:'1px solid '+BTN_BRD,borderRadius:4,color:BTN_OFF,cursor:'pointer',
+    fontFamily:MONO,fontSize:'0.9rem',minHeight:44};
+  const bassBtn={padding:'6px 14px',background:bassEnabled?'#080f1a':'transparent',
+    border:'1px solid '+(bassEnabled?'#74C0FC':BTN_BRD),borderRadius:6,
+    color:bassEnabled?'#74C0FC':BTN_OFF,cursor:'pointer',fontFamily:MONO,
+    fontSize:'0.82rem',minHeight:44};
+
   return e('div',null,
     // String set selector
     e('div',{style:{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap',alignItems:'center'}},
@@ -409,6 +515,26 @@ function IIVIView({keyIdx}){
       D2_SETS.map((set,i)=>
         e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
       )
+    ),
+    // Play-along controls
+    e('div',{style:{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginBottom:10,
+      padding:'8px 12px',background:BG2,border:'1px solid '+BORDER,borderRadius:6}},
+      e('span',{style:{fontSize:'0.75rem',color:LBL,letterSpacing:'2px',marginRight:2}},'PLAY-ALONG'),
+      e('button',{onClick:isPlaying?stopPlayback:startPlayback,style:playBtn},
+        isPlaying?'■ STOP':'▶ PLAY'),
+      e('div',{style:{display:'flex',gap:4,alignItems:'center'}},
+        e('button',{onClick:()=>setBpm(b=>Math.max(40,b-5)),style:bpmStepBtn},'−'),
+        e('span',{style:{minWidth:38,textAlign:'center',color:'#d0d0e8',fontFamily:MONO,fontSize:'0.92rem',
+          padding:'0 4px'}},bpm),
+        e('button',{onClick:()=>setBpm(b=>Math.min(300,b+5)),style:bpmStepBtn},'+'),
+        e('span',{style:{fontSize:'0.75rem',color:HINT,marginLeft:2}})
+      ),
+      e('button',{onClick:()=>setBassEnabled(v=>!v),style:bassBtn},'♩ BASS LINE'),
+      isPlaying&&playingBar!==null
+        ?e('span',{style:{fontSize:'0.8rem',color:'#FFD43B',fontFamily:MONO,
+            padding:'4px 10px',border:'1px solid #4a3a00',borderRadius:4,background:'#1a1400'}},
+            'Bar '+(playingBar+1)+' · '+BAR_ROMAN[playingBar])
+        :null
     ),
     // Neck label
     e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginBottom:4}},
@@ -426,12 +552,16 @@ function IIVIView({keyIdx}){
       chords.map((chord,ci)=>{
         const voicings=D2_INV.map(inv=>calcVoicing(ss,inv.a,chord.tones));
         const isActive=activeChordIdx===ci;
+        const isNowPlaying=playingChordIdx===ci;
+        const borderColor=isNowPlaying?'#FFD43B':isActive?'#4ECDC4':BORDER;
+        const bgColor=isNowPlaying?'#181200':isActive?'#0a1a1a':BG2;
+        const romanColor=isNowPlaying?'#FFD43B':isActive?'#4ECDC4':LBL;
         return e('div',{key:ci,style:{flex:'1 1 200px',minWidth:190}},
-          // Chord header — click to focus on neck
-          e('div',{style:{marginBottom:8,padding:'8px 12px',background:isActive?'#0a1a1a':BG2,
-            border:'1px solid '+(isActive?'#4ECDC4':BORDER),borderRadius:6,cursor:'pointer'},
+          e('div',{style:{marginBottom:8,padding:'8px 12px',background:bgColor,
+            border:'1px solid '+borderColor,borderRadius:6,cursor:'pointer',
+            transition:'border-color 0.12s,background 0.12s'},
             onClick:()=>setActiveChordIdx(ci)},
-            e('div',{style:{fontSize:'0.73rem',color:isActive?'#4ECDC4':LBL,letterSpacing:'2px',marginBottom:2}},chord.roman),
+            e('div',{style:{fontSize:'0.73rem',color:romanColor,letterSpacing:'2px',marginBottom:2}},chord.roman),
             e('div',{style:{fontFamily:SERIF,fontSize:'1.1rem',fontWeight:700,color:'#d4a855',marginBottom:4}},chord.name),
             e('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
               chord.tones.map((t,ti)=>
