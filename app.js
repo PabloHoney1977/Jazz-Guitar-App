@@ -86,14 +86,20 @@ const TC    =['#FF6B6B','#4ECDC4','#74C0FC','#FFD43B'];
 const TC_DIM=['#FF6B6B55','#4ECDC455','#74C0FC55','#FFD43B55'];
 const TC_RIM=['#FF6B6B99','#4ECDC499','#74C0FC99','#FFD43B99'];
 const TC_RL =['#C084FC','#4ECDC4','#74C0FC','#FFD43B'];
-const BG    ='var(--bg)';
-const BG2   ='var(--bg2)';
-const BORDER='var(--brd)';
-const LBL   ='var(--lbl)';
-const HINT  ='var(--hint)';
+const BG     ='var(--bg)';
+const BG2    ='var(--bg2)';
+const BORDER ='var(--brd)';
+const LBL    ='var(--lbl)';
+const HINT   ='var(--hint)';
 const BTN_OFF='var(--btn-off)';
 const BTN_BRD='var(--btn-brd)';
-const GOLD  ='var(--gold-txt)';
+const GOLD   ='var(--gold)';
+const ACT_GOLD='var(--act-gold)';
+const ACT_RED ='var(--act-red)';
+const ACT_TEAL='var(--act-teal)';
+const ACT_BLUE='var(--act-blue)';
+const ACT_PUR ='var(--act-pur)';
+const ACT_YEL ='var(--act-yel)';
 const MONO  ="'Courier New',monospace";
 const SERIF ="Georgia,serif";
 
@@ -178,6 +184,59 @@ function getScalePos(rootPC,scaleIv,chordTones){
   return out;
 }
 
+function findBestInvIdx(prevVoicing,candidates){
+  if(!prevVoicing) return 0;
+  let best=0,bestScore=Infinity;
+  candidates.forEach((v,i)=>{
+    if(!v) return;
+    const score=v.frets.reduce((sum,f,j)=>sum+Math.abs(f-prevVoicing.frets[j]),0);
+    if(score<bestScore){bestScore=score;best=i;}
+  });
+  return best;
+}
+
+function makeClickBuf(ctx,freq,vol){
+  const sr=ctx.sampleRate;
+  const len=Math.round(sr*0.04);
+  const buf=ctx.createBuffer(1,len,sr);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<len;i++){
+    const t=i/sr;
+    d[i]=vol*Math.exp(-t*200)*Math.sin(2*Math.PI*freq*t);
+  }
+  return buf;
+}
+
+function playClick(ctx,buf,startTime){
+  const src=ctx.createBufferSource();
+  src.buffer=buf;
+  const g=ctx.createGain();g.gain.value=1;
+  src.connect(g);g.connect(ctx.destination);
+  src.start(startTime);
+}
+
+function precomputeKS(ctx){
+  const sr=ctx.sampleRate,bufs={};
+  for(let pc=0;pc<12;pc++){
+    const freq=440*Math.pow(2,(48+pc-69)/12);
+    const N=Math.round(sr/freq);
+    const len=Math.round(sr*2.5);
+    const buf=ctx.createBuffer(1,len,sr);
+    const d=buf.getChannelData(0);
+    const ring=new Float32Array(N);
+    for(let i=0;i<N;i++) ring[i]=Math.random()*2-1;
+    let pos=0;
+    for(let i=0;i<len;i++){
+      const next=(pos+1)%N;
+      d[i]=ring[pos];
+      ring[pos]=0.996*0.5*(ring[pos]+ring[next]);
+      pos=(pos+1)%N;
+    }
+    bufs[pc]=buf;
+  }
+  return bufs;
+}
+
 // ── NeckSVG ───────────────────────────────────────────────────────────
 function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
   hlTc=hlTc||TC;
@@ -231,9 +290,9 @@ function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
     ),
     (scalePos||[]).map((p,i)=>
       e('g',{key:'sp'+i},
-        e('circle',{cx:nx(p.f),cy:sy(p.s),r:5.5,fill:'rgba(255,255,255,0.04)',stroke:'rgba(255,255,255,0.20)',strokeWidth:1}),
+        e('circle',{cx:nx(p.f),cy:sy(p.s),r:5.5,fill:'var(--scale-circ)',stroke:'var(--scale-circ-str)',strokeWidth:1}),
         e('text',{x:nx(p.f),y:sy(p.s),textAnchor:'middle',dominantBaseline:'middle',
-          fill:'rgba(255,255,255,0.26)',fontSize:6,fontFamily:MONO,pointerEvents:'none'},INT_NAMES[p.interval])
+          fill:'var(--scale-circ-txt)',fontSize:6,fontFamily:MONO,pointerEvents:'none'},INT_NAMES[p.interval])
       )
     ),
     arpPos.map((p,i)=>{
@@ -248,7 +307,7 @@ function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
     (highlight||[]).map((h,i)=>{
       const cx=h.f===0?OPEN_X:nx(h.f);
       return e('g',{key:'hi'+i,filter:'url(#ng)'},
-        e('circle',{cx,cy:sy(h.s),r:h.f===0?9:11,fill:hlTc[h.ti],stroke:'rgba(255,255,255,0.85)',strokeWidth:1.8}),
+        e('circle',{cx,cy:sy(h.s),r:h.f===0?9:11,fill:hlTc[h.ti],stroke:'var(--hi-dot-str)',strokeWidth:1.8}),
         e('text',{x:cx,y:sy(h.s),textAnchor:'middle',dominantBaseline:'middle',
           fill:'white',fontSize:9,fontWeight:'bold',fontFamily:MONO},h.dl)
       );
@@ -273,7 +332,7 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
   const fy=f=>PT+(f-SF)*FS+FS/2;
   return e('div',{onClick,style:{cursor:'pointer',flexShrink:0}},
     e('svg',{width:W,height:H,viewBox:`0 0 ${W} ${H}`},
-      e('rect',{width:W,height:H,rx:9,fill:selected?'#09182a':'#09091a',stroke:selected?'#4ECDC4':BORDER,strokeWidth:selected?2:1.5}),
+      e('rect',{width:W,height:H,rx:9,fill:selected?'var(--cb-sel)':'var(--cb-bg)',stroke:selected?'#4ECDC4':BORDER,strokeWidth:selected?2:1.5}),
       e('text',{x:W/2,y:20,textAnchor:'middle',fill:selected?'#4ECDC4':BTN_OFF,fontSize:13,fontWeight:selected?'bold':'normal',fontFamily:MONO},invLabel),
       bassLabel?e('text',{x:W/2,y:38,textAnchor:'middle',fill:selected?'#4ECDC488':HINT,fontSize:11,fontFamily:MONO},bassLabel):null,
       !showNut?e('text',{x:3,y:PT+FS/2,dominantBaseline:'middle',fill:HINT,fontSize:10,fontFamily:MONO},SF+'fr'):null,
@@ -282,7 +341,7 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
         e('line',{key:'frl'+k,x1:sx(0),y1:PT+k*FS,x2:sx(5),y2:PT+k*FS,stroke:(k===0&&showNut)?'#c8a855':'#22223a',strokeWidth:1})
       ),
       Array.from({length:6},(_,i)=>
-        e('line',{key:'stl'+i,x1:sx(i),y1:PT,x2:sx(i),y2:PT+NF*FS,stroke:'#1e1e38',strokeWidth:1})
+        e('line',{key:'stl'+i,x1:sx(i),y1:PT,x2:sx(i),y2:PT+NF*FS,stroke:'var(--cb-str)',strokeWidth:1})
       ),
       allF.map((f,i)=>{
         if(f===null) return e('text',{key:'mx'+i,x:sx(i),y:PT-10,textAnchor:'middle',fill:HINT,fontSize:13,fontFamily:MONO},'x');
@@ -294,7 +353,7 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
         if(f<SF||f>SF+NF-1) return null;
         const pc=(OPEN_PC[i]+f)%12,ti2=tones.indexOf(pc);
         return e('g',{key:'dt'+i},
-          e('circle',{cx:sx(i),cy:fy(f),r:9,fill:ti2>=0?tc[ti2]:'#556',stroke:'rgba(255,255,255,0.2)',strokeWidth:1}),
+          e('circle',{cx:sx(i),cy:fy(f),r:9,fill:ti2>=0?tc[ti2]:'#556',stroke:'var(--hi-dot-str)',strokeWidth:1}),
           e('text',{x:sx(i),y:fy(f),textAnchor:'middle',dominantBaseline:'middle',fill:'white',fontSize:8,fontWeight:'bold',fontFamily:MONO},ti2>=0?degNames[ti2]:'')
         );
       })
@@ -322,19 +381,19 @@ function ScalePanel({degree,chordRoot,tones,degNames,keyIdx,scaleIdx,onScaleChan
             e('button',{key:i,onClick:()=>onScaleChange(i),style:{
               padding:'2px 8px',borderRadius:3,cursor:'pointer',fontFamily:MONO,fontSize:'0.79rem',
               border:'1px solid '+(scaleIdx===i?'#FFD43B60':BTN_BRD),
-              background:scaleIdx===i?'#1a1505':BG,
+              background:scaleIdx===i?ACT_GOLD:BG,
               color:scaleIdx===i?'#FFD43B':BTN_OFF,fontWeight:scaleIdx===i?700:400}},opt.abbr)
           )
         ):null,
-        e('span',{style:{fontFamily:SERIF,fontSize:'1rem',fontWeight:700,color:'#e8d8a0'}},nn(chordRoot,keyIdx)+' '+sc.name),
+        e('span',{style:{fontFamily:SERIF,fontSize:'1rem',fontWeight:700,color:'var(--scale-name)'}},nn(chordRoot,keyIdx)+' '+sc.name),
         e('span',{style:{fontSize:'0.7rem',color:HINT,fontFamily:MONO}},sc.desc)
       ),
       e('div',{style:{display:'flex',alignItems:'center',gap:6,flexShrink:0}},
         e('span',{style:{fontSize:'0.79rem',color:LBL,fontFamily:MONO}},'parent'),
         e('span',{style:{fontSize:'0.79rem',fontFamily:MONO,
-          color:sameAsKey?'#4ECDC4':'#9090c0',
-          border:'1px solid '+(sameAsKey?'#4ECDC440':BTN_BRD),
-          borderRadius:4,padding:'2px 8px',background:sameAsKey?'#0a1f1f':BG}},
+          color:sameAsKey?'var(--parent-key)':'var(--parent-other)',
+          border:'1px solid '+(sameAsKey?'var(--parent-key-brd)':BTN_BRD),
+          borderRadius:4,padding:'2px 8px',background:sameAsKey?'var(--parent-box-act)':BG}},
           parentLabel+(sameAsKey?' (this key)':''))
       )
     ),
@@ -342,13 +401,13 @@ function ScalePanel({degree,chordRoot,tones,degNames,keyIdx,scaleIdx,onScaleChan
       noteRow.map((n,i)=>
         e('div',{key:i,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2}},
           e('div',{style:{width:30,height:30,borderRadius:'50%',
-            background:n.isTone?TC[n.ti]:'rgba(255,255,255,0.04)',
+            background:n.isTone?TC[n.ti]:'var(--note-non-chord)',
             border:'1.5px solid '+(n.isTone?TC[n.ti]:BTN_BRD),
             display:'flex',alignItems:'center',justifyContent:'center',
             boxShadow:n.isTone?'0 0 8px '+TC[n.ti]+'44':'none'}},
-            e('span',{style:{fontSize:'0.71rem',fontWeight:700,fontFamily:MONO,color:n.isTone?'white':'#6060a0'}},n.noteName)
+            e('span',{style:{fontSize:'0.71rem',fontWeight:700,fontFamily:MONO,color:n.isTone?'white':'var(--note-non-chord-txt)'}},n.noteName)
           ),
-          e('span',{style:{fontSize:'0.64rem',fontFamily:MONO,color:n.isTone?TC[n.ti]+'cc':'#484870'}},INT_NAMES[n.interval])
+          e('span',{style:{fontSize:'0.64rem',fontFamily:MONO,color:n.isTone?TC[n.ti]+'cc':'var(--note-iv-txt)'}},INT_NAMES[n.interval])
         )
       ),
       e('div',{style:{marginLeft:'auto',alignSelf:'flex-start',paddingTop:2}},
@@ -369,7 +428,7 @@ function DiagSection({title,children}){
 // ── Shared button style helpers ───────────────────────────────────────
 const mkSsBtn=(active)=>({
   padding:'6px 12px',borderRadius:4,cursor:'pointer',fontFamily:MONO,fontSize:'0.72rem',
-  border:'1px solid '+(active?'#74C0FC':BTN_BRD),background:active?'#081520':BG2,
+  border:'1px solid '+(active?'#74C0FC':BTN_BRD),background:active?ACT_BLUE:BG2,
   color:active?'#74C0FC':BTN_OFF,fontWeight:active?700:400,minHeight:44,
 });
 
@@ -381,39 +440,6 @@ const BEAT_MAP=[
   [2,0],[2,2],[2,1],[2,0],  // bar 4: Imaj7 R   5  3  R
 ];
 
-function precomputeKS(ctx){
-  const sr=ctx.sampleRate,bufs={};
-  for(let pc=0;pc<12;pc++){
-    const freq=440*Math.pow(2,(48+pc-69)/12);
-    const N=Math.round(sr/freq);
-    const len=Math.round(sr*2.5);
-    const buf=ctx.createBuffer(1,len,sr);
-    const d=buf.getChannelData(0);
-    const ring=new Float32Array(N);
-    for(let i=0;i<N;i++) ring[i]=Math.random()*2-1;
-    let pos=0;
-    for(let i=0;i<len;i++){
-      const next=(pos+1)%N;
-      d[i]=ring[pos];
-      ring[pos]=0.996*0.5*(ring[pos]+ring[next]);
-      pos=(pos+1)%N;
-    }
-    bufs[pc]=buf;
-  }
-  return bufs;
-}
-
-function findBestInvIdx(prevVoicing,candidates){
-  if(!prevVoicing) return 0;
-  let best=0,bestScore=Infinity;
-  candidates.forEach((v,i)=>{
-    if(!v) return;
-    const score=v.frets.reduce((sum,f,j)=>sum+Math.abs(f-prevVoicing.frets[j]),0);
-    if(score<bestScore){bestScore=score;best=i;}
-  });
-  return best;
-}
-
 // ── IIVIView ──────────────────────────────────────────────────────────
 function IIVIView({keyIdx}){
   const [strSetIdx,setStrSetIdx]=useState(2);
@@ -421,7 +447,7 @@ function IIVIView({keyIdx}){
   const [activeChordIdx,setActiveChordIdx]=useState(0);
   const [isPlaying,setIsPlaying]=useState(false);
   const [bpm,setBpm]=useState(120);
-  const [bassEnabled,setBassEnabled]=useState(false);
+  const [bassEnabled,setBassEnabled]=useState(true);
   const [metronomeEnabled,setMetronomeEnabled]=useState(true);
   const [playingChordIdx,setPlayingChordIdx]=useState(null);
   const [playingBar,setPlayingBar]=useState(null);
@@ -435,8 +461,8 @@ function IIVIView({keyIdx}){
   const bassRef=useRef(bassEnabled);
   const metronomeRef=useRef(metronomeEnabled);
   const chordsRef=useRef(null);
-  const clickBufsRef=useRef(null);
   const ksBufsRef=useRef(null);
+  const clickBufsRef=useRef(null);
   bpmRef.current=bpm;
   bassRef.current=bassEnabled;
   metronomeRef.current=metronomeEnabled;
@@ -473,47 +499,25 @@ function IIVIView({keyIdx}){
     const src=ctx.createBufferSource();
     src.buffer=bufs[normalPc];
     const gain=ctx.createGain();
-    const pk=accent?0.72:0.46;
+    const pk=accent?0.78:0.50;
     gain.gain.setValueAtTime(pk,startTime);
-    gain.gain.setValueAtTime(pk*0.82,startTime+0.04);
-    gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.92);
+    gain.gain.setValueAtTime(pk*0.80,startTime+0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.94);
     src.connect(gain);gain.connect(ctx.destination);
     src.start(startTime);src.stop(startTime+beatDur);
   }
 
-  function playClick(ctx,buf,startTime){
-    const src=ctx.createBufferSource();
-    src.buffer=buf;
-    const filt=ctx.createBiquadFilter();
-    filt.type='bandpass';
-    filt.frequency.value=1100;
-    filt.Q.value=0.9;
-    src.connect(filt);filt.connect(ctx.destination);
-    src.start(startTime);
-  }
-
-  function makeClickBuf(ctx,decayMs,amp){
-    const len=Math.floor(ctx.sampleRate*0.045);
-    const buf=ctx.createBuffer(1,len,ctx.sampleRate);
-    const d=buf.getChannelData(0);
-    const tau=ctx.sampleRate*decayMs/1000;
-    for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*amp*Math.exp(-i/tau);
-    return buf;
-  }
-
   function startPlayback(){
-    // Compute voice-led inversion sequence from the user's selected II inversion
     const allVoicings=chords.map(chord=>D2_INV.map(inv=>calcVoicing(ss,inv.a,chord.tones)));
     const iiIdx=invIdxs[0];
     const vIdx=findBestInvIdx(allVoicings[0][iiIdx],allVoicings[1]);
     const iIdx=findBestInvIdx(allVoicings[1][vIdx],allVoicings[2]);
     setInvIdxs([iiIdx,vIdx,iIdx]);
     setActiveChordIdx(0);
-
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
     audioCtxRef.current=ctx;
     ksBufsRef.current=precomputeKS(ctx);
-    clickBufsRef.current={accent:makeClickBuf(ctx,7,0.85),normal:makeClickBuf(ctx,5,0.50)};
+    clickBufsRef.current={accent:makeClickBuf(ctx,1200,0.90),normal:makeClickBuf(ctx,800,0.55)};
     nextTimeRef.current=ctx.currentTime+0.05;
     beatRef.current=0;
     const gen=++genRef.current;
@@ -526,11 +530,7 @@ function IIVIView({keyIdx}){
         const bar=Math.floor(beat/4);
         const [ci,ti]=BEAT_MAP[beat];
         const delay=Math.max(0,(nextTimeRef.current-audioCtxRef.current.currentTime)*1000);
-        setTimeout(()=>{
-          if(genRef.current===gen){
-            setPlayingChordIdx(ci);setPlayingBar(bar);setActiveChordIdx(ci);
-          }
-        },delay);
+        setTimeout(()=>{if(genRef.current===gen){setPlayingChordIdx(ci);setPlayingBar(bar);setActiveChordIdx(ci);}},delay);
         if(bassRef.current && chordsRef.current){
           playBassNote(ctx,chordsRef.current[ci].tones[ti],nextTimeRef.current,beatDur,beat%4===0);
         }
@@ -550,7 +550,7 @@ function IIVIView({keyIdx}){
     genRef.current++;
     clearTimeout(timerRef.current);
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
-    setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);setActiveChordIdx(0);
+    setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
   }
 
   // cleanup on unmount
@@ -569,20 +569,20 @@ function IIVIView({keyIdx}){
   },[keyIdx]);
 
   const BAR_ROMAN=['II','V','I','I'];
-  const playBtn={padding:'6px 18px',background:isPlaying?'var(--act-red)':'var(--act-grn)',
+  const playBtn={padding:'6px 18px',background:isPlaying?ACT_RED:ACT_TEAL,
     border:'1px solid '+(isPlaying?'#FF6B6B':'#4ECDC4'),borderRadius:6,
     color:isPlaying?'#FF6B6B':'#4ECDC4',cursor:'pointer',fontFamily:MONO,
     fontSize:'0.85rem',fontWeight:'bold',letterSpacing:'1px',minHeight:44};
   const bpmStepBtn={padding:'4px 11px',background:'transparent',
     border:'1px solid '+BTN_BRD,borderRadius:4,color:BTN_OFF,cursor:'pointer',
     fontFamily:MONO,fontSize:'0.9rem',minHeight:44};
-  const bassBtn={padding:'6px 14px',background:bassEnabled?'var(--act-blue)':'transparent',
+  const bassBtn={padding:'6px 14px',background:bassEnabled?ACT_BLUE:'transparent',
     border:'1px solid '+(bassEnabled?'#74C0FC':BTN_BRD),borderRadius:6,
     color:bassEnabled?'#74C0FC':BTN_OFF,cursor:'pointer',fontFamily:MONO,
     fontSize:'0.82rem',minHeight:44};
-  const metBtn={padding:'6px 14px',background:metronomeEnabled?'var(--act-teal)':'transparent',
-    border:'1px solid '+(metronomeEnabled?'#4ECDC4':BTN_BRD),borderRadius:6,
-    color:metronomeEnabled?'#4ECDC4':BTN_OFF,cursor:'pointer',fontFamily:MONO,
+  const metBtn={padding:'6px 14px',background:metronomeEnabled?ACT_YEL:'transparent',
+    border:'1px solid '+(metronomeEnabled?'#FFD43B':BTN_BRD),borderRadius:6,
+    color:metronomeEnabled?'#FFD43B':BTN_OFF,cursor:'pointer',fontFamily:MONO,
     fontSize:'0.82rem',minHeight:44};
 
   return e('div',null,
@@ -607,10 +607,10 @@ function IIVIView({keyIdx}){
         e('span',{style:{fontSize:'0.75rem',color:HINT,marginLeft:2}})
       ),
       e('button',{onClick:()=>setBassEnabled(v=>!v),style:bassBtn},'♩ BASS'),
-      e('button',{onClick:()=>setMetronomeEnabled(v=>!v),style:metBtn},'♩ CLICK'),
+      e('button',{onClick:()=>setMetronomeEnabled(v=>!v),style:metBtn},'◉ CLICK'),
       isPlaying&&playingBar!==null
         ?e('span',{style:{fontSize:'0.8rem',color:'#FFD43B',fontFamily:MONO,
-            padding:'4px 10px',border:'1px solid #4a3a00',borderRadius:4,background:'var(--act-yel)'}},
+            padding:'4px 10px',border:'1px solid #4a3a00',borderRadius:4,background:ACT_YEL}},
             'Bar '+(playingBar+1)+' · '+BAR_ROMAN[playingBar])
         :null
     ),
@@ -632,7 +632,7 @@ function IIVIView({keyIdx}){
         const isActive=activeChordIdx===ci;
         const isNowPlaying=playingChordIdx===ci;
         const borderColor=isNowPlaying?'#FFD43B':isActive?'#4ECDC4':BORDER;
-        const bgColor=isNowPlaying?'var(--act-yel)':isActive?'var(--act-teal)':BG2;
+        const bgColor=isNowPlaying?ACT_YEL:isActive?ACT_TEAL:BG2;
         const romanColor=isNowPlaying?'#FFD43B':isActive?'#4ECDC4':LBL;
         return e('div',{key:ci,style:{flex:'1 1 200px',minWidth:190}},
           e('div',{style:{marginBottom:8,padding:'8px 12px',background:bgColor,
@@ -742,7 +742,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
             e('button',{key:i,onClick:()=>{setCustomRoot(k.root);setInvIdx(0);},style:{
               padding:'4px 9px',borderRadius:4,cursor:'pointer',fontFamily:MONO,fontSize:'0.74rem',
               border:'1px solid '+(customRoot===k.root?GOLD:BTN_BRD),
-              background:customRoot===k.root?'var(--act-gold)':BG2,
+              background:customRoot===k.root?ACT_GOLD:BG2,
               color:customRoot===k.root?GOLD:BTN_OFF,fontWeight:customRoot===k.root?700:400,
               minHeight:44}},k.name)
           )
@@ -755,7 +755,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
             e('button',{key:i,onClick:()=>{setCustomTypeIdx(i);setInvIdx(0);},style:{
               padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:MONO,fontSize:'0.74rem',
               border:'1px solid '+(customTypeIdx===i?'#C084FC':BTN_BRD),
-              background:customTypeIdx===i?'var(--act-pur)':BG2,
+              background:customTypeIdx===i?ACT_PUR:BG2,
               color:customTypeIdx===i?'#C084FC':BTN_OFF,fontWeight:customTypeIdx===i?700:400,
               minHeight:44}},t.sym)
           )
@@ -829,143 +829,116 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
 
 // ── GuideView ─────────────────────────────────────────────────────────
 function GuideView(){
-  const S={margin:'0 0 24px 0',padding:'0 0 4px 0'};
-  const H={fontSize:'0.72rem',color:LBL,letterSpacing:'3px',textTransform:'uppercase',
-    marginBottom:10,paddingBottom:6,borderBottom:'1px solid '+BORDER,display:'block'};
-  const P={fontSize:'0.85rem',color:'var(--txt)',fontFamily:SERIF,lineHeight:1.8,marginBottom:10};
-  const Box={background:BG2,border:'1px solid '+BORDER,borderRadius:6,
-    padding:'10px 14px',marginBottom:10,fontSize:'0.82rem',fontFamily:MONO};
-  const TipBox={background:'var(--act-yel)',border:'1px solid #a08800',borderRadius:6,
-    padding:'10px 14px',marginBottom:10,fontSize:'0.82rem',color:'var(--txt)',lineHeight:1.7};
-  const Chord=txt=>e('span',{style:{color:'#4ECDC4',fontWeight:700,fontFamily:MONO}},txt);
-  const Em=txt=>e('span',{style:{color:GOLD,fontWeight:700}},txt);
-  const Step=(n,txt)=>e('div',{style:{display:'flex',gap:10,marginBottom:8}},
-    e('span',{style:{color:'#4ECDC4',fontFamily:MONO,fontWeight:700,minWidth:22}},n+'.'),
-    e('span',{style:{color:'var(--txt)',fontSize:'0.85rem',fontFamily:SERIF,lineHeight:1.75}},txt)
-  );
-  return e('div',{style:{maxWidth:760}},
-    e('div',{style:{marginBottom:20,padding:'12px 16px',background:'var(--act-teal)',
-      border:'1px solid #4ECDC444',borderRadius:8}},
-      e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,color:GOLD,marginBottom:4}},
-        'Jazz Guitar: A Guide for Blues & Rock Players'),
-      e('div',{style:{fontSize:'0.82rem',color:HINT}},'A practical introduction using this app — assumes you can already play')
-    ),
-
-    e('div',{style:S},
-      e('span',{style:H},'The Core Shift'),
-      e('p',{style:P},'Blues and rock rely on power chords, barre chords, and the pentatonic scale. Jazz keeps that same foundation but adds a layer: every chord gets a 7th (at minimum), chord progressions follow predictable harmonic patterns, and instead of one scale over everything you match the scale to each individual chord.'),
-      e('p',{style:P},'The good news: you don\'t need to unlearn anything. Jazz is additive — new chord shapes on top of the technique you already have.')
-    ),
-
-    e('div',{style:S},
-      e('span',{style:H},'7th Chords — Your New Vocabulary'),
-      e('p',{style:P},'Four chord qualities do most of the work in jazz:'),
-      e('div',{style:Box},
-        [
-          [Chord('maj7'),' — Major 7th  (C E G B)   · stable, dreamy, "home"'],
-          [Chord('m7'),'  — Minor 7th  (C Eb G Bb) · dark, introspective'],
-          [Chord('dom7'),' — Dominant 7 (C E G Bb)  · tense, wants to move'],
-          [Chord('ø7'),'  — Half-Dim   (C Eb Gb Bb) · intense, restless'],
-        ].map((row,i)=>e('div',{key:i,style:{marginBottom:i<3?6:0,lineHeight:1.6}},
-          row[0],' ',row[1]
-        ))
+  const S={marginBottom:18,padding:'14px 16px',background:BG2,border:'1px solid '+BORDER,borderRadius:8};
+  const H={fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:'var(--scale-name)',marginBottom:8};
+  const P={fontSize:'0.80rem',lineHeight:1.75,color:'var(--txt)',fontFamily:MONO,marginBottom:8};
+  const LI={fontSize:'0.80rem',lineHeight:1.7,color:'var(--txt)',fontFamily:MONO,paddingLeft:16};
+  const HL={color:'var(--scale-name)',fontWeight:700};
+  const TC4={color:'#4ECDC4'};
+  const TRD={color:'#FF6B6B'};
+  const TBL={color:'#74C0FC'};
+  const TYL={color:'#FFD43B'};
+  function sec(title,...children){
+    return e('div',{style:S},e('div',{style:H},title),...children);
+  }
+  function p(...kids){return e('p',{style:P},...kids);}
+  function ul(...items){return e('ul',{style:{listStyle:'none',margin:'0 0 8px'}},
+    ...items.map((it,i)=>e('li',{key:i,style:LI},'• ',it)));
+  }
+  return e('div',{style:{maxWidth:780}},
+    sec('1 · The Core Shift: Power Chords → 7th Chords',
+      p('In blues and rock you rely on power chords and the pentatonic scale. Jazz extends every chord with a 7th — and often a 9th, 11th, or 13th. Each diatonic chord has a fixed ',e('b',{style:HL},'quality'),':'),
+      ul(
+        e('span',null,e('b',{style:TC4},'Imaj7'),'  — major 7th — stable home base'),
+        e('span',null,e('b',{style:TRD},'IIm7'),'  — minor 7th — mild tension, wants to resolve'),
+        e('span',null,e('b',{style:TYL},'V7'),'   — dominant 7th — strong pull back to I'),
+        e('span',null,e('b',{style:TBL},'IVmaj7'),' — bright, floating quality (#11 is common)'),
+        e('span',null,e('b',null,'IIIm7'),' / ',e('b',null,'VIm7'),' — minor colour in the key'),
+        e('span',null,e('b',{style:{color:'#C084FC'}},'VIIm7♭5'),' — half-diminished, dark tension')
       ),
-      e('p',{style:P},'Notice that the dominant 7th (',Chord('dom7'),') is the only one with a "built-in" tension — the tritone between its 3rd and b7th creates an urge to resolve. This is the engine of jazz harmony.')
+      p('Drop barre chords and power chords for now. Your primary tool in jazz is the ',e('b',{style:HL},'Drop 2 voicing'),' — a four-note shape that plays cleanly on any string set.')
     ),
-
-    e('div',{style:S},
-      e('span',{style:H},'Drop 2 Voicings — Your New Shapes'),
-      e('p',{style:P},'A closed-position 7th chord (all notes stacked in order) has a span too wide for one hand. ',Em('Drop 2'),' solves this: take the second-highest note and drop it down an octave. The result spreads across 4 adjacent strings in a comfortable, playable shape.'),
-      e('p',{style:P},'Each chord type has 4 inversions — Root, 1st, 2nd, and 3rd — named after the original closed voicing they came from (not the bass note). All 4 sound great; the choice affects the register and the voice leading into the next chord.'),
-      e('div',{style:TipBox},
-        Em('Practice tip: '),'Pick one string set (start with 4-3-2-1, the thinnest four strings) and learn all four inversions of ',Chord('Dm7'),' until you can grab any of them without looking. Then do ',Chord('G7'),', then ',Chord('Cmaj7'),'.'
+    sec('2 · Drop 2 Voicings: Your New Vocabulary',
+      p('A Drop 2 takes a closed-position four-note chord and drops the second-highest note down an octave. The result lies naturally under the hand and sounds full on guitar.'),
+      p('Each chord has four inversions — same notes, different bass tone:'),
+      ul(
+        'Root position  — 5th in bass',
+        '1st inversion  — 7th in bass',
+        '2nd inversion  — 3rd in bass',
+        '3rd inversion  — root in bass'
+      ),
+      p('Work through all four inversions on the ',e('b',{style:TC4},'4-3-2-1 string set'),' first (top four strings). Then learn the same inversions on ',e('b',null,'5-4-3-2'),' and ',e('b',null,'6-5-4-3'),'. Use the ',e('b',{style:HL},'Diatonic view'),' to explore every inversion for every chord in your chosen key.')
+    ),
+    sec('3 · The II–V–I: The Backbone of Jazz',
+      p('The II–V–I is the fundamental jazz progression — analogous to the I–IV–V in blues. It appears in virtually every jazz standard, in every key, sometimes multiple times per chorus.'),
+      p(e('b',{style:HL},'In the key of C:'),'  Dm7  →  G7  →  Cmaj7'),
+      p('Standard length: ',e('b',null,'II = 1 bar, V = 1 bar, I = 2 bars'),'.'),
+      p('The IIm7 and V7 share three notes. The tritone in the V7 (3rd to 7th) resolves by half-step into the Imaj7. That pull is the engine of jazz harmony.'),
+      p('Use the ',e('b',{style:HL},'II–V–I view'),' with play-along to drill this progression. Choose a II voicing and the app will auto-select voice-led inversions for V and I.')
+    ),
+    sec('4 · Voice Leading: How to Sound Like Jazz',
+      p('Voice leading means moving each note as little as possible between chords. Instead of jumping shapes up the neck, let notes flow by step or half-step.'),
+      p(e('b',{style:HL},'The classic voice-led II–V–I on the top string set:')),
+      ul(
+        'IIm7  3rd inversion  →  V7  2nd inversion  →  Imaj7  root position',
+        'Each note moves only a half- or whole-step between chords',
+        'The 7th of IIm7 becomes the 3rd of V7 — this "guide tone" connection is the key sound'
+      ),
+      p('The play-along auto-selects the smoothest V and I inversions from whatever II inversion you choose. Practise until changing between these shapes feels as natural as a pentatonic lick.')
+    ),
+    sec('5 · Chord-Scale Relationships',
+      p('Every chord quality has one or more compatible scales. Start diatonic (inside the key), then explore colours outside it:'),
+      ul(
+        e('span',null,e('b',{style:TC4},'Imaj7'),'   → Ionian (plain major) or ',e('b',null,'Lydian'),' (#11 — bright, floating)'),
+        e('span',null,e('b',{style:TRD},'IIm7'),'    → ',e('b',null,'Dorian'),' (nat. 6 brightens minor) — the jazz minor scale'),
+        e('span',null,e('b',{style:TYL},'V7'),'      → Mixolydian (safe) or ',e('b',null,'Altered'),' (b9 #9 b5 — maximum tension)'),
+        e('span',null,e('b',null,'IVmaj7'),'  → Lydian — the natural scale for this chord'),
+        e('span',null,e('b',{style:{color:'#C084FC'}},'VIIm7♭5'),' → Locrian nat.2 (softer) or Locrian (full tension)')
+      ),
+      p('The Diatonic view shows each scale on the neck. Chord tones are coloured; scale non-chord-tones appear faintly. Spend time learning the ',e('b',{style:TYL},'Altered scale'),' over the V7 — it is the defining sound of modern jazz.')
+    ),
+    sec('6 · Using This App: A Practice Routine',
+      ul(
+        e('span',null,e('b',{style:HL},'Week 1'),': One key, one string set (4-3-2-1). Play all seven diatonic chords, root position Drop 2 only. Say the chord name aloud.'),
+        e('span',null,e('b',{style:HL},'Week 2'),': Add all four inversions for each chord. Now you have 28 shapes in the key. Cycle: I → II → III → IV → V → VI → VII → I.'),
+        e('span',null,e('b',{style:HL},'Week 3'),': Focus on II–V–I. Learn the classic voice-led sequence. Run it with play-along at 60 BPM, bass on.'),
+        e('span',null,e('b',{style:HL},'Week 4'),': Transpose to a new key. Repeat. Aim for all 12 keys over 3 months.'),
+        e('span',null,e('b',{style:HL},'Ongoing'),': Open the Scale panel. Over the V7, switch to Altered and learn to hear the tension. Over IIm7, use Dorian. Start transcribing.')
       )
     ),
-
-    e('div',{style:S},
-      e('span',{style:H},'The II–V–I: Jazz\'s I–IV–V'),
-      e('p',{style:P},'In rock and blues, I–IV–V is the universal building block. In jazz it\'s the ',Em('II–V–I'),'. You\'ll find it — or a variation of it — in virtually every jazz standard ever written.'),
-      e('div',{style:{...Box,marginBottom:14}},
-        e('div',{style:{marginBottom:6}},Em('In the key of C:')),
-        e('div',{style:{lineHeight:2}},
-          Chord('II  = Dm7'),'  · 1 bar  · builds tension\n',
-          e('br'),Chord('V   = G7'),'   · 1 bar  · peak tension (tritone resolves)\n',
-          e('br'),Chord('I   = Cmaj7'),' · 2 bars · resolution and rest'
-        )
+    sec('7 · Next Steps & Listening',
+      p('This app covers the core vocabulary. Beyond it:'),
+      ul(
+        e('span',null,e('b',null,'Shell voicings'),' — R + 7 + 3, three strings. Minimal, leaves room for a bass player.'),
+        e('span',null,e('b',null,'Rootless voicings'),' — 9th replaces root. Floats over a walking bass line.'),
+        'Drop 3 voicings, extensions (9ths, 11ths, 13ths), tritone substitution, reharmonisation.'
       ),
-      e('p',{style:P},'The V7 chord is where the action is. Its tritone (the 3rd and b7th, a dissonant interval) wants to resolve: the 3rd steps up to the root of the I, and the b7th steps down to the 3rd of the I. This is why V7 sounds tense and Imaj7 sounds like a sigh of relief.')
-    ),
-
-    e('div',{style:S},
-      e('span',{style:H},'Voice Leading'),
-      e('p',{style:P},Em('Voice leading'),' is the jazz guitarist\'s secret weapon. Instead of jumping your whole hand to a new chord shape, you find the version of each chord that requires the least movement — ideally keeping common tones in place and moving other notes by a step or half-step.'),
-      e('p',{style:P},'Classic example on the 4-3-2-1 string set:'),
-      e('div',{style:Box},
-        e('div',{style:{lineHeight:2}},
-          Chord('Dm7 3rd inv'),' → ',Chord('G7 2nd inv'),' → ',Chord('Cmaj7 Root pos'),
-          e('br'),
-          e('span',{style:{color:HINT,fontSize:'0.78rem'}},'fingers barely move · common tones stay put · only 1-2 notes change')
-        )
+      p(e('b',{style:HL},'Transcribe these players:')),
+      ul(
+        e('span',null,e('b',null,'Wes Montgomery'),' — warmth, octaves, seamless single-line comping'),
+        e('span',null,e('b',null,'Joe Pass'),' — solo jazz guitar master; walking bass + chords simultaneously'),
+        e('span',null,e('b',null,'Pat Martino'),' — linear, aggressive, post-bop lines'),
+        e('span',null,e('b',null,'Jim Hall'),' — space, restraint, and voice-leading perfection'),
+        e('span',null,e('b',null,'Kurt Rosenwinkel'),' — modern harmony, complex extensions')
       ),
-      e('div',{style:TipBox},
-        Em('Use the app: '),'In the II–V–I section, click a II chord inversion and press PLAY. The app computes the smoothest voice-led path for you automatically, then the neck diagram follows the progression in real time.'
-      )
-    ),
-
-    e('div',{style:S},
-      e('span',{style:H},'Chord-Scale Relationships'),
-      e('p',{style:P},'Each chord in jazz suggests one or more scales for improvisation. The ',Em('Diatonic view'),' of this app shows you these options.'),
-      e('div',{style:Box},
-        [
-          [Chord('IIm7'),' → Dorian mode (same key, starts on 2nd degree)'],
-          [Chord('V7'),'  → Mixolydian (safe) · Altered scale (maximum tension)'],
-          [Chord('Imaj7'),' → Ionian · or Lydian (#11 gives a floating quality)'],
-        ].map((row,i)=>e('div',{key:i,style:{marginBottom:i<2?6:0,lineHeight:1.6}},row[0],row[1]))
-      ),
-      e('p',{style:P},'The Altered scale over V7 (',Chord('b9 #9 b5 b13'),') is one of jazz\'s most distinctive sounds — it maximises tension before the I chord. In the Diatonic view, click the V chord and select "Alt" to see it on the neck.')
-    ),
-
-    e('div',{style:S},
-      e('span',{style:H},'Practice Routine with This App'),
-      Step(1,e('span',null,Em('Learn the shapes (15 min). '),'Go to the Diatonic view, key of C. Click through Dm7 (II), G7 (V), and Cmaj7 (I). Select Drop 2, string set 4-3-2-1. Play through all four inversions of each chord until they feel natural.')),
-      Step(2,e('span',null,Em('Voice lead through the II–V–I (15 min). '),'Go to the II–V–I view. Click the II chord Root inversion, then press PLAY. Watch the neck diagram update as the chords cycle. Grab each highlighted voicing in time. Try starting from each of the four II inversions — each gives a valid, different path.')),
-      Step(3,e('span',null,Em('Play along slowly (10 min). '),'Set the BPM to 60–70. Turn on the bass line and/or the click. Don\'t worry about timing at first — focus on getting the shape under your fingers cleanly. Increase tempo as it gets easier.')),
-      Step(4,e('span',null,Em('Add string sets. '),'Once comfortable on 4-3-2-1, move to 5-4-3-2, then 6-5-4-3. You can now play the same II–V–I in any register of the neck.')),
-      Step(5,e('span',null,Em('Transpose. '),'Repeat in the key of G, then Bb, then F, then all 12 keys. Jazz musicians practice in all 12 — don\'t skip this step.'))
-    ),
-
-    e('div',{style:S},
-      e('span',{style:H},'What to Listen To'),
-      e('p',{style:P},'Listening is half the practice. Your ear needs to know what you\'re working toward:'),
-      e('div',{style:Box},
-        [
-          [Em('Wes Montgomery'),' — the gold standard for jazz guitar. Start with Smokin\' at the Half Note.'],
-          [Em('Jim Hall'),' — master of voice leading and space. Undercurrent (with Bill Evans) is essential.'],
-          [Em('Joe Pass'),' — chord melody and solo guitar. Virtuoso shows the full vocabulary.'],
-          [Em('Miles Davis'),' — Kind of Blue. Understand what the guitar is playing against.'],
-        ].map((row,i)=>e('div',{key:i,style:{marginBottom:i<3?6:0,lineHeight:1.7}},row[0],row[1]))
-      )
-    ),
-
-    e('div',{style:{padding:'10px 14px',background:'var(--act-teal)',border:'1px solid #4ECDC444',
-      borderRadius:6,fontSize:'0.82rem',color:HINT,lineHeight:1.7}},
-      Em('Remember: '),'Jazz is a conversation. The chord shapes, the voice leading, the scales — they\'re all tools for saying something musical. Learn the vocabulary, then trust your ear.')
+      p('Start with a standard: ',e('b',{style:HL},'Autumn Leaves'),', ',e('b',{style:HL},'All The Things You Are'),', or ',e('b',{style:HL},'There Will Never Be Another You'),'. Learn the melody first, then the chords, then comp along to a recording.')
+    )
   );
 }
 
 // ── App ───────────────────────────────────────────────────────────────
 function App(){
-  // Global state
-  const [key,setKey]=useState(0);
-  const [viewMode,setViewMode]=useState('diatonic'); // 'diatonic'|'iivi'|'custom'|'guide'
   const [theme,setTheme]=useState('dark');
   function toggleTheme(){
     const next=theme==='dark'?'light':'dark';
     setTheme(next);
     document.documentElement.dataset.theme=next;
     const m=document.getElementById('theme-meta');
-    if(m) m.content=next==='dark'?'#07070f':'#f7f7fc';
+    if(m) m.content=next==='dark'?'#07070f':'#f5f5fa';
   }
+  // Global state
+  const [key,setKey]=useState(0);
+  const [viewMode,setViewMode]=useState('diatonic'); // 'diatonic'|'iivi'|'custom'|'guide'
   // Diatonic state
   const [deg,setDeg]=useState(0);
   const [vType,setVType]=useState('drop2');
@@ -1048,15 +1021,15 @@ function App(){
     color:act?'#74C0FC':BTN_OFF,fontWeight:act?700:400,minHeight:44};};
   const keyBtnStyle=i=>{const act=key===i;return{
     padding:'4px 9px',borderRadius:4,cursor:'pointer',fontFamily:MONO,fontSize:'0.74rem',
-    border:'1px solid '+(act?GOLD:BTN_BRD),background:act?'var(--act-gold)':BG2,
+    border:'1px solid '+(act?GOLD:BTN_BRD),background:act?ACT_GOLD:BG2,
     color:act?GOLD:BTN_OFF,fontWeight:act?700:400,minHeight:44};};
   const chordBtnStyle=i=>{const act=deg===i;return{
     padding:'4px 8px',borderRadius:4,cursor:'pointer',fontFamily:MONO,
-    border:'1px solid '+(act?'#FF6B6B':BTN_BRD),background:act?'var(--act-red)':BG2,
+    border:'1px solid '+(act?'#FF6B6B':BTN_BRD),background:act?ACT_RED:BG2,
     color:act?'#FF6B6B':BTN_OFF,minWidth:56,textAlign:'center',minHeight:44};};
   const viewBtnStyle=id=>{const act=viewMode===id;return{
-    padding:'6px 16px',borderRadius:5,cursor:'pointer',fontFamily:MONO,fontSize:'0.75rem',
-    border:'1px solid '+(act?'#4ECDC4':BTN_BRD),background:act?'var(--act-teal)':BG2,
+    padding:'5px 13px',borderRadius:5,cursor:'pointer',fontFamily:MONO,fontSize:'0.75rem',
+    border:'1px solid '+(act?'#4ECDC4':BTN_BRD),background:act?ACT_TEAL:BG2,
     color:act?'#4ECDC4':BTN_OFF,fontWeight:act?700:400,minHeight:44};};
   const voiceOrder=(vType==='drop2'||vType==='drop3')&&invData[invIdx]
     ?invData[invIdx].a.map(idx=>degNames[idx]).join(' - '):'';
@@ -1067,19 +1040,19 @@ function App(){
   return e('div',{style:{background:BG,minHeight:'100vh',color:'var(--txt)',fontFamily:MONO,padding:'14px'}},
 
     // Header
-    e('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:14,
+    e('div',{style:{display:'flex',alignItems:'baseline',gap:12,marginBottom:14,
       paddingBottom:12,borderBottom:'1px solid '+BORDER,flexWrap:'wrap'}},
-      e('span',{style:{fontFamily:SERIF,fontSize:'1.45rem',fontWeight:700,color:'#e8d8a0'}},'Jazz Guitar Voicings'),
-      e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',textTransform:'uppercase',flex:1}},
+      e('span',{style:{fontFamily:SERIF,fontSize:'1.45rem',fontWeight:700,color:'var(--scale-name)'}},'Jazz Guitar Voicings'),
+      e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',textTransform:'uppercase',flexGrow:1}},
         'Drop 2 · Drop 3 · Shell · Rootless · Arpeggio · Parent Scales'),
       e('button',{onClick:toggleTheme,style:{padding:'4px 12px',borderRadius:4,cursor:'pointer',
-        fontFamily:MONO,fontSize:'0.75rem',border:'1px solid '+BTN_BRD,background:'transparent',
-        color:BTN_OFF,minHeight:44,whiteSpace:'nowrap'}},
+        fontFamily:MONO,fontSize:'0.72rem',border:'1px solid '+BTN_BRD,background:BG2,
+        color:BTN_OFF,minHeight:36,flexShrink:0}},
         theme==='dark'?'☀ Light':'☾ Dark')
     ),
 
-    // Key selector (hidden in custom/guide mode
-    viewMode!=='custom'&&viewMode!=='guide'?e('div',{style:{marginBottom:10}},
+    // Key selector (hidden in custom mode — key not relevant there)
+    viewMode!=='custom'?e('div',{style:{marginBottom:10}},
       e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginBottom:6}},'KEY'),
       e('div',{style:{display:'flex',flexWrap:'wrap',gap:3}},
         KEYS.map((k,i)=>e('button',{key:i,onClick:()=>setKey(i),style:keyBtnStyle(i)},k.name))
@@ -1090,7 +1063,7 @@ function App(){
     e('div',{style:{display:'flex',gap:4,marginBottom:12,flexWrap:'wrap',alignItems:'center'}},
       e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginRight:4}},'VIEW'),
       ['diatonic','iivi','custom','guide'].map(id=>{
-        const lbls={diatonic:'Diatonic',iivi:'II – V – I',custom:'Custom Chord',guide:'Guide'};
+        const lbls={diatonic:'Diatonic',iivi:'II–V–I',custom:'Custom',guide:'Guide'};
         return e('button',{key:id,onClick:()=>setViewMode(id),style:viewBtnStyle(id)},lbls[id]);
       })
     ),
@@ -1219,8 +1192,8 @@ function App(){
           )
         ),
         e('span',{style:{display:'flex',alignItems:'center',gap:5,marginLeft:4}},
-          e('span',{style:{width:11,height:11,borderRadius:'50%',border:'1px solid rgba(255,255,255,0.28)',display:'inline-block',flexShrink:0}}),
-          e('span',{style:{color:'rgba(255,255,255,0.45)',fontSize:'0.74rem'}},'Scale tone')
+          e('span',{style:{width:11,height:11,borderRadius:'50%',border:'1px solid var(--leg-circ)',display:'inline-block',flexShrink:0}}),
+          e('span',{style:{color:'var(--leg-txt)',fontSize:'0.74rem'}},'Scale tone')
         ),
         e('span',{style:{fontSize:'0.79rem',color:HINT}},'bright=voicing · dim=arpeggio · faint=scale non-chord-tone')
       ),
