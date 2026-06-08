@@ -256,9 +256,9 @@ function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
         e('feMerge',null,e('feMergeNode',{in:'b'}),e('feMergeNode',{in:'SourceGraphic'}))
       ),
       e('linearGradient',{id:'neckBg',x1:'0',y1:'0',x2:'1',y2:'0'},
-        e('stop',{offset:'0%',stopColor:'#1c1508'}),
-        e('stop',{offset:'60%',stopColor:'#130e05'}),
-        e('stop',{offset:'100%',stopColor:'#0c0902'})
+        e('stop',{offset:'0%',style:{stopColor:'var(--neck-wood1)'}}),
+        e('stop',{offset:'60%',style:{stopColor:'var(--neck-wood2)'}}),
+        e('stop',{offset:'100%',style:{stopColor:'var(--neck-wood3)'}})
       ),
       e('linearGradient',{id:'nutG',x1:'0',y1:'0',x2:'0',y2:'1'},
         e('stop',{offset:'0%',stopColor:'#e8c870'}),
@@ -266,27 +266,27 @@ function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
       )
     ),
     e('rect',{x:PL-22,y:PT-13,width:NF*FW+28,height:5*SH+26,rx:7,fill:'url(#neckBg)'}),
-    e('rect',{x:PL-22,y:PT-13,width:NF*FW+28,height:5*SH+26,rx:7,fill:'none',stroke:'#2a1f08',strokeWidth:1}),
+    e('rect',{x:PL-22,y:PT-13,width:NF*FW+28,height:5*SH+26,rx:7,fill:'none',style:{stroke:'var(--neck-edge)'},strokeWidth:1}),
     e('rect',{x:PL-9,y:PT-11,width:8,height:5*SH+22,fill:'url(#nutG)',rx:2}),
     Array.from({length:NF},(_,k)=>k+1).map(k=>
       e('line',{key:'fl'+k,x1:PL+k*FW,y1:PT-10,x2:PL+k*FW,y2:PT+5*SH+10,
-        stroke:k===12?'#4a3520':'#2e2010',strokeWidth:k===12?2.5:1.5})
+        style:{stroke:k===12?'var(--neck-fret12)':'var(--neck-fret)'},strokeWidth:k===12?2.5:1.5})
     ),
     SINGLE_INLAYS.map(f=>
-      e('ellipse',{key:'il'+f,cx:nx(f),cy:PT+2.5*SH,rx:5.5,ry:4.5,fill:'#2e2010'})
+      e('ellipse',{key:'il'+f,cx:nx(f),cy:PT+2.5*SH,rx:5.5,ry:4.5,style:{fill:'var(--neck-inlay)'}})
     ),
-    e('ellipse',{key:'12a',cx:nx(12),cy:PT+1.5*SH,rx:5.5,ry:4.5,fill:'#2e2010'}),
-    e('ellipse',{key:'12b',cx:nx(12),cy:PT+3.5*SH,rx:5.5,ry:4.5,fill:'#2e2010'}),
+    e('ellipse',{key:'12a',cx:nx(12),cy:PT+1.5*SH,rx:5.5,ry:4.5,style:{fill:'var(--neck-inlay)'}}),
+    e('ellipse',{key:'12b',cx:nx(12),cy:PT+3.5*SH,rx:5.5,ry:4.5,style:{fill:'var(--neck-inlay)'}}),
     Array.from({length:6},(_,si)=>
       e('line',{key:'st'+si,x1:PL-22,y1:sy(si),x2:PL+NF*FW+8,y2:sy(si),
         stroke:`rgba(220,195,130,${0.30+si*0.09})`,strokeWidth:0.4+si*0.26})
     ),
     [1,3,5,7,9,12,15].map(f=>
-      e('text',{key:'fn'+f,x:nx(f),y:H-8,textAnchor:'middle',fill:'#9a8850',fontSize:9,fontFamily:MONO},f)
+      e('text',{key:'fn'+f,x:nx(f),y:H-8,textAnchor:'middle',style:{fill:'var(--neck-lbl)'},fontSize:9,fontFamily:MONO},f)
     ),
     STR_NAMES.map((n,si)=>
       e('text',{key:'sl'+si,x:PL-26,y:sy(si),textAnchor:'end',dominantBaseline:'middle',
-        fill:'#9a8850',fontSize:9.5,fontFamily:MONO},n)
+        style:{fill:'var(--neck-lbl)'},fontSize:9.5,fontFamily:MONO},n)
     ),
     (scalePos||[]).map((p,i)=>
       e('g',{key:'sp'+i},
@@ -463,6 +463,9 @@ function IIVIView({keyIdx}){
   const chordsRef=useRef(null);
   const ksBufsRef=useRef(null);
   const clickBufsRef=useRef(null);
+  const wafPlayerRef=useRef(null);
+  const wafReadyRef=useRef(false);
+  const wafFontLoadedRef=useRef(false);
   bpmRef.current=bpm;
   bassRef.current=bassEnabled;
   metronomeRef.current=metronomeEnabled;
@@ -492,17 +495,52 @@ function IIVIView({keyIdx}){
     });
   },[activeVoicings,invIdxs,activeChordIdx,strSetIdx]);
 
+  function loadBassFont(ctx){
+    if(!window.WebAudioFontPlayer) return;
+    wafReadyRef.current=false;
+    const player=new window.WebAudioFontPlayer();
+    wafPlayerRef.current=player;
+    const fontVar='_tone_0320_Acoustic_Bass_sf2_file';
+    function decodeFont(){
+      player.loader.decodeAfterLoading(ctx,fontVar);
+      player.loader.waitLoad(()=>{wafReadyRef.current=true;});
+    }
+    if(wafFontLoadedRef.current||window[fontVar]){
+      wafFontLoadedRef.current=true;
+      decodeFont();
+    } else {
+      const s=document.createElement('script');
+      s.src='https://surikov.github.io/webaudiofont/npm/dist/sf2js/0320_Acoustic_Bass_sf2_file.js';
+      s.crossOrigin='anonymous';
+      s.onload=()=>{wafFontLoadedRef.current=true;decodeFont();};
+      s.onerror=()=>{};
+      document.head.appendChild(s);
+    }
+  }
+
   function playBassNote(ctx,pc,startTime,beatDur,accent){
+    const midiNote=36+((pc%12+12)%12); // C2–B2 register
+    const vol=accent?1.0:0.65;
+    // Real samples via WebAudioFont
+    const player=wafPlayerRef.current;
+    const fontVar='_tone_0320_Acoustic_Bass_sf2_file';
+    if(player&&wafReadyRef.current&&window[fontVar]){
+      try{
+        player.queueWaveTable(ctx,ctx.destination,window[fontVar],startTime,midiNote,beatDur*0.88,vol);
+        return;
+      }catch(e){}
+    }
+    // Fallback: KS one octave down
     const bufs=ksBufsRef.current;
     if(!bufs) return;
     const normalPc=(pc%12+12)%12;
     const src=ctx.createBufferSource();
     src.buffer=bufs[normalPc];
+    src.playbackRate.value=0.5;
     const gain=ctx.createGain();
-    const pk=accent?0.78:0.50;
+    const pk=accent?0.70:0.44;
     gain.gain.setValueAtTime(pk,startTime);
-    gain.gain.setValueAtTime(pk*0.80,startTime+0.05);
-    gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.94);
+    gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.92);
     src.connect(gain);gain.connect(ctx.destination);
     src.start(startTime);src.stop(startTime+beatDur);
   }
@@ -518,6 +556,7 @@ function IIVIView({keyIdx}){
     audioCtxRef.current=ctx;
     ksBufsRef.current=precomputeKS(ctx);
     clickBufsRef.current={accent:makeClickBuf(ctx,1200,0.90),normal:makeClickBuf(ctx,800,0.55)};
+    if(bassRef.current) loadBassFont(ctx);
     nextTimeRef.current=ctx.currentTime+0.05;
     beatRef.current=0;
     const gen=++genRef.current;
