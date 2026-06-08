@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Jazz Gtr"/>
-  <meta name="theme-color" content="#07070f"/>
+  <meta id="theme-meta" name="theme-color" content="#07070f"/>
   <link rel="manifest" href="manifest.json"/>
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
   <title>Jazz Guitar Voicings</title>
@@ -14,14 +14,45 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { -webkit-text-size-adjust: 100%; font-size: 18px; }
     @media (min-width: 768px) { html { font-size: 22px; } }
+
+    :root {
+      --bg: #07070f; --bg2: #0d0d1e; --brd: #22223a;
+      --lbl: #a8a8cc; --hint: #9898bc; --btn-off: #8888b8; --btn-brd: #28284a;
+      --txt: #d0d0e8; --neck-wrap: #05050e;
+      --gold: #d4a855; --scale-name: #e8d8a0;
+      --cb-bg: #09091a; --cb-sel: #09182a; --cb-str: #1e1e38;
+      --scale-circ: rgba(255,255,255,0.04); --scale-circ-str: rgba(255,255,255,0.20);
+      --scale-circ-txt: rgba(255,255,255,0.26); --hi-dot-str: rgba(255,255,255,0.85);
+      --leg-circ: rgba(255,255,255,0.28); --leg-txt: rgba(255,255,255,0.45);
+      --parent-key: #4ECDC4; --parent-key-brd: #4ECDC440; --parent-other: #9090c0;
+      --parent-box-act: #0a1f1f;
+      --note-non-chord: rgba(255,255,255,0.04); --note-non-chord-txt: #6060a0; --note-iv-txt: #484870;
+      --act-gold: #1a1402; --act-red: #1a0808; --act-teal: #081a1a;
+      --act-blue: #081520; --act-pur: #1a0a28; --act-yel: #181200;
+    }
+    :root[data-theme="light"] {
+      --bg: #f5f5fa; --bg2: #eaeaf5; --brd: #b8b8d8;
+      --lbl: #363663; --hint: #525285; --btn-off: #3d3d65; --btn-brd: #b8b8d8;
+      --txt: #0e0e20; --neck-wrap: #e8e4de;
+      --gold: #8a5a10; --scale-name: #5a3a00;
+      --cb-bg: #ffffff; --cb-sel: #ddf0fa; --cb-str: #a8a8c8;
+      --scale-circ: rgba(0,0,0,0.06); --scale-circ-str: rgba(0,0,0,0.22);
+      --scale-circ-txt: rgba(0,0,0,0.50); --hi-dot-str: rgba(0,0,0,0.65);
+      --leg-circ: rgba(0,0,0,0.28); --leg-txt: rgba(0,0,0,0.65);
+      --parent-key: #1a8a80; --parent-key-brd: rgba(78,205,196,0.35); --parent-other: #484890;
+      --parent-box-act: #d0f0ee;
+      --note-non-chord: rgba(0,0,0,0.07); --note-non-chord-txt: #505090; --note-iv-txt: #6060a0;
+      --act-gold: #fff8e0; --act-red: #ffe8e8; --act-teal: #d8f5f0;
+      --act-blue: #e0eefa; --act-pur: #f5e0fc; --act-yel: #fffbe0;
+    }
+
     body {
-      background: #07070f;
-      color: #d0d0e8;
+      background: var(--bg);
+      color: var(--txt);
       font-family: 'Courier New', monospace;
       overscroll-behavior: none;
       -webkit-tap-highlight-color: transparent;
     }
-    /* Ensure touch targets meet 44px iOS minimum */
     button {
       font-family: 'Courier New', monospace;
       cursor: pointer;
@@ -29,9 +60,8 @@
       touch-action: manipulation;
     }
     ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: #0d0d1e; }
-    ::-webkit-scrollbar-thumb { background: #28284a; border-radius: 2px; }
-    /* Safe-area insets for notched iPads / iPhones */
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--brd); border-radius: 2px; }
     #root { padding-bottom: env(safe-area-inset-bottom); }
   </style>
 </head>
