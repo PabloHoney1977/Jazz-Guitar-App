@@ -380,6 +380,17 @@ const BEAT_MAP=[
   [2,0],[2,2],[2,1],[2,0],  // bar 4: Imaj7 R   5  3  R
 ];
 
+function findBestInvIdx(prevVoicing,candidates){
+  if(!prevVoicing) return 0;
+  let best=0,bestScore=Infinity;
+  candidates.forEach((v,i)=>{
+    if(!v) return;
+    const score=v.frets.reduce((sum,f,j)=>sum+Math.abs(f-prevVoicing.frets[j]),0);
+    if(score<bestScore){bestScore=score;best=i;}
+  });
+  return best;
+}
+
 // ── IIVIView ──────────────────────────────────────────────────────────
 function IIVIView({keyIdx}){
   const [strSetIdx,setStrSetIdx]=useState(2);
@@ -474,6 +485,14 @@ function IIVIView({keyIdx}){
   }
 
   function startPlayback(){
+    // Compute voice-led inversion sequence from the user's selected II inversion
+    const allVoicings=chords.map(chord=>D2_INV.map(inv=>calcVoicing(ss,inv.a,chord.tones)));
+    const iiIdx=invIdxs[0];
+    const vIdx=findBestInvIdx(allVoicings[0][iiIdx],allVoicings[1]);
+    const iIdx=findBestInvIdx(allVoicings[1][vIdx],allVoicings[2]);
+    setInvIdxs([iiIdx,vIdx,iIdx]);
+    setActiveChordIdx(0);
+
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
     audioCtxRef.current=ctx;
     clickBufsRef.current={accent:makeClickBuf(ctx,7,0.85),normal:makeClickBuf(ctx,5,0.50)};
@@ -489,7 +508,11 @@ function IIVIView({keyIdx}){
         const bar=Math.floor(beat/4);
         const [ci,ti]=BEAT_MAP[beat];
         const delay=Math.max(0,(nextTimeRef.current-audioCtxRef.current.currentTime)*1000);
-        setTimeout(()=>{if(genRef.current===gen){setPlayingChordIdx(ci);setPlayingBar(bar);}},delay);
+        setTimeout(()=>{
+          if(genRef.current===gen){
+            setPlayingChordIdx(ci);setPlayingBar(bar);setActiveChordIdx(ci);
+          }
+        },delay);
         if(bassRef.current && chordsRef.current){
           playBassNote(ctx,chordsRef.current[ci].tones[ti],nextTimeRef.current,beatDur,beat%4===0);
         } else if(clickBufsRef.current){
@@ -508,7 +531,7 @@ function IIVIView({keyIdx}){
     genRef.current++;
     clearTimeout(timerRef.current);
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
-    setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
+    setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);setActiveChordIdx(0);
   }
 
   // cleanup on unmount
