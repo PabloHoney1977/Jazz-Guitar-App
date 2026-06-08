@@ -399,6 +399,7 @@ function IIVIView({keyIdx}){
   const bpmRef=useRef(bpm);
   const bassRef=useRef(bassEnabled);
   const chordsRef=useRef(null);
+  const clickBufsRef=useRef(null);
   bpmRef.current=bpm;
   bassRef.current=bassEnabled;
 
@@ -430,25 +431,52 @@ function IIVIView({keyIdx}){
   function playBassNote(ctx,pc,startTime,beatDur,accent){
     const midi=48+((pc%12+12)%12);
     const freq=440*Math.pow(2,(midi-69)/12);
-    const osc=ctx.createOscillator();
+    const master=ctx.createGain();
+    master.connect(ctx.destination);
+    const pk=accent?0.52:0.33;
+    master.gain.setValueAtTime(0,startTime);
+    master.gain.linearRampToValueAtTime(pk,startTime+0.016);
+    master.gain.exponentialRampToValueAtTime(pk*0.55,startTime+0.07);
+    master.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.88);
+    [[1,1.0],[2,0.28],[3,0.08]].forEach(([mult,amp])=>{
+      const osc=ctx.createOscillator();
+      const g=ctx.createGain();
+      osc.type='sine';
+      osc.frequency.value=freq*mult;
+      if(mult===1){
+        osc.frequency.setValueAtTime(freq*1.012,startTime);
+        osc.frequency.exponentialRampToValueAtTime(freq,startTime+0.05);
+      }
+      g.gain.value=amp;
+      osc.connect(g);g.connect(master);
+      osc.start(startTime);osc.stop(startTime+beatDur);
+    });
+  }
+
+  function playClick(ctx,buf,startTime){
+    const src=ctx.createBufferSource();
+    src.buffer=buf;
     const filt=ctx.createBiquadFilter();
-    const gain=ctx.createGain();
-    osc.type='triangle';
-    osc.frequency.value=freq;
-    filt.type='lowpass';
-    filt.frequency.value=900;
-    filt.Q.value=0.7;
-    const pk=accent?0.48:0.30;
-    gain.gain.setValueAtTime(0,startTime);
-    gain.gain.linearRampToValueAtTime(pk,startTime+0.018);
-    gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.88);
-    osc.connect(filt);filt.connect(gain);gain.connect(ctx.destination);
-    osc.start(startTime);osc.stop(startTime+beatDur);
+    filt.type='bandpass';
+    filt.frequency.value=1100;
+    filt.Q.value=0.9;
+    src.connect(filt);filt.connect(ctx.destination);
+    src.start(startTime);
+  }
+
+  function makeClickBuf(ctx,decayMs,amp){
+    const len=Math.floor(ctx.sampleRate*0.045);
+    const buf=ctx.createBuffer(1,len,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    const tau=ctx.sampleRate*decayMs/1000;
+    for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*amp*Math.exp(-i/tau);
+    return buf;
   }
 
   function startPlayback(){
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
     audioCtxRef.current=ctx;
+    clickBufsRef.current={accent:makeClickBuf(ctx,7,0.85),normal:makeClickBuf(ctx,5,0.50)};
     nextTimeRef.current=ctx.currentTime+0.05;
     beatRef.current=0;
     const gen=++genRef.current;
@@ -464,6 +492,9 @@ function IIVIView({keyIdx}){
         setTimeout(()=>{if(genRef.current===gen){setPlayingChordIdx(ci);setPlayingBar(bar);}},delay);
         if(bassRef.current && chordsRef.current){
           playBassNote(ctx,chordsRef.current[ci].tones[ti],nextTimeRef.current,beatDur,beat%4===0);
+        } else if(clickBufsRef.current){
+          const buf=beat%4===0?clickBufsRef.current.accent:clickBufsRef.current.normal;
+          playClick(ctx,buf,nextTimeRef.current);
         }
         nextTimeRef.current+=beatDur;
         beatRef.current++;
