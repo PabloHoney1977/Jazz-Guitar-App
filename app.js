@@ -449,6 +449,7 @@ function IIVIView({keyIdx}){
   const [bpm,setBpm]=useState(120);
   const [bassEnabled,setBassEnabled]=useState(true);
   const [metronomeEnabled,setMetronomeEnabled]=useState(true);
+  const [isMinor,setIsMinor]=useState(false);
   const [playingChordIdx,setPlayingChordIdx]=useState(null);
   const [playingBar,setPlayingBar]=useState(null);
 
@@ -471,12 +472,16 @@ function IIVIView({keyIdx}){
   metronomeRef.current=metronomeEnabled;
 
   // II=deg1, V=deg4, I=deg0
-  const chords=[1,4,0].map(deg=>{
+  // Major: IIm7 – V7 – Imaj7   Minor: IIm7b5 – V7 – Im7
+  const MIN_Q  =['m7b5','dom7','m7'];
+  const MIN_SYM=['ø7',  '7',   'm7'];
+  const chords=[1,4,0].map((deg,idx)=>{
     const rootPC=(KEYS[keyIdx].root+MAJOR_SCALE[deg])%12;
-    const quality=QTYPES[deg];
+    const quality=isMinor?MIN_Q[idx]:QTYPES[deg];
     const tones=getChordTones(rootPC,quality);
+    const sym=isMinor?MIN_SYM[idx]:QSYMS[deg];
     return{rootPC,quality,tones,dnames:DNAMES[quality],
-      name:nn(rootPC,keyIdx)+QSYMS[deg],roman:ROMAN[deg]};
+      name:nn(rootPC,keyIdx)+sym,roman:ROMAN[deg]};
   });
   chordsRef.current=chords;
 
@@ -484,8 +489,8 @@ function IIVIView({keyIdx}){
   const ss=D2_SETS[ssIdx].s;
   const ac=chords[activeChordIdx];
 
-  const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx]);
-  const activeVoicings=useMemo(()=>D2_INV.map(inv=>calcVoicing(ss,inv.a,ac.tones)),[activeChordIdx,strSetIdx,keyIdx]);
+  const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx,isMinor]);
+  const activeVoicings=useMemo(()=>D2_INV.map(inv=>calcVoicing(ss,inv.a,ac.tones)),[activeChordIdx,strSetIdx,keyIdx,isMinor]);
   const highlight=useMemo(()=>{
     const v=activeVoicings[invIdxs[activeChordIdx]];
     if(!v) return null;
@@ -493,7 +498,7 @@ function IIVIView({keyIdx}){
       const si=ss[i],ti=ac.tones.indexOf((OPEN_PC[si]+f)%12);
       return{s:si,f,ti,dl:ti>=0?ac.dnames[ti]:''};
     });
-  },[activeVoicings,invIdxs,activeChordIdx,strSetIdx]);
+  },[activeVoicings,invIdxs,activeChordIdx,strSetIdx,isMinor]);
 
   function loadBassFont(ctx){
     if(!window.WebAudioFontPlayer) return;
@@ -599,15 +604,19 @@ function IIVIView({keyIdx}){
     if(audioCtxRef.current)audioCtxRef.current.close();
   },[]);
 
-  // stop when key changes
+  // stop when key or mode changes
   useEffect(()=>{
     genRef.current++;
     clearTimeout(timerRef.current);
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
     setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
-  },[keyIdx]);
+    setInvIdxs([0,0,0]);setActiveChordIdx(0);
+  },[keyIdx,isMinor]);
 
   const BAR_ROMAN=['II','V','I','I'];
+  const modeBtn=(act,col,actBg)=>({padding:'6px 13px',borderRadius:5,cursor:'pointer',
+    fontFamily:MONO,fontSize:'0.78rem',border:'1px solid '+(act?col:BTN_BRD),
+    background:act?actBg:'transparent',color:act?col:BTN_OFF,fontWeight:act?700:400,minHeight:44});
   const playBtn={padding:'6px 18px',background:isPlaying?ACT_RED:ACT_TEAL,
     border:'1px solid '+(isPlaying?'#FF6B6B':'#4ECDC4'),borderRadius:6,
     color:isPlaying?'#FF6B6B':'#4ECDC4',cursor:'pointer',fontFamily:MONO,
@@ -630,7 +639,10 @@ function IIVIView({keyIdx}){
       e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'STRING SET'),
       D2_SETS.map((set,i)=>
         e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
-      )
+      ),
+      e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginLeft:8}},'MODE'),
+      e('button',{onClick:()=>setIsMinor(false),style:modeBtn(!isMinor,'#4ECDC4',ACT_TEAL)},'MAJOR'),
+      e('button',{onClick:()=>setIsMinor(true), style:modeBtn(isMinor, '#C084FC',ACT_PUR)}, 'MINOR')
     ),
     // Play-along controls
     e('div',{style:{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginBottom:10,
@@ -708,7 +720,9 @@ function IIVIView({keyIdx}){
     e('div',{style:{marginTop:12,padding:'8px 12px',background:BG2,border:'1px solid '+BORDER,
       borderRadius:6,fontSize:'0.79rem',color:HINT,lineHeight:1.6}},
       e('span',{style:{color:GOLD,fontWeight:700}},'Voice leading tip: '),
-      'Keep common tones, move others by step. Classic: IIm7 3rd inv → V7 2nd inv → Imaj7 root pos, all on the same string set.'
+      isMinor
+        ?'Minor II–V–I: the ♭5 of IIø resolves up a half-step to the 5th of Im7. Classic path: IIø 3rd inv → V7 2nd inv → Im7 root pos.'
+        :'Major II–V–I: keep common tones, move others by step. Classic: IIm7 3rd inv → V7 2nd inv → Imaj7 root pos, all on the same string set.'
     )
   );
 }
