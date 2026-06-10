@@ -116,13 +116,12 @@ const D3_INV=[
   {label:'2nd', bassIdx:3,a:[3,2,0,1]},{label:'3rd',bassIdx:0,a:[0,3,1,2]},
 ];
 const D3_SETS=[{lbl:'6-4-3-2',s:[0,2,3,4]},{lbl:'5-3-2-1',s:[1,3,4,5]}];
+// Shells are root-position guide-tone voicings (R+3+7). The 3-R-7 / 7-R-3
+// rotations were removed: with the root above the bass they force a 9th
+// spread — a 5-fret window that isn't physically playable in low positions.
 const SHELLS=[
   {lbl:'R-7-3',form:'A',root:'6th',s:[0,2,3],a:[0,3,1],bassIdx:0},
   {lbl:'R-7-3',form:'A',root:'5th',s:[1,3,4],a:[0,3,1],bassIdx:0},
-  {lbl:'3-R-7',form:'A',root:'6th',s:[0,2,3],a:[1,0,3],bassIdx:1},
-  {lbl:'3-R-7',form:'A',root:'5th',s:[1,3,4],a:[1,0,3],bassIdx:1},
-  {lbl:'7-R-3',form:'A',root:'6th',s:[0,2,3],a:[3,0,1],bassIdx:3},
-  {lbl:'7-R-3',form:'A',root:'5th',s:[1,3,4],a:[3,0,1],bassIdx:3},
   {lbl:'R-3-7',form:'B',root:'6th',s:[0,1,2],a:[0,1,3],bassIdx:0},
   {lbl:'R-3-7',form:'B',root:'5th',s:[1,2,3],a:[0,1,3],bassIdx:0},
 ];
@@ -138,8 +137,15 @@ const getChordTones=(root,q)=>INTERVALS[q].map(i=>(root+i)%12);
 const getExtTones=(root,extType)=>extType.iv.map(i=>(root+i)%12);
 const getRootlessTones=(root,q)=>{const t=getChordTones(root,q);return[(root+2)%12,t[1],t[2],t[3]];};
 
-function calcVoicing(strings,assignment,tones,maxSpan,minFret){
-  maxSpan=maxSpan===undefined?5:maxSpan;
+// Playability: a 3-fret span works anywhere (one finger per fret). A 4-fret
+// span only works from the 5th fret up, where the frets are narrow enough.
+// Anything wider is rejected and the shape is retried an octave higher.
+function spanOK(frets){
+  const mn=Math.min(...frets),mx=Math.max(...frets),span=mx-mn;
+  return span<=3||(span===4&&mn>=5);
+}
+
+function calcVoicing(strings,assignment,tones,minFret){
   minFret=minFret===undefined?0:minFret;
   const bs=strings[0],bpc=tones[assignment[0]];
   let bf=((bpc-OPEN_PC[bs])+12)%12;
@@ -156,8 +162,10 @@ function calcVoicing(strings,assignment,tones,maxSpan,minFret){
       frets.push(off);midis.push(m);
     }
     if(!ok) continue;
-    const mn=Math.min(...frets),mx=Math.max(...frets);
-    if(mx-mn<=maxSpan) return{frets,midis,mn,mx};
+    if(spanOK(frets)){
+      const mn=Math.min(...frets),mx=Math.max(...frets);
+      return{frets,midis,mn,mx};
+    }
   }
   return null;
 }
@@ -458,6 +466,12 @@ function DiagSection({title,children}){
     e('div',{style:{fontSize:'0.6rem',color:LBL,letterSpacing:'2px',marginBottom:6}},title),
     e('div',{style:{display:'flex',flexWrap:'wrap',gap:8,alignItems:'flex-start'}},children)
   );
+}
+
+// Shown when every shape in a section failed the playability check
+function NoShapes(){
+  return e('span',{style:{fontSize:'0.75rem',color:HINT,fontFamily:MONO,padding:'8px 0'}},
+    'No playable shape here — this voicing needs a stretch wider than a hand allows. Try another string set.');
 }
 
 // ── Shared button style helpers ───────────────────────────────────────
@@ -817,13 +831,13 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   const safeSSIdx=Math.min(ssIdx,setsData.length-1);
 
   const allVoicings=useMemo(()=>{
-    if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,4,1));
+    if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,1));
     const ss=setsData[safeSSIdx].s;
     return invData.map(inv=>calcVoicing(ss,inv.a,tones));
   },[vType,safeSSIdx,tones,ssIdx]);
 
   const firstValidShell=useMemo(()=>{
-    const vs=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,4,1));
+    const vs=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,1));
     const f=vs.findIndex(v=>v!==null); return f>=0?f:0;
   },[tones]);
   useEffect(()=>{if(vType==='shell') setShellIdx(firstValidShell);},[firstValidShell,vType]);
@@ -924,6 +938,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     // Chord diagrams
     vType==='drop2'||vType==='drop3'?
       e(DiagSection,{title:(vType==='drop2'?'DROP 2':'DROP 3')+' INVERSIONS'},
+        allVoicings.every(v=>!v)?e(NoShapes,null):
         invData.map((inv,i)=>
           e(ChordBox,{key:i,voicing:allVoicings[i],strings:setsData[safeSSIdx].s,
             tones,degNames,invLabel:inv.label+' Inv',
@@ -1192,20 +1207,20 @@ function App(){
   const safeSSIdx=Math.min(ssIdx,setsData.length-1);
 
   const allVoicings=useMemo(()=>{
-    if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,4,1));
+    if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,1));
     const ss=setsData[safeSSIdx].s;
     return invData.map(inv=>calcVoicing(ss,inv.a,tones));
   },[vType,safeSSIdx,tones,ssIdx]);
 
   const firstValidShell=useMemo(()=>{
-    const vs=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,4,1));
+    const vs=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,1));
     const f=vs.findIndex(v=>v!==null); return f>=0?f:0;
   },[tones]);
   useEffect(()=>{if(vType==='shell') setShellIdx(firstValidShell);},[firstValidShell]);
   const safeShellIdx=allVoicings[shellIdx]?shellIdx:firstValidShell;
 
   const allRootless=useMemo(()=>
-    ROOTLESS.map(cfg=>calcVoicing(cfg.s,cfg.a,rlTones,5,1)),[rlTones]);
+    ROOTLESS.map(cfg=>calcVoicing(cfg.s,cfg.a,rlTones,1)),[rlTones]);
   const firstValidRl=useMemo(()=>{const f=allRootless.findIndex(v=>v!==null);return f>=0?f:0;},[allRootless]);
   useEffect(()=>{if(vType==='rootless') setRlIdx(firstValidRl);},[firstValidRl,vType]);
   const safeRlIdx=allRootless[rlIdx]?rlIdx:firstValidRl;
@@ -1387,6 +1402,7 @@ function App(){
         keyIdx:key,scaleIdx:safeScaleIdx,onScaleChange:setScaleIdx}),
       // Drop 2 / Drop 3
       (vType==='drop2'||vType==='drop3')?e(DiagSection,{title:(vType==='drop2'?'DROP 2':'DROP 3')+' INVERSIONS — CLICK TO SELECT'},
+        allVoicings.every(v=>!v)?e(NoShapes,null):
         invData.map((inv,i)=>
           e(ChordBox,{key:i,voicing:allVoicings[i],strings:setsData[safeSSIdx].s,
             tones,degNames,invLabel:inv.label+' Inv',bassLabel:'bass: '+degNames[inv.bassIdx],
@@ -1395,7 +1411,7 @@ function App(){
       ):null,
       // Shell voicings
       vType==='shell'?e('div',null,
-        e(DiagSection,{title:'FORM A — SKIP-STRING (R-7-3, 3-R-7, 7-R-3)'},
+        e(DiagSection,{title:'FORM A — SKIP-STRING (R-7-3)'},
           shellsA.map(x=>e(ChordBox,{key:x.i,voicing:x.v,strings:x.sh.s,tones,degNames,
             invLabel:x.sh.lbl,bassLabel:'bass: '+degNames[x.sh.bassIdx]+' ('+x.sh.root+')',
             selected:safeShellIdx===x.i,onClick:()=>setShellIdx(x.i)}))
@@ -1409,6 +1425,7 @@ function App(){
       // Rootless voicings
       vType==='rootless'?e('div',null,
         e(DiagSection,{title:'TYPE A: 3-5-7-9 (3RD ON BOTTOM) — CLICK TO SELECT'},
+          ROOTLESS.every((c,i)=>c.type!=='A'||!allRootless[i])?e(NoShapes,null):
           ROOTLESS.filter(c=>c.type==='A').map(cfg=>{
             const i=ROOTLESS.indexOf(cfg);
             return e(ChordBox,{key:i,voicing:allRootless[i],strings:cfg.s,tones:rlTones,
@@ -1418,6 +1435,7 @@ function App(){
           })
         ),
         e(DiagSection,{title:'TYPE B: 7-9-3-5 (7TH ON BOTTOM) — CLICK TO SELECT'},
+          ROOTLESS.every((c,i)=>c.type!=='B'||!allRootless[i])?e(NoShapes,null):
           ROOTLESS.filter(c=>c.type==='B').map(cfg=>{
             const i=ROOTLESS.indexOf(cfg);
             return e(ChordBox,{key:i,voicing:allRootless[i],strings:cfg.s,tones:rlTones,
