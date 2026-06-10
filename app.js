@@ -788,7 +788,7 @@ function IIVIView({keyIdx}){
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
             D2_INV.map((inv,ii)=>
               e(ChordBox,{key:ii,voicing:voicings[ii],strings:ss,tones:chord.tones,
-                degNames:chord.dnames,invLabel:inv.label+' Inv',
+                degNames:chord.dnames,invLabel:ii===0?'Root pos.':chord.dnames[inv.bassIdx]+' bass',
                 bassLabel:'bass: '+chord.dnames[inv.bassIdx],
                 selected:isActive&&invIdxs[ci]===ii,
                 onClick:()=>{
@@ -806,8 +806,8 @@ function IIVIView({keyIdx}){
       borderRadius:6,fontSize:'0.79rem',color:HINT,lineHeight:1.6}},
       e('span',{style:{color:GOLD,fontWeight:700}},'Voice leading tip: '),
       isMinor
-        ?'Minor II–V–I: the ♭5 of IIø resolves up a half-step to the 5th of Im7. Classic path: IIø 3rd inv → V7 2nd inv → Im7 root pos.'
-        :'Major II–V–I: keep common tones, move others by step. Classic: IIm7 3rd inv → V7 2nd inv → Imaj7 root pos, all on the same string set.'
+        ?'Minor II–V–I: the ♭5 of IIø resolves up a half-step to the 5th of Im7. Classic path: IIø (7 bass) → V7 (5 bass) → Im7 root pos.'
+        :'Major II–V–I: keep common tones, move others by step. Classic: IIm7 (7 bass) → V7 (5 bass) → Imaj7 root pos, all on the same string set.'
     )
   );
 }
@@ -946,7 +946,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         allVoicings.every(v=>!v)?e(NoShapes,null):
         invData.map((inv,i)=>
           e(ChordBox,{key:i,voicing:allVoicings[i],strings:setsData[safeSSIdx].s,
-            tones,degNames,invLabel:inv.label+' Inv',
+            tones,degNames,invLabel:i===0?'Root pos.':degNames[inv.bassIdx]+' bass',
             bassLabel:'bass: '+degNames[inv.bassIdx],
             selected:invIdx===i,onClick:()=>setInvIdx(i)})
         )
@@ -1455,7 +1455,7 @@ function App(){
         allVoicings.every(v=>!v)?e(NoShapes,null):
         invData.map((inv,i)=>
           e(ChordBox,{key:i,voicing:allVoicings[i],strings:setsData[safeSSIdx].s,
-            tones,degNames,invLabel:inv.label+' Inv',bassLabel:'bass: '+degNames[inv.bassIdx],
+            tones,degNames,invLabel:i===0?'Root pos.':degNames[inv.bassIdx]+' bass',bassLabel:'bass: '+degNames[inv.bassIdx],
             selected:invIdx===i,onClick:()=>setInvIdx(i)})
         )
       ):null,
