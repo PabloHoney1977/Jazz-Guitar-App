@@ -86,9 +86,6 @@ const TC    =['#FF6B6B','#4ECDC4','#74C0FC','#FFD43B'];
 const TC_DIM=['#FF6B6B55','#4ECDC455','#74C0FC55','#FFD43B55'];
 const TC_RIM=['#FF6B6B99','#4ECDC499','#74C0FC99','#FFD43B99'];
 const TC_RL =['#C084FC','#4ECDC4','#74C0FC','#FFD43B'];
-// Contrast text for each TC slot: red/teal are dark enough for white; blue/yellow need dark ink
-const TC_TXT=['white','white','#1a1a2e','#1a1a2e'];
-const TC_RL_TXT=['white','white','#1a1a2e','#1a1a2e'];
 const BG     ='var(--bg)';
 const BG2    ='var(--bg2)';
 const BORDER ='var(--brd)';
@@ -303,9 +300,8 @@ function playChordPreview(voicing,strings){
 }
 
 // ── NeckSVG ───────────────────────────────────────────────────────────
-function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc,hlTxt}){
+function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
   hlTc=hlTc||TC;
-  hlTxt=hlTxt||TC_TXT;
   const FW=44,SH=30,PL=38,PT=28,PB=28,NF=15;
   const W=PL+NF*FW+24,H=PT+5*SH+PB;
   const nx=f=>PL+(f-0.5)*FW;
@@ -365,9 +361,9 @@ function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc,hlTxt}){
       if(hiMap[p.s+'-'+p.f]) return null;
       const cx=p.f===0?OPEN_X:nx(p.f);
       return e('g',{key:'ap'+i},
-        e('circle',{cx,cy:sy(p.s),r:8,fill:TC_DIM[p.ti],stroke:TC_RIM[p.ti],strokeWidth:1.3}),
+        e('circle',{cx,cy:sy(p.s),r:8,fill:TC_DIM[p.ti],stroke:TC[p.ti],strokeWidth:1.3}),
         e('text',{x:cx,y:sy(p.s),textAnchor:'middle',dominantBaseline:'middle',
-          fill:TC_RIM[p.ti],fontSize:7,fontFamily:UI_FONT,pointerEvents:'none'},degNames[p.ti])
+          fill:TC[p.ti],fontSize:7,fontFamily:UI_FONT,pointerEvents:'none'},degNames[p.ti])
       );
     }),
     (highlight||[]).map((h,i)=>{
@@ -375,16 +371,15 @@ function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc,hlTxt}){
       return e('g',{key:'hi'+i,filter:'url(#ng)'},
         e('circle',{cx,cy:sy(h.s),r:h.f===0?9:11,fill:hlTc[h.ti],stroke:'var(--hi-dot-str)',strokeWidth:1.8}),
         e('text',{x:cx,y:sy(h.s),textAnchor:'middle',dominantBaseline:'middle',
-          fill:hlTxt[h.ti]||'white',fontSize:9,fontWeight:'bold',fontFamily:UI_FONT},h.dl)
+          fill:'var(--dot-lbl)',fontSize:9,fontWeight:'bold',fontFamily:UI_FONT},h.dl)
       );
     })
   );
 }
 
 // ── ChordBox ──────────────────────────────────────────────────────────
-function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,onClick,tcArr,tcTxtArr}){
+function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,onClick,tcArr}){
   const tc=tcArr||TC;
-  const tcTxt=tcTxtArr||TC_TXT;
   if(!voicing) return null;
   const frets=voicing.frets;
   const allF=[null,null,null,null,null,null];
@@ -421,7 +416,7 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
         const pc=(OPEN_PC[i]+f)%12,ti2=tones.indexOf(pc);
         return e('g',{key:'dt'+i},
           e('circle',{cx:sx(i),cy:fy(f),r:9,fill:ti2>=0?tc[ti2]:'#556',stroke:'var(--hi-dot-str)',strokeWidth:1}),
-          e('text',{x:sx(i),y:fy(f),textAnchor:'middle',dominantBaseline:'middle',fill:ti2>=0?tcTxt[ti2]:'white',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT},ti2>=0?degNames[ti2]:'')
+          e('text',{x:sx(i),y:fy(f),textAnchor:'middle',dominantBaseline:'middle',fill:'var(--dot-lbl)',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT},ti2>=0?degNames[ti2]:'')
         );
       })
     )
@@ -1117,6 +1112,53 @@ function GuideView({openPreset,level}){
     );
   }
   return e('div',{style:{maxWidth:780}},
+    sec('Intervals — the building blocks',
+      p('Every chord and scale in music is built from intervals — the distance between two notes, measured in half-steps (semitones). On the guitar, one fret = one semitone. Knowing intervals by ear and by name is the hidden fluency that makes theory click.'),
+      e('div',{style:{overflowX:'auto',marginTop:10,marginBottom:4}},
+        e('table',{style:{borderCollapse:'collapse',fontSize:'0.82rem',width:'100%',minWidth:340}},
+          e('thead',null,
+            e('tr',null,
+              ['Semitones','Name','Abbr.','Example (from C)','Sound / feel'].map((h,i)=>
+                e('th',{key:i,style:{padding:'5px 10px',textAlign:'left',color:LBL,
+                  borderBottom:'1px solid '+BORDER,fontWeight:600,whiteSpace:'nowrap'}},h)
+              )
+            )
+          ),
+          e('tbody',null,
+            [
+              [0,'Unison','1','C → C','Same note — root'],
+              [1,'Minor 2nd','b2','C → Db','Half-step, sharp tension'],
+              [2,'Major 2nd','2','C → D','Whole-step, mild step'],
+              [3,'Minor 3rd','b3','C → Eb','Minor quality — dark'],
+              [4,'Major 3rd','3','C → E','Major quality — bright'],
+              [5,'Perfect 4th','4','C → F','Stable, open-sounding'],
+              [6,'Tritone','b5 / #4','C → F#/Gb','Maximum tension'],
+              [7,'Perfect 5th','5','C → G','Strong, stable'],
+              [8,'Minor 6th','b6','C → Ab','Dark colour'],
+              [9,'Major 6th','6','C → A','Warm, bossa-friendly'],
+              [10,'Minor 7th','b7','C → Bb','Blues / dominant sound'],
+              [11,'Major 7th','Δ7','C → B','Jazz stable — pulls to root'],
+              [12,'Octave','8','C → C (high)','Same note, one octave up'],
+            ].map(([st,name,abbr,ex,feel],ri)=>
+              e('tr',{key:ri,style:{background:ri%2===0?'transparent':'var(--bg2)'}},
+                e('td',{style:{padding:'4px 10px',color:'#FFD43B',fontWeight:700,textAlign:'center'}},st),
+                e('td',{style:{padding:'4px 10px',color:'var(--txt)',fontWeight:600}},name),
+                e('td',{style:{padding:'4px 10px',color:'#4ECDC4',fontFamily:'Georgia,serif',fontStyle:'italic'}},abbr),
+                e('td',{style:{padding:'4px 10px',color:'#74C0FC'}},[ex]),
+                e('td',{style:{padding:'4px 10px',color:HINT,fontSize:'0.77rem'}},[feel])
+              )
+            )
+          )
+        )
+      ),
+      p('In the app, the coloured dots on the neck each represent one chord-tone interval: ',
+        e('span',{style:{color:'#FF6B6B',fontWeight:700}},'Root (R)'),', ',
+        e('span',{style:{color:'#4ECDC4',fontWeight:700}},'3rd'),', ',
+        e('span',{style:{color:'#74C0FC',fontWeight:700}},'5th'),', and ',
+        e('span',{style:{color:'#FFD43B',fontWeight:700}},'7th'),
+        '. The dimmer dots show every occurrence of those intervals across the whole neck; the bright ones are the voicing you\'ve selected.'
+      )
+    ),
     sec('Start Here — For Blues & Rock Players',
       p('You already know the foundation. Power chords gave you intervals. Blues gave you tension and resolution. The pentatonic scale taught you "inside" vs "outside." Jazz builds directly on all of that.'),
       p('The key shift: jazz chords have ',e('b',{style:HL},'four notes'),' instead of two or three. A G power chord (G+D) becomes Gmaj7 (G+B+D+F#). A plain G7 — which you likely already play in blues — stays a G7. You are not starting from zero.'),
@@ -1124,7 +1166,7 @@ function GuideView({openPreset,level}){
     ),
     e('div',{style:S},
       e('div',{style:{...H,display:'flex',justifyContent:'space-between',alignItems:'baseline',flexWrap:'wrap',gap:8}},
-        e('span',null,'The Path — rock & blues to jazz'),
+        e('span',null,'The Learning Path — rock & blues to jazz'),
         e('span',{style:{fontSize:'0.72rem',fontFamily:UI_FONT,fontWeight:400,color:doneCount===stages.length?'#4ECDC4':HINT}},doneCount+' / '+stages.length+' done')
       ),
       p('Work top to bottom — each stage is about a week of practice, and slower is fine. Nothing is locked; the Path just says what matters now. Each button opens the right view, already set up.'),
@@ -1476,7 +1518,7 @@ function App(){
       e('div',{style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
         padding:'8px 4px 4px',marginBottom:10,overflowX:'auto'}},
         e('div',{style:{minWidth:680}},
-          e(NeckSVG,{arpPos,highlight,scalePos,degNames,hlTc,hlTxt:isRl?TC_RL_TXT:TC_TXT})
+          e(NeckSVG,{arpPos,highlight,scalePos,degNames,hlTc})
         )
       ),
       // Scale panel (diatonic only)
@@ -1513,7 +1555,7 @@ function App(){
             return e(ChordBox,{key:i,voicing:allRootless[i],strings:cfg.s,tones:rlTones,
               degNames:rlDegNames,invLabel:cfg.lbl+' / '+cfg.strs,
               bassLabel:'bass: '+rlDegNames[cfg.bassIdx],
-              selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL,tcTxtArr:TC_RL_TXT});
+              selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL});
           })
         ),
         e(DiagSection,{title:'TYPE B: 7-9-3-5 (7TH ON BOTTOM) — CLICK TO SELECT'},
@@ -1523,7 +1565,7 @@ function App(){
             return e(ChordBox,{key:i,voicing:allRootless[i],strings:cfg.s,tones:rlTones,
               degNames:rlDegNames,invLabel:cfg.lbl+' / '+cfg.strs,
               bassLabel:'bass: '+rlDegNames[cfg.bassIdx],
-              selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL,tcTxtArr:TC_RL_TXT});
+              selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL});
           })
         )
       ):null,
@@ -1552,7 +1594,7 @@ function App(){
       display:'flex',background:BG2,borderTop:'1px solid '+BORDER,
       paddingBottom:'env(safe-area-inset-bottom)',
       boxShadow:'0 -4px 16px rgba(0,0,0,0.35)'}},
-      [['diatonic','♬','Chords'],['iivi','▶','Play'],['custom','♪','Any Chord'],['guide','⚑','Path']].map(([id,icon,lbl])=>{
+      [['diatonic','♬','Chords'],['iivi','▶','Play'],['custom','♪','Any Chord'],['guide','⚑','Guide']].map(([id,icon,lbl])=>{
         const act=viewMode===id;
         return e('button',{key:id,onClick:()=>{setViewMode(id);window.scrollTo(0,0);},style:{
           flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:1,
