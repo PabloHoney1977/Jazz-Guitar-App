@@ -156,8 +156,13 @@ const getChordTones=(root,q)=>INTERVALS[q].map(i=>(root+i)%12);
 const getExtTones=(root,extType)=>extType.iv.map(i=>(root+i)%12);
 const getRootlessTones=(root,q)=>{const t=getChordTones(root,q);return[(root+2)%12,t[1],t[2],t[3]];};
 
-// Playability: a 3-fret span works anywhere (one finger per fret). A 4-fret
-// span only works from the 5th fret up, where the frets are narrow enough.
+const noteForDot=(mode,degName,pc,keyIdx)=>{
+  const note=nn(pc,keyIdx);
+  if(mode==='note') return note;
+  if(mode==='interval') return degName;
+  return note+(degName?'/'+degName:'');
+};
+// A 4-fret span only works from the 5th fret up, where the frets are narrow enough.
 // Anything wider is rejected and the shape is retried an octave higher.
 function spanOK(frets){
   const mn=Math.min(...frets),mx=Math.max(...frets),span=mx-mn;
@@ -299,9 +304,63 @@ function playChordPreview(voicing,strings){
   }catch(ex){}
 }
 
+// ── DotModeToggle ─────────────────────────────────────────────────────
+function DotModeToggle({dotMode,setDotMode}){
+  const opts=[{id:'interval',lbl:'Int'},{id:'note',lbl:'Note'},{id:'both',lbl:'Both'}];
+  return e('div',{style:{display:'flex',alignItems:'center',gap:6,marginBottom:6}},
+    e('span',{style:{fontSize:'0.69rem',color:'var(--hint)',letterSpacing:'1px',flexShrink:0}},'DOTS'),
+    e('div',{style:{display:'flex',border:'1px solid var(--btn-brd)',borderRadius:14,overflow:'hidden'}},
+      opts.map(({id,lbl})=>e('button',{key:id,onClick:()=>setDotMode(id),style:{
+        padding:'3px 10px',fontFamily:UI_FONT,fontSize:'0.69rem',border:'none',cursor:'pointer',
+        background:dotMode===id?'var(--act-teal)':'transparent',
+        color:dotMode===id?'#4ECDC4':'var(--btn-off)',fontWeight:dotMode===id?700:400,minHeight:28
+      }},lbl))
+    )
+  );
+}
+
+// ── Tour ──────────────────────────────────────────────────────────────
+const TOUR_STEPS=[
+  {target:'key-chip',  title:'Set your key',       text:'Tap to open the key picker. All chords and scales update instantly.'},
+  {target:'chord-row', title:'Pick a chord degree', text:'I through VII — each button is a chord in the key. The colour shows the chord quality.'},
+  {target:'voicing-tabs',title:'Choose a voicing family',text:'Shell = 3-note jazz grip to start. Drop 2 and Drop 3 are the comping workhorses.'},
+  {target:'neck-area',  title:'The fretboard',      text:'Bright dots = the selected voicing. Dim dots = all arpeggio positions. The dot label mode (Int/Note/Both) lets you see intervals, note names, or both.'},
+  {target:'bottom-nav', title:'Four views',         text:'Chords = diatonic harmony. Play = II-V-I play-along. Any Chord = standalone voicing explorer. Guide = step-by-step learning path.'},
+];
+function TourOverlay({step,onNext,onSkip}){
+  const s=TOUR_STEPS[step];
+  if(!s) return null;
+  const isLast=step>=TOUR_STEPS.length-1;
+  return e('div',{style:{position:'fixed',inset:0,zIndex:200,pointerEvents:'none'}},
+    e('div',{style:{position:'absolute',inset:0,background:'rgba(0,0,0,0.72)',pointerEvents:'auto'}}),
+    e('div',{style:{
+      position:'absolute',bottom:90,left:'50%',transform:'translateX(-50%)',
+      width:'min(380px,92vw)',background:'#0d1a2a',border:'1px solid #1a4a6a',
+      borderRadius:12,padding:'18px 20px',pointerEvents:'auto',
+      boxShadow:'0 8px 32px rgba(0,0,0,0.7)',zIndex:201
+    }},
+      e('div',{style:{fontSize:'0.68rem',color:'#4ECDC4',letterSpacing:'2px',marginBottom:6}},
+        (step+1)+' / '+TOUR_STEPS.length+' — '+s.target.replace(/-/g,' ').toUpperCase()),
+      e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:'#e8d8a0',marginBottom:8}},s.title),
+      e('div',{style:{fontSize:'0.82rem',color:'#9ab8d8',lineHeight:1.65,marginBottom:14}},s.text),
+      e('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+        e('button',{onClick:onSkip,style:{padding:'6px 14px',borderRadius:8,border:'1px solid #1a4a6a',
+          background:'transparent',color:'#4a7a9a',fontFamily:UI_FONT,fontSize:'0.79rem',cursor:'pointer',minHeight:36}},
+          'Skip tour'),
+        e('button',{onClick:onNext,style:{padding:'6px 20px',borderRadius:8,border:'none',
+          background:'#4ECDC4',color:'#07070f',fontFamily:UI_FONT,fontSize:'0.82rem',
+          fontWeight:700,cursor:'pointer',minHeight:36}},
+          isLast?'Done':'Next →')
+      )
+    )
+  );
+}
+
 // ── NeckSVG ───────────────────────────────────────────────────────────
-function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
+function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc,dotMode,dotKeyIdx}){
   hlTc=hlTc||TC;
+  dotMode=dotMode||'interval';
+  dotKeyIdx=dotKeyIdx===undefined?0:dotKeyIdx;
   const FW=44,SH=30,PL=38,PT=28,PB=28,NF=15;
   const W=PL+NF*FW+24,H=PT+5*SH+PB;
   const nx=f=>PL+(f-0.5)*FW;
@@ -363,7 +422,8 @@ function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
       return e('g',{key:'ap'+i},
         e('circle',{cx,cy:sy(p.s),r:8,fill:TC_DIM[p.ti],stroke:TC[p.ti],strokeWidth:1.3}),
         e('text',{x:cx,y:sy(p.s),textAnchor:'middle',dominantBaseline:'middle',
-          fill:TC[p.ti],fontSize:7,fontFamily:UI_FONT,pointerEvents:'none'},degNames[p.ti])
+          fill:TC[p.ti],fontSize:6,fontFamily:UI_FONT,pointerEvents:'none'},
+          noteForDot(dotMode,degNames[p.ti],(OPEN_PC[p.s]+p.f)%12,dotKeyIdx))
       );
     }),
     (highlight||[]).map((h,i)=>{
@@ -371,15 +431,18 @@ function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
       return e('g',{key:'hi'+i,filter:'url(#ng)'},
         e('circle',{cx,cy:sy(h.s),r:h.f===0?9:11,fill:hlTc[h.ti],stroke:'var(--hi-dot-str)',strokeWidth:1.8}),
         e('text',{x:cx,y:sy(h.s),textAnchor:'middle',dominantBaseline:'middle',
-          fill:'var(--dot-lbl)',fontSize:9,fontWeight:'bold',fontFamily:UI_FONT},h.dl)
+          fill:'var(--dot-lbl)',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT},
+          noteForDot(dotMode,h.dl,(OPEN_PC[h.s]+h.f)%12,dotKeyIdx))
       );
     })
   );
 }
 
 // ── ChordBox ──────────────────────────────────────────────────────────
-function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,onClick,tcArr}){
+function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,onClick,tcArr,dotMode,dotKeyIdx}){
   const tc=tcArr||TC;
+  dotMode=dotMode||'interval';
+  dotKeyIdx=dotKeyIdx===undefined?0:dotKeyIdx;
   if(!voicing) return null;
   const frets=voicing.frets;
   const allF=[null,null,null,null,null,null];
@@ -416,7 +479,8 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
         const pc=(OPEN_PC[i]+f)%12,ti2=tones.indexOf(pc);
         return e('g',{key:'dt'+i},
           e('circle',{cx:sx(i),cy:fy(f),r:9,fill:ti2>=0?tc[ti2]:'#556',stroke:'var(--hi-dot-str)',strokeWidth:1}),
-          e('text',{x:sx(i),y:fy(f),textAnchor:'middle',dominantBaseline:'middle',fill:'var(--dot-lbl)',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT},ti2>=0?degNames[ti2]:'')
+          e('text',{x:sx(i),y:fy(f),textAnchor:'middle',dominantBaseline:'middle',fill:'var(--dot-lbl)',fontSize:7,fontWeight:'bold',fontFamily:UI_FONT},
+            ti2>=0?noteForDot(dotMode,degNames[ti2],(OPEN_PC[i]+f)%12,dotKeyIdx):'')
         );
       })
     )
@@ -524,7 +588,8 @@ const FORM_DEFS={
 };
 
 // ── IIVIView ──────────────────────────────────────────────────────────
-function IIVIView({keyIdx}){
+function IIVIView({keyIdx,dotMode,setDotMode}){
+  dotMode=dotMode||'interval';
   const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(localStorage.getItem('jg-strSet')||'2',10));
   const [invIdxs,setInvIdxs]=useState([0,0,0,0,0]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
@@ -787,15 +852,17 @@ function IIVIView({keyIdx}){
         );
       })
     ),
-    // Neck label
-    e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginBottom:4}},
-      'NECK — '+ac.roman+' · '+ac.name
+    // Neck label + dot mode
+    e('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:4}},
+      e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',flexGrow:1}},
+        'NECK — '+ac.roman+' · '+ac.name),
+      setDotMode?e(DotModeToggle,{dotMode,setDotMode}):null
     ),
     // Neck
     e('div',{style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
       padding:'8px 4px 4px',marginBottom:12,overflowX:'auto'}},
       e('div',{style:{minWidth:680}},
-        e(NeckSVG,{arpPos,highlight,scalePos:[],degNames:ac.dnames})
+        e(NeckSVG,{arpPos,highlight,scalePos:[],degNames:ac.dnames,dotMode,dotKeyIdx:keyIdx})
       )
     ),
     // Three chord columns
@@ -826,8 +893,9 @@ function IIVIView({keyIdx}){
             D2_INV.map((inv,ii)=>
               e(ChordBox,{key:ii,voicing:voicings[ii],strings:ss,tones:chord.tones,
                 degNames:chord.dnames,invLabel:ii===0?'Root pos.':chord.dnames[inv.bassIdx]+' bass',
-                bassLabel:'bass: '+chord.dnames[inv.bassIdx],
+                bassLabel:ii===0?'bass: '+chord.dnames[inv.bassIdx]:null,
                 selected:isActive&&invIdxs[ci]===ii,
+                dotMode,dotKeyIdx:keyIdx,
                 onClick:()=>{
                   const n=[...invIdxs];n[ci]=ii;setInvIdxs(n);
                   setActiveChordIdx(ci);
@@ -850,7 +918,8 @@ function IIVIView({keyIdx}){
 // ── CustomChordView ───────────────────────────────────────────────────
 // Reuses the same voicing UI as the diatonic view. Receives the active
 // chord data as props and renders controls + neck + chord boxes.
-function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level}){
+function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode}){
+  dotMode=dotMode||'interval';
   const isEss=level==='essentials';
   const [vType,setVType]=useState('shell');
   const [ssIdx,setSsIdx]=useState(2);
@@ -969,11 +1038,12 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'Guide tones: R + 3rd + 7th'):null,
       vType==='arpeggio'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'All chord-tone positions on neck'):null
     ),
-    // Neck
+    // Neck (with dot-mode toggle)
+    e('div',{style:{marginBottom:6}},setDotMode?e(DotModeToggle,{dotMode,setDotMode}):null),
     e('div',{style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
       padding:'8px 4px 4px',marginBottom:10,overflowX:'auto'}},
       e('div',{style:{minWidth:680}},
-        e(NeckSVG,{arpPos,highlight,scalePos:[],degNames})
+        e(NeckSVG,{arpPos,highlight,scalePos:[],degNames,dotMode,dotKeyIdx:customRoot})
       )
     ),
     // Chord diagrams
@@ -983,8 +1053,8 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         invData.map((inv,i)=>
           e(ChordBox,{key:i,voicing:allVoicings[i],strings:setsData[safeSSIdx].s,
             tones,degNames,invLabel:i===0?'Root pos.':degNames[inv.bassIdx]+' bass',
-            bassLabel:'bass: '+degNames[inv.bassIdx],
-            selected:invIdx===i,onClick:()=>setInvIdx(i)})
+            bassLabel:i===0?'bass: '+degNames[inv.bassIdx]:null,
+            selected:invIdx===i,onClick:()=>setInvIdx(i),dotMode,dotKeyIdx:customRoot})
         )
       ):null,
     vType==='shell'?e('div',null,
@@ -992,14 +1062,14 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         shellsA.map(x=>
           e(ChordBox,{key:x.i,voicing:x.v,strings:x.sh.s,tones,degNames,
             invLabel:x.sh.lbl,bassLabel:'bass: '+degNames[x.sh.bassIdx]+' ('+x.sh.root+')',
-            selected:safeShellIdx===x.i,onClick:()=>setShellIdx(x.i)})
+            selected:safeShellIdx===x.i,onClick:()=>setShellIdx(x.i),dotMode,dotKeyIdx:customRoot})
         )
       ),
       e(DiagSection,{title:'FORM B — ADJACENT STRINGS'},
         shellsB.map(x=>
           e(ChordBox,{key:x.i,voicing:x.v,strings:x.sh.s,tones,degNames,
             invLabel:x.sh.lbl,bassLabel:'bass: '+degNames[x.sh.bassIdx]+' ('+x.sh.root+')',
-            selected:safeShellIdx===x.i,onClick:()=>setShellIdx(x.i)})
+            selected:safeShellIdx===x.i,onClick:()=>setShellIdx(x.i),dotMode,dotKeyIdx:customRoot})
         )
       )
     ):null
@@ -1273,6 +1343,20 @@ function App(){
   const [key,setKey]=useState(()=>parseInt(localStorage.getItem('jg-key')||'0',10));
   const [viewMode,setViewMode]=useState(()=>localStorage.getItem('jg-viewMode')||'diatonic'); // 'diatonic'|'iivi'|'custom'|'guide'
   const [keyOpen,setKeyOpen]=useState(false);
+  const [dotMode,setDotMode]=useState(()=>localStorage.getItem('jg-dotMode')||'interval');
+  const [tourStep,setTourStep]=useState(null);
+  useEffect(()=>{localStorage.setItem('jg-dotMode',dotMode);},[dotMode]);
+  useEffect(()=>{
+    if(!localStorage.getItem('jg-toured')&&!localStorage.getItem('jg-visited')){
+      const t=setTimeout(()=>setTourStep(0),900);
+      return ()=>clearTimeout(t);
+    }
+  },[]);
+  function tourNext(){
+    if(tourStep>=TOUR_STEPS.length-1){setTourStep(null);localStorage.setItem('jg-toured','1');localStorage.setItem('jg-visited','1');setShowOnboarding(false);}
+    else setTourStep(s=>s+1);
+  }
+  function tourSkip(){setTourStep(null);localStorage.setItem('jg-toured','1');localStorage.setItem('jg-visited','1');setShowOnboarding(false);}
   // Level: Essentials hides the advanced half of the app. New users start
   // in Essentials; anyone who used the app before the level existed keeps Full.
   const [level,setLevel]=useState(()=>localStorage.getItem('jg-level')||(localStorage.getItem('jg-visited')?'full':'essentials'));
@@ -1432,6 +1516,10 @@ function App(){
             minHeight:34}},l==='essentials'?'Essentials':'Full')
         )
       ),
+      e('button',{onClick:()=>setTourStep(0),'aria-label':'Start tour',style:{padding:'4px 10px',
+        borderRadius:18,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',
+        border:'1px solid '+BTN_BRD,background:'transparent',
+        color:BTN_OFF,minHeight:34,flexShrink:0}},'? Tour'),
       e('button',{onClick:toggleTheme,'aria-label':'Toggle theme',style:{padding:'4px 10px',
         borderRadius:18,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',
         border:'1px solid '+BTN_BRD,background:'transparent',
@@ -1440,7 +1528,7 @@ function App(){
     ),
 
     // Key chip (hidden in custom/guide mode) — tap to expand the 12-key picker
-    viewMode!=='custom'&&viewMode!=='guide'?e('div',{style:{marginBottom:10}},
+    viewMode!=='custom'&&viewMode!=='guide'?e('div',{'data-tour':'key-chip',style:{marginBottom:10}},
       e('button',{onClick:()=>setKeyOpen(o=>!o),style:{
         display:'inline-flex',alignItems:'center',gap:7,padding:'5px 14px',borderRadius:18,
         cursor:'pointer',fontFamily:UI_FONT,border:'1px solid '+(keyOpen?GOLD:BTN_BRD),
@@ -1455,10 +1543,10 @@ function App(){
     ):null,
 
     // ── IIVI VIEW ────────────────────────────────────────────────────
-    viewMode==='iivi'?e(IIVIView,{keyIdx:key}):null,
+    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode}):null,
 
     // ── CUSTOM CHORD VIEW ────────────────────────────────────────────
-    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level}):null,
+    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode}):null,
 
     // ── GUIDE / PATH VIEW ────────────────────────────────────────────
     viewMode==='guide'?e(GuideView,{openPreset,level}):null,
@@ -1466,7 +1554,7 @@ function App(){
     // ── DIATONIC VIEW ────────────────────────────────────────────────
     viewMode==='diatonic'?e('div',null,
       // Diatonic chord degree selector — the main control, no label needed
-      e('div',{style:{display:'flex',flexWrap:'wrap',gap:4,marginBottom:10}},
+      e('div',{'data-tour':'chord-row',style:{display:'flex',flexWrap:'wrap',gap:4,marginBottom:10}},
         ROMAN.map((r,i)=>{
           const rPC=(KEYS[key].root+MAJOR_SCALE[i])%12;
           return e('button',{key:i,onClick:()=>setDeg(i),style:chordBtnStyle(i)},
@@ -1493,7 +1581,7 @@ function App(){
         )
       ),
       // Voicing tabs — Essentials shows the starting trio, Full shows everything
-      e('div',{style:{display:'flex',gap:2,marginBottom:0,flexWrap:'wrap'}},
+      e('div',{'data-tour':'voicing-tabs',style:{display:'flex',gap:2,marginBottom:0,flexWrap:'wrap'}},
         (isEss?['shell','drop2','arpeggio']:['shell','drop2','drop3','drop24','drop23','rootless','arpeggio']).map(id=>{
           const lbls={drop2:'Drop 2',drop3:'Drop 3',drop24:'Drop 2+4',drop23:'Drop 2+3',shell:'Shell',rootless:'Rootless',arpeggio:'Arpeggio'};
           return e('button',{key:id,onClick:()=>setVType(id),style:tabStyle(id)},lbls[id]);
@@ -1514,11 +1602,12 @@ function App(){
         vType==='drop23'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'Drop 2+3: spread voicing — voices 2 and 3 from top both dropped  ·  guide tones on top'):null,
         vType==='arpeggio'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'All chord-tone positions · scale tones shown faintly'):null
       ),
-      // Neck
-      e('div',{style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
+      // Neck (with dot-mode toggle)
+      e(DotModeToggle,{dotMode,setDotMode}),
+      e('div',{'data-tour':'neck-area',style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
         padding:'8px 4px 4px',marginBottom:10,overflowX:'auto'}},
         e('div',{style:{minWidth:680}},
-          e(NeckSVG,{arpPos,highlight,scalePos,degNames,hlTc})
+          e(NeckSVG,{arpPos,highlight,scalePos,degNames,hlTc,dotMode,dotKeyIdx:key})
         )
       ),
       // Scale panel (diatonic only)
@@ -1529,8 +1618,8 @@ function App(){
         allVoicings.every(v=>!v)?e(NoShapes,null):
         invData.map((inv,i)=>
           e(ChordBox,{key:i,voicing:allVoicings[i],strings:setsData[safeSSIdx].s,
-            tones,degNames,invLabel:i===0?'Root pos.':degNames[inv.bassIdx]+' bass',bassLabel:'bass: '+degNames[inv.bassIdx],
-            selected:invIdx===i,onClick:()=>setInvIdx(i)})
+            tones,degNames,invLabel:i===0?'Root pos.':degNames[inv.bassIdx]+' bass',bassLabel:i===0?'bass: '+degNames[inv.bassIdx]:null,
+            selected:invIdx===i,onClick:()=>setInvIdx(i),dotMode,dotKeyIdx:key})
         )
       ):null,
       // Shell voicings
@@ -1538,12 +1627,12 @@ function App(){
         e(DiagSection,{title:'FORM A — SKIP-STRING (R-7-3)'},
           shellsA.map(x=>e(ChordBox,{key:x.i,voicing:x.v,strings:x.sh.s,tones,degNames,
             invLabel:x.sh.lbl,bassLabel:'bass: '+degNames[x.sh.bassIdx]+' ('+x.sh.root+')',
-            selected:safeShellIdx===x.i,onClick:()=>setShellIdx(x.i)}))
+            selected:safeShellIdx===x.i,onClick:()=>setShellIdx(x.i),dotMode,dotKeyIdx:key}))
         ),
         e(DiagSection,{title:'FORM B — ADJACENT STRINGS (R-3-7)'},
           shellsB.map(x=>e(ChordBox,{key:x.i,voicing:x.v,strings:x.sh.s,tones,degNames,
             invLabel:x.sh.lbl,bassLabel:'bass: '+degNames[x.sh.bassIdx]+' ('+x.sh.root+')',
-            selected:safeShellIdx===x.i,onClick:()=>setShellIdx(x.i)}))
+            selected:safeShellIdx===x.i,onClick:()=>setShellIdx(x.i),dotMode,dotKeyIdx:key}))
         )
       ):null,
       // Rootless voicings
@@ -1555,7 +1644,7 @@ function App(){
             return e(ChordBox,{key:i,voicing:allRootless[i],strings:cfg.s,tones:rlTones,
               degNames:rlDegNames,invLabel:cfg.lbl+' / '+cfg.strs,
               bassLabel:'bass: '+rlDegNames[cfg.bassIdx],
-              selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL});
+              selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL,dotMode,dotKeyIdx:key});
           })
         ),
         e(DiagSection,{title:'TYPE B: 7-9-3-5 (7TH ON BOTTOM) — CLICK TO SELECT'},
@@ -1565,7 +1654,7 @@ function App(){
             return e(ChordBox,{key:i,voicing:allRootless[i],strings:cfg.s,tones:rlTones,
               degNames:rlDegNames,invLabel:cfg.lbl+' / '+cfg.strs,
               bassLabel:'bass: '+rlDegNames[cfg.bassIdx],
-              selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL});
+              selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL,dotMode,dotKeyIdx:key});
           })
         )
       ):null,
@@ -1589,8 +1678,11 @@ function App(){
         'Shell Form A: skip-string shapes. Shell Form B: adjacent-string R-3-7. Drop 2: 2nd-highest note dropped an octave. Drop 3: 3rd-highest dropped, one string gap. Rootless: 9th replaces root — designed to play over a walking bass.')
     ):null,
 
+    // ── Tour overlay ─────────────────────────────────────────────────
+    tourStep!==null?e(TourOverlay,{step:tourStep,onNext:tourNext,onSkip:tourSkip}):null,
+
     // ── Bottom tab bar ───────────────────────────────────────────────
-    e('nav',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:50,
+    e('nav',{'data-tour':'bottom-nav',style:{position:'fixed',bottom:0,left:0,right:0,zIndex:50,
       display:'flex',background:BG2,borderTop:'1px solid '+BORDER,
       paddingBottom:'env(safe-area-inset-bottom)',
       boxShadow:'0 -4px 16px rgba(0,0,0,0.35)'}},
