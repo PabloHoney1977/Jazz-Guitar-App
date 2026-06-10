@@ -405,8 +405,9 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
 }
 
 // ── ScalePanel ────────────────────────────────────────────────────────
-function ScalePanel({degree,chordRoot,tones,degNames,keyIdx,scaleIdx,onScaleChange}){
-  const options=CHORD_SCALES[degree];
+function ScalePanel({degree,chordRoot,tones,degNames,keyIdx,scaleIdx,onScaleChange,level}){
+  // Essentials keeps one scale per chord — the diatonic default
+  const options=level==='essentials'?CHORD_SCALES[degree].slice(0,1):CHORD_SCALES[degree];
   const sc=options[Math.min(scaleIdx,options.length-1)];
   const parentRoot=getParentRoot(chordRoot,sc.pType,sc.mPos);
   const parentLabel=nn(parentRoot,keyIdx)+' '+PTYPE_NAME[sc.pType];
@@ -814,11 +815,13 @@ function IIVIView({keyIdx}){
 // ── CustomChordView ───────────────────────────────────────────────────
 // Reuses the same voicing UI as the diatonic view. Receives the active
 // chord data as props and renders controls + neck + chord boxes.
-function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx}){
-  const [vType,setVType]=useState('drop2');
+function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level}){
+  const isEss=level==='essentials';
+  const [vType,setVType]=useState('shell');
   const [ssIdx,setSsIdx]=useState(2);
   const [invIdx,setInvIdx]=useState(0);
   const [shellIdx,setShellIdx]=useState(0);
+  useEffect(()=>{if(isEss&&vType==='drop3')setVType('drop2');},[level]);
 
   const extType=EXT_TYPES[customTypeIdx];
   const tones=useMemo(()=>getExtTones(customRoot,extType),[customRoot,extType]);
@@ -861,9 +864,11 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     background:act?BG2:BG,fontFamily:MONO,fontSize:'0.76rem',
     color:act?'#74C0FC':BTN_OFF,fontWeight:act?700:400,minHeight:44};};
 
-  const TABS=[
-    {id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},
-    {id:'shell',lbl:'Shell'},{id:'arpeggio',lbl:'Arpeggio'}
+  const TABS=isEss?[
+    {id:'shell',lbl:'Shell'},{id:'drop2',lbl:'Drop 2'},{id:'arpeggio',lbl:'Arpeggio'}
+  ]:[
+    {id:'shell',lbl:'Shell'},{id:'drop2',lbl:'Drop 2'},
+    {id:'drop3',lbl:'Drop 3'},{id:'arpeggio',lbl:'Arpeggio'}
   ];
 
   const shellsA=SHELLS.map((sh,i)=>({sh,i,v:allVoicings[i]})).filter(x=>x.sh.form==='A');
@@ -888,7 +893,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       e('div',null,
         e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginBottom:6}},'CHORD TYPE'),
         e('div',{style:{display:'flex',flexWrap:'wrap',gap:3}},
-          EXT_TYPES.map((t,i)=>
+          (isEss?EXT_TYPES.slice(0,4):EXT_TYPES).map((t,i)=>
             e('button',{key:i,onClick:()=>{setCustomTypeIdx(i);setInvIdx(0);},style:{
               padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:MONO,fontSize:'0.74rem',
               border:'1px solid '+(customTypeIdx===i?'#C084FC':BTN_BRD),
@@ -965,10 +970,14 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   );
 }
 
-// ── GuideView ─────────────────────────────────────────────────────────
-function GuideView(){
+// ── GuideView — the Path + glossary ──────────────────────────────────
+function GuideView({openPreset,level}){
   const [expanded,setExpanded]=useState({});
   function tog(id){setExpanded(s=>({...s,[id]:!s[id]?true:undefined}));}
+  // Path progress, persisted
+  const [done,setDone]=useState(()=>{try{return JSON.parse(localStorage.getItem('jg-path')||'{}');}catch(ex){return{};}});
+  useEffect(()=>{localStorage.setItem('jg-path',JSON.stringify(done));},[done]);
+  function togDone(id){setDone(s=>({...s,[id]:!s[id]?true:undefined}));}
   const S={marginBottom:14,padding:'14px 16px',background:BG2,border:'1px solid '+BORDER,borderRadius:8};
   const H={fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:'var(--scale-name)',marginBottom:8};
   const P={fontSize:'0.80rem',lineHeight:1.75,color:'var(--txt)',fontFamily:MONO,marginBottom:8};
@@ -998,74 +1007,83 @@ function GuideView(){
       )
     );
   }
+  // The Path: ordered stages, each opening a live view preset via openPreset
+  const stages=[
+    {id:'qualities',title:'Meet the four chord qualities',
+     preset:{view:'diatonic',key:0,deg:0,vType:'shell'},
+     body:['Jazz harmony runs on four 7th-chord types — and you already know one. Dominant 7 is the same G7 you play in a 12-bar blues. Major 7 is the lush stable one, minor 7 the smooth dark one, and half-diminished (m7♭5) the tense one that lives in minor keys.'],
+     items:['Open Chords in Key and click through I, II, V and VII — one chord of each quality','Listen until you can name the quality with your eyes closed']},
+    {id:'shells',title:'Shell voicings — your first jazz grips',
+     preset:{view:'diatonic',key:0,deg:0,vType:'shell'},
+     body:['A shell is root + 3rd + 7th. Three fingers, no stretch, and it already sounds like jazz — the 5th is skipped because it adds nothing the other two notes don\'t already say. Form A (R-7-3) skips a string; Form B (R-3-7) sits on adjacent strings.'],
+     items:['Play all 7 chords of C major as shells, 6th-string roots first','Say each chord name out loud as you land it']},
+    {id:'iivi',title:'Guide tones and the II–V–I',
+     preset:{view:'iivi',key:0,minor:false,bpm:60},
+     body:['The II–V–I is to jazz what I–IV–V is to blues — it\'s in nearly every standard, in every key. The engine underneath: each chord\'s 3rd and 7th (the guide tones) slide by half-steps into the next chord.'],
+     items:['Click each chord and watch which notes move and which stay','Pick a different II inversion — the app voice-leads the V and I to match']},
+    {id:'drop2',title:'Drop 2 — the comping workhorse',
+     preset:{view:'diatonic',key:0,deg:0,vType:'drop2',ssIdx:2},
+     body:['Four chord tones across four adjacent strings — the most-played voicing family in jazz guitar. Every chord has four inversions: same notes, a different one on the bottom, each living at its own spot on the neck.'],
+     items:['On the 4-3-2-1 string set: one shape for each of the 7 chords in C','Then all four inversions of Cmaj7, slow and even, low to high']},
+    {id:'play',title:'Play along',
+     preset:{view:'iivi',key:0,bpm:72},
+     body:['Make it groove: bass and click at 60–80 BPM, with the form tracker showing where you are in the 4-bar loop. Comping in time beats playing the fanciest grip out of time.'],
+     items:['Strum each chord on beats 1 and 3 first','When that\'s easy, hit beat 1 and the \'and\' of 2 — the Charleston rhythm']},
+    {id:'minor',title:'The minor II–V–I',
+     preset:{view:'iivi',key:0,minor:true,bpm:60},
+     body:['Same engine, darker colour: IIm7♭5 – V7 – Im7. This is where half-diminished earns its keep — and it\'s half of Autumn Leaves.'],
+     items:['Loop major then minor in the same key and hear the difference','Listen for the ♭5 of the IIø resolving down into the V7']},
+    {id:'keys',title:'Take it around the keys',
+     preset:{view:'diatonic',key:7,deg:0,vType:'shell'},
+     body:['Everything so far transfers: same shapes, new frets. G first, then F, then keep moving in 4ths. One new key a week is real progress — all 12 in about three months.'],
+     items:['In each new key: shells → drop 2 → II–V–I play-along']},
+    {id:'scales',title:'Scales over chords',
+     preset:{view:'diatonic',key:0,deg:4,vType:'arpeggio'},
+     body:['In blues one pentatonic covers everything; in jazz each chord gets a matching scale. Stay diatonic at first. The Arpeggio tab shows the chord tones to target; the Scale panel shows which notes fit around them.'],
+     items:['Solo over the V7 with chord tones only, then connect them with scale steps','Land guide tones on the strong beats — that\'s most of the bebop secret']},
+    {id:'full',title:'Go Full — Drop 3, Rootless, altered colours',
+     preset:{view:'diatonic',key:0,deg:4,vType:'rootless',level:'full'},
+     body:['Flip the level switch to Full (this stage\'s button does it for you) and the rest appears: Drop 3 for 6th-string-bass comping, Rootless voicings for playing over a bassist, alternate scales like Altered over V7, and the extended chord types in Any Chord.'],
+     items:['From here, the Glossary below and Next Steps are your map']},
+  ];
+  const doneCount=stages.filter(s=>done[s.id]).length;
+  function stage(n,st){
+    const isDone=!!done[st.id];
+    return e('div',{key:st.id,style:{display:'flex',gap:12,padding:'12px 14px',marginBottom:10,
+      background:BG,border:'1px solid '+(isDone?'#4ECDC440':BORDER),borderRadius:8,opacity:isDone?0.72:1}},
+      e('div',{style:{flexShrink:0,width:26,height:26,borderRadius:'50%',
+        border:'2px solid '+(isDone?'#4ECDC4':GOLD),color:isDone?'#4ECDC4':GOLD,
+        display:'flex',alignItems:'center',justifyContent:'center',
+        fontSize:'0.8rem',fontWeight:700,fontFamily:MONO}},isDone?'✓':String(n)),
+      e('div',{style:{flex:1}},
+        e('div',{style:{fontFamily:SERIF,fontSize:'0.98rem',fontWeight:700,color:'var(--scale-name)',marginBottom:6}},st.title),
+        st.body.map((t,i)=>e('p',{key:'b'+i,style:{...P,marginBottom:5}},t)),
+        st.items&&st.items.length?ul(...st.items):null,
+        e('div',{style:{display:'flex',gap:8,marginTop:8,flexWrap:'wrap'}},
+          e('button',{onClick:()=>openPreset(st.preset),style:{
+            padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:MONO,fontSize:'0.75rem',
+            border:'1px solid #4ECDC4',background:ACT_TEAL,color:'#4ECDC4',fontWeight:700,minHeight:40}},'▶ Open in app'),
+          e('button',{onClick:()=>togDone(st.id),style:{
+            padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:MONO,fontSize:'0.75rem',
+            border:'1px solid '+(isDone?'#4ECDC4':BTN_BRD),background:isDone?ACT_TEAL:'transparent',
+            color:isDone?'#4ECDC4':BTN_OFF,minHeight:40}},isDone?'✓ Done':'Mark done')
+        )
+      )
+    );
+  }
   return e('div',{style:{maxWidth:780}},
     sec('Start Here — For Blues & Rock Players',
       p('You already know the foundation. Power chords gave you intervals. Blues gave you tension and resolution. The pentatonic scale taught you "inside" vs "outside." Jazz builds directly on all of that.'),
       p('The key shift: jazz chords have ',e('b',{style:HL},'four notes'),' instead of two or three. A G power chord (G+D) becomes Gmaj7 (G+B+D+F#). A plain G7 — which you likely already play in blues — stays a G7. You are not starting from zero.'),
-      callout(e('b',null,'What this app shows you: '),'How to finger those 4-note chords up and down the neck in every position, how they connect smoothly (voice leading), and how the core jazz progression (II–V–I) is built from them. Click any chord diagram to hear it.')
+      callout(e('b',null,'How to use this page: '),'The Path below is a step-by-step route. Each stage explains one idea, and its button opens the right tool already set up. Mark stages done as you go — the Glossary at the bottom is your reference whenever a term is unfamiliar. Click any chord diagram in the app to hear it.')
     ),
-    sec('1 · The Four Chord Qualities',
-      p('All jazz harmony uses four chord types. You likely know two already:'),
-      ul(
-        e('span',null,e('b',{style:TC4},'Major 7 (maj7)'),' — ',e('i',null,'stable, "jazzy"'),'. The I and IV chords in a major key. Built from root–3–5–7. Think the lush opening chord of a jazz ballad.'),
-        e('span',null,e('b',{style:TRD},'Minor 7 (m7)'),' — ',e('i',null,'smooth, darker'),'. Common in rock (Em7, Am7). Built from root–♭3–5–♭7. The II and VI chords in a major key.'),
-        e('span',null,e('b',{style:TYL},'Dominant 7 (7)'),' — ',e('i',null,'bluesy tension'),'. The exact same G7, C7, D7 from a 12-bar blues. Built from root–3–5–♭7. The V chord. Creates the strongest pull toward resolution.'),
-        e('span',null,e('b',{style:{color:'#C084FC'}},'Half-diminished (m7♭5 / ø7)'),' — ',e('i',null,'dark, unstable'),'. Uncommon in rock. Built from root–♭3–♭5–♭7. The VII chord in major keys; the II chord in minor II–V–I.')
+    e('div',{style:S},
+      e('div',{style:{...H,display:'flex',justifyContent:'space-between',alignItems:'baseline',flexWrap:'wrap',gap:8}},
+        e('span',null,'The Path — rock & blues to jazz'),
+        e('span',{style:{fontSize:'0.72rem',fontFamily:MONO,fontWeight:400,color:doneCount===stages.length?'#4ECDC4':HINT}},doneCount+' / '+stages.length+' done')
       ),
-      callout(e('b',null,'Blues shortcut: '),'In a 12-bar blues your IV7 and V7 create and release tension. The II–V–I works the same way — IIm7 sets up tension, V7 heightens it, Imaj7 resolves it. You already hear this motion; jazz just names and systematises it.')
-    ),
-    sec('2 · Drop 2 — The Core Guitar Shape',
-      p('A ',e('b',{style:HL},'Drop 2'),' voicing takes four chord notes stacked tightly and moves the second-highest note down an octave. The result fits naturally across four adjacent guitar strings.'),
-      p('Each chord has four ',e('b',{style:HL},'inversions'),' — same notes, different note in the bass:'),
-      ul(
-        e('span',null,e('b',null,'Root position'),' — root in the bass (most stable)'),
-        e('span',null,e('b',null,'1st inversion'),' — 3rd in the bass'),
-        e('span',null,e('b',null,'2nd inversion'),' — 5th in the bass'),
-        e('span',null,e('b',null,'3rd inversion'),' — 7th in the bass (creates the most forward motion)')
-      ),
-      callout('Click any chord diagram in the app to hear it played. Click a different inversion of the same chord — notice it\'s the same four notes, voiced at different positions up the neck.')
-    ),
-    sec('3 · The II–V–I: The Backbone of Jazz',
-      p('The II–V–I is to jazz what I–IV–V is to blues. It appears in virtually every jazz standard, in every key, often multiple times per chorus.'),
-      p(e('b',{style:HL},'In C major:  '),e('b',{style:TRD},'Dm7'),' (II) → ',e('b',{style:TYL},'G7'),' (V) → ',e('b',{style:TC4},'Cmaj7'),' (I)'),
-      ul(
-        e('span',null,e('b',{style:TRD},'IIm7'),' — mild tension, sets up the progression'),
-        e('span',null,e('b',{style:TYL},'V7'),' — strong tension; the ♭7 and 3rd form a tritone that pulls hard to resolution'),
-        e('span',null,e('b',{style:TC4},'Imaj7'),' — resolution, home; in minor II–V–I this becomes Im7')
-      ),
-      p('Standard timing: II = 1 bar, V = 1 bar, I = 2 bars. The ',e('b',{style:HL},'II–V–I view'),' lets you drill this with play-along. Pick a II inversion and the app auto-selects smooth V and I inversions.')
-    ),
-    sec('4 · Voice Leading: The Jazz Secret',
-      p(e('b',{style:HL},'Voice leading'),' means moving each note of a chord to the nearest possible note in the next chord, instead of jumping positions up and down the neck.'),
-      p('Rock analogy: when you stay in one neck position and slide or lift one finger to change chords, that\'s basic voice leading. Jazz formalises this — find the inversion of the next chord that requires the least movement.'),
-      p(e('b',{style:HL},'Classic voice-led II–V–I path (top strings, key of C):')),
-      ul(
-        'Dm7 3rd inversion → G7 2nd inversion → Cmaj7 root position',
-        'Each note moves by a half-step or whole-step — no jumping across the neck',
-        'The 3rd and 7th of each chord (the "guide tones") resolve by half-step into the next chord'
-      ),
-      callout(e('b',null,'Guide tones: '),'The 3rd and 7th of a chord are its most important notes — they define its quality. In G7, the 3rd (B) and ♭7 (F) form a tritone. When G7 resolves to Cmaj7, B moves to C or stays, and F resolves down to E. These half-step resolutions are the engine of jazz harmony.')
-    ),
-    sec('5 · Scales Over Chords',
-      p('In blues you play pentatonic over everything. In jazz, each chord quality has its own compatible scale, letting you improvise with precise harmonic colour.'),
-      p('Start diatonic (only using notes in the key), then explore outside:'),
-      ul(
-        e('span',null,e('b',{style:TC4},'Over Imaj7'),' → Ionian (plain major) or Lydian — adds a #11, floating and bright'),
-        e('span',null,e('b',{style:TRD},'Over IIm7'),' → Dorian — like natural minor with a natural 6th; the standard jazz minor sound'),
-        e('span',null,e('b',{style:TYL},'Over V7'),' → Mixolydian (safe, major with ♭7) or ',e('b',null,'Altered'),' (♭9 ♯9 ♯11 ♭13 — maximum tension, the bebop sound)'),
-        e('span',null,e('b',null,'Over IVmaj7'),' → Lydian'),
-        e('span',null,e('b',{style:{color:'#C084FC'}},'Over VIIm7♭5'),' → Locrian nat.2 (softer) or Locrian')
-      ),
-      callout(e('b',null,'Practical start: '),'Just play diatonically for now. When the V7 hits, try adding a ♭9 or ♯9 to your licks — you\'re naturally leaning toward the Altered sound. The Diatonic view shows scales on the neck so you can see exactly which notes are available.')
-    ),
-    sec('6 · Practice Routine',
-      ul(
-        e('span',null,e('b',{style:HL},'Week 1'),': One key (C to start). In "Chords in Key," go through all 7 chords, root position Drop 2 only, on the 4-3-2-1 string set. Click each to hear it. Say the chord name aloud.'),
-        e('span',null,e('b',{style:HL},'Week 2'),': All 4 inversions of each chord — 28 shapes total. Cycle: Imaj7 root → 1st → 2nd → 3rd → IIm7 root → ... Keep tempo slow and even.'),
-        e('span',null,e('b',{style:HL},'Week 3'),': Switch to II–V–I. Pick your favourite II inversion. Hit Play at 60 BPM with bass on. Follow the chord labels and shapes as the progression loops.'),
-        e('span',null,e('b',{style:HL},'Week 4'),': New key — G is a good second choice. Repeat the full sequence. Aim for all 12 keys over 3 months.'),
-        e('span',null,e('b',{style:HL},'Ongoing'),': Open the Scale panel in Chords in Key. Over the V7, switch to Altered and hear the tension. Start transcribing simple melodies from recordings.')
-      )
+      p('Work top to bottom — each stage is about a week of practice, and slower is fine. Nothing is locked; the Path just says what matters now. Each button opens the right view, already set up.'),
+      stages.map((st,i)=>stage(i+1,st))
     ),
     e('div',{style:S},
       e('div',{style:H},'Glossary — click any term'),
@@ -1112,11 +1130,11 @@ function GuideView(){
       ),
       gloss('shell','Shell voicing','A 3-note chord using just root, 3rd, and 7th — the 5th is omitted.',
         'The 5th adds little harmonic information that the other notes don\'t already provide, so shells strip it out, leaving a minimal but complete harmonic statement. The result is open-sounding and leaves room for other instruments.',
-        'Shell Form A uses skip-string layouts (e.g., strings 6-4-3). Form B uses adjacent strings (e.g., strings 6-5-4). Shells are often the first step toward playing with a bassist, since they leave the low end uncluttered. Find them in the Any Chord view under "Shell."'
+        'Shell Form A uses skip-string layouts (e.g., strings 6-4-3). Form B uses adjacent strings (e.g., strings 6-5-4). Shells are often the first step toward playing with a bassist, since they leave the low end uncluttered. Find them under the "Shell" tab in Chords in Key or Any Chord.'
       ),
       gloss('rootless','Rootless voicing','A 4-note chord where the 9th replaces the root.',
         'When a bassist plays the root, your guitar chord can drop the root entirely and substitute the 9th (an octave above the 2nd scale degree). The chord becomes richer and more complex, and doesn\'t double the bass player\'s note.',
-        'Type A voicings (3-5-7-9) have the 3rd at the bottom. Type B (7-9-3-5) have the 7th at the bottom. These are the voicings you\'ll hear Bill Evans and other jazz pianists use. On guitar they live on the middle strings (4-3-2-1 or 5-4-3-2). Find them in Any Chord view under "Rootless."'
+        'Type A voicings (3-5-7-9) have the 3rd at the bottom. Type B (7-9-3-5) have the 7th at the bottom. These are the voicings you\'ll hear Bill Evans and other jazz pianists use. On guitar they live on the middle strings (4-3-2-1 or 5-4-3-2). Find them in the Chords in Key view under "Rootless" (Full level).'
       ),
       gloss('arp','Arpeggio','Playing chord notes one at a time instead of simultaneously.',
         'An arpeggio is the melodic version of a chord — the notes played in sequence like a harp (the word comes from the Italian "arpa"). Every chord position on the neck can become a melodic pattern by playing the notes one at a time.',
@@ -1132,13 +1150,8 @@ function GuideView(){
         'Upper-case numerals (I, II, V) are used for all chords in jazz shorthand — the quality is indicated by the suffix. Lower-case (i, ii) sometimes indicates minor in classical notation, but in jazz the written suffix (m7, maj7) does that job instead.'
       )
     ),
-    sec('7 · Next Steps & Listening',
-      p('This app covers the core vocabulary. Beyond it:'),
-      ul(
-        e('span',null,e('b',null,'Rootless voicings'),' — richer sound for playing with a bassist; see Any Chord view'),
-        e('span',null,e('b',null,'Drop 3'),' — similar to Drop 2, with a string gap; useful for bass-note chord melodies'),
-        'Extensions (9ths, 11ths, 13ths), tritone substitution, reharmonisation, comping rhythms.'
-      ),
+    sec('Next Steps & Listening',
+      p('Finished the Path? The Full level holds Drop 3, Rootless voicings, altered scales and extended chord types. Beyond this app: tritone substitution, reharmonisation, comping rhythms, chord melody.'),
       p(e('b',{style:HL},'Players to study:')),
       ul(
         e('span',null,e('b',null,'Wes Montgomery'),' — warmth, soulful feel, octave technique; most accessible entry point from rock/blues'),
@@ -1172,9 +1185,13 @@ function App(){
   // Global state
   const [key,setKey]=useState(()=>parseInt(localStorage.getItem('jg-key')||'0',10));
   const [viewMode,setViewMode]=useState(()=>localStorage.getItem('jg-viewMode')||'diatonic'); // 'diatonic'|'iivi'|'custom'|'guide'
+  // Level: Essentials hides the advanced half of the app. New users start
+  // in Essentials; anyone who used the app before the level existed keeps Full.
+  const [level,setLevel]=useState(()=>localStorage.getItem('jg-level')||(localStorage.getItem('jg-visited')?'full':'essentials'));
+  const isEss=level==='essentials';
   // Diatonic state
   const [deg,setDeg]=useState(0);
-  const [vType,setVType]=useState('drop2');
+  const [vType,setVType]=useState('shell');
   const [ssIdx,setSsIdx]=useState(2);
   const [invIdx,setInvIdx]=useState(0);
   const [shellIdx,setShellIdx]=useState(0);
@@ -1187,6 +1204,29 @@ function App(){
   useEffect(()=>{setScaleIdx(0);},[deg]);
   useEffect(()=>{localStorage.setItem('jg-key',key);},[key]);
   useEffect(()=>{localStorage.setItem('jg-viewMode',viewMode);},[viewMode]);
+  useEffect(()=>{localStorage.setItem('jg-level',level);},[level]);
+  // Dropping to Essentials while on an advanced tab/chord type
+  useEffect(()=>{
+    if(isEss){
+      if(vType==='drop3'||vType==='rootless') setVType('shell');
+      if(customTypeIdx>3) setCustomTypeIdx(2);
+    }
+  },[level]);
+
+  // Jump from a Path stage into a live view with everything preset.
+  // bpm/minor belong to IIVIView, which is unmounted while the Path is
+  // open, so writing localStorage here is picked up when it mounts.
+  function openPreset(p){
+    if(p.level) setLevel(p.level);
+    if(p.key!==undefined) setKey(p.key);
+    if(p.deg!==undefined) setDeg(p.deg);
+    if(p.vType) setVType(p.vType);
+    if(p.ssIdx!==undefined) setSsIdx(p.ssIdx);
+    if(p.minor!==undefined) localStorage.setItem('jg-minor',p.minor?'true':'false');
+    if(p.bpm!==undefined) localStorage.setItem('jg-bpm',String(p.bpm));
+    setViewMode(p.view||'diatonic');
+    window.scrollTo(0,0);
+  }
 
   const quality=QTYPES[deg];
   const rootPC=(KEYS[key].root+MAJOR_SCALE[deg])%12;
@@ -1197,7 +1237,7 @@ function App(){
   const arpPos=useMemo(()=>getArpPos(tones),[tones]);
   const chordName=nn(rootPC,key)+QSYMS[deg];
 
-  const scaleOptions=CHORD_SCALES[deg];
+  const scaleOptions=isEss?CHORD_SCALES[deg].slice(0,1):CHORD_SCALES[deg];
   const safeScaleIdx=Math.min(scaleIdx,scaleOptions.length-1);
   const currentScale=scaleOptions[safeScaleIdx];
   const scalePos=useMemo(()=>getScalePos(rootPC,currentScale.iv,tones),[rootPC,currentScale,tones]);
@@ -1281,12 +1321,12 @@ function App(){
       fontSize:'0.82rem',color:'#9ab8d8',lineHeight:1.6}},
       e('div',{style:{flex:1}},
         e('span',{style:{color:'#4ECDC4',fontWeight:700}},'New here? '),
-        'This app teaches jazz guitar chord voicings — Drop 2, Drop 3, Shell, and the II–V–I progression. ',
+        'You\'re in Essentials — shells, Drop 2 and the II–V–I, the right place to start. ',
         e('button',{onClick:()=>{setViewMode('guide');setShowOnboarding(false);localStorage.setItem('jg-visited','1');},
           style:{background:'transparent',border:'none',color:'#4ECDC4',cursor:'pointer',
             fontFamily:MONO,fontSize:'0.82rem',textDecoration:'underline',padding:0}},
-          'Open the Guide'),
-        ' to get started.'
+          'Follow the Path'),
+        ' for a step-by-step route from rock & blues to jazz.'
       ),
       e('button',{onClick:()=>{setShowOnboarding(false);localStorage.setItem('jg-visited','1');},
         style:{background:'transparent',border:'none',color:'#4a6a8a',cursor:'pointer',
@@ -1297,15 +1337,25 @@ function App(){
     // Header
     e('div',{style:{display:'flex',alignItems:'baseline',gap:12,marginBottom:14,
       paddingBottom:12,borderBottom:'1px solid '+BORDER,flexWrap:'wrap'}},
-      e('span',{style:{fontFamily:SERIF,fontSize:'1.45rem',fontWeight:700,color:'var(--scale-name)'}},'Jazz Guitar Voicings'),
+      e('span',{style:{fontFamily:SERIF,fontSize:'1.45rem',fontWeight:700,color:'var(--scale-name)'}},'Jazz Guitar Lab'),
       e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',textTransform:'uppercase',flexGrow:1}},
-        'Drop 2 · Drop 3 · Shell · Rootless · Arpeggio · Parent Scales'),
+        'Learn · Practice · Explore'),
+      e('div',{style:{display:'flex',gap:2,flexShrink:0}},
+        ['essentials','full'].map(l=>
+          e('button',{key:l,onClick:()=>setLevel(l),style:{
+            padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:MONO,fontSize:'0.72rem',
+            border:'1px solid '+(level===l?'#C084FC':BTN_BRD),
+            background:level===l?ACT_PUR:BG2,
+            color:level===l?'#C084FC':BTN_OFF,fontWeight:level===l?700:400,
+            minHeight:36}},l==='essentials'?'Essentials':'Full')
+        )
+      ),
       e('button',{onClick:()=>setViewMode('guide'),style:{
         padding:'4px 12px',borderRadius:4,cursor:'pointer',fontFamily:MONO,fontSize:'0.72rem',
         border:'1px solid '+(viewMode==='guide'?'#4ECDC4':BTN_BRD),
         background:viewMode==='guide'?ACT_TEAL:BG2,
         color:viewMode==='guide'?'#4ECDC4':BTN_OFF,
-        minHeight:36,flexShrink:0}},'? Guide'),
+        minHeight:36,flexShrink:0}},'⚑ Path'),
       e('button',{onClick:toggleTheme,style:{padding:'4px 12px',borderRadius:4,cursor:'pointer',
         fontFamily:MONO,fontSize:'0.72rem',border:'1px solid '+BTN_BRD,background:BG2,
         color:BTN_OFF,minHeight:36,flexShrink:0}},
@@ -1333,10 +1383,10 @@ function App(){
     viewMode==='iivi'?e(IIVIView,{keyIdx:key}):null,
 
     // ── CUSTOM CHORD VIEW ────────────────────────────────────────────
-    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx}):null,
+    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level}):null,
 
-    // ── GUIDE VIEW ───────────────────────────────────────────────────
-    viewMode==='guide'?e(GuideView,null):null,
+    // ── GUIDE / PATH VIEW ────────────────────────────────────────────
+    viewMode==='guide'?e(GuideView,{openPreset,level}):null,
 
     // ── DIATONIC VIEW ────────────────────────────────────────────────
     viewMode==='diatonic'?e('div',null,
@@ -1370,9 +1420,9 @@ function App(){
             '9='+nn(rlTones[0],key)):null
         )
       ),
-      // Voicing tabs
+      // Voicing tabs — Essentials shows the starting trio, Full shows everything
       e('div',{style:{display:'flex',gap:2,marginBottom:0,flexWrap:'wrap'}},
-        ['drop2','drop3','shell','rootless','arpeggio'].map(id=>{
+        (isEss?['shell','drop2','arpeggio']:['shell','drop2','drop3','rootless','arpeggio']).map(id=>{
           const lbls={drop2:'Drop 2',drop3:'Drop 3',shell:'Shell',rootless:'Rootless',arpeggio:'Arpeggio'};
           return e('button',{key:id,onClick:()=>setVType(id),style:tabStyle(id)},lbls[id]);
         })
@@ -1399,7 +1449,7 @@ function App(){
       ),
       // Scale panel (diatonic only)
       e(ScalePanel,{degree:deg,chordRoot:rootPC,tones,degNames,
-        keyIdx:key,scaleIdx:safeScaleIdx,onScaleChange:setScaleIdx}),
+        keyIdx:key,scaleIdx:safeScaleIdx,onScaleChange:setScaleIdx,level}),
       // Drop 2 / Drop 3
       (vType==='drop2'||vType==='drop3')?e(DiagSection,{title:(vType==='drop2'?'DROP 2':'DROP 3')+' INVERSIONS — CLICK TO SELECT'},
         allVoicings.every(v=>!v)?e(NoShapes,null):

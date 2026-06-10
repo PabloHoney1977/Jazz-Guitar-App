@@ -1,7 +1,7 @@
 {
-  "name": "Jazz Guitar Voicings",
-  "short_name": "Jazz Gtr",
-  "description": "Drop 2, Drop 3, Shell, Rootless voicings with chord-scales and II-V-I views",
+  "name": "Jazz Guitar Lab",
+  "short_name": "JG Lab",
+  "description": "Learn jazz guitar step by step — shell and drop voicings, II-V-I practice, chord scales, and a guided path from rock & blues to jazz",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#07070f",
