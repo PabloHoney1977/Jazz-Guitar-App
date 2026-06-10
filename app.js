@@ -482,24 +482,42 @@ const mkSsBtn=(active)=>({
   color:active?'#74C0FC':BTN_OFF,fontWeight:active?700:400,minHeight:44,
 });
 
-// beat index → [chordIdx (0=II,1=V,2=I), toneIdx]
-const BEAT_MAP=[
-  [0,0],[0,1],[0,2],[0,3],  // bar 1: IIm7  R  b3  5  b7
-  [1,0],[1,1],[1,2],[1,3],  // bar 2: V7    R   3  5  b7
-  [2,0],[2,1],[2,2],[2,3],  // bar 3: Imaj7 R   3  5  Δ7
-  [2,0],[2,2],[2,1],[2,0],  // bar 4: Imaj7 R   5  3  R
-];
+// ── Play-along forms ──────────────────────────────────────────────────
+// chords: [semitones above key root, quality, symbol, roman]
+// bars: chord index per bar
+const FORM_DEFS={
+  major:{lbl:'II–V–I',col:'#4ECDC4',bg:ACT_TEAL,
+    chords:[[2,'m7','m7','II'],[7,'dom7','7','V'],[0,'maj7','maj7','I']],
+    bars:[0,1,2,2],
+    tip:'Major II–V–I: keep common tones, move others by step. Classic: IIm7 (7 bass) → V7 (5 bass) → Imaj7 root pos, all on the same string set.'},
+  minor:{lbl:'MINOR II–V–I',col:'#C084FC',bg:ACT_PUR,
+    chords:[[2,'m7b5','ø7','II'],[7,'dom7','7','V'],[0,'m7','m7','I']],
+    bars:[0,1,2,2],
+    tip:'Minor II–V–I: the ♭5 of IIø resolves up a half-step to the 5th of Im7. Classic path: IIø (7 bass) → V7 (5 bass) → Im7 root pos.'},
+  turn:{lbl:'I–VI–II–V',col:'#FFD43B',bg:ACT_YEL,
+    chords:[[0,'maj7','maj7','I'],[9,'dom7','7','VI'],[2,'m7','m7','II'],[7,'dom7','7','V']],
+    bars:[0,1,2,3],
+    tip:'The turnaround: one chord per bar, loop it forever — it ends countless standards and is the engine of rhythm changes. The VI is played dominant (VI7) so it pulls harder into the IIm7.'},
+  blues:{lbl:'JAZZ BLUES',col:'#74C0FC',bg:ACT_BLUE,
+    chords:[[0,'dom7','7','I'],[5,'dom7','7','IV'],[9,'dom7','7','VI'],[2,'m7','m7','II'],[7,'dom7','7','V']],
+    bars:[0,1,0,0, 1,1,0,2, 3,4,0,4],
+    tip:'Jazz blues = the 12-bar you know plus three moves: bar 8 picks up a VI7, bars 9–10 swap the old V–IV for a IIm7–V7, and bar 12 turns around on V7. Spot the II–V–I hiding in bars 9–11.'},
+};
 
 // ── IIVIView ──────────────────────────────────────────────────────────
 function IIVIView({keyIdx}){
   const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(localStorage.getItem('jg-strSet')||'2',10));
-  const [invIdxs,setInvIdxs]=useState([0,0,0]);
+  const [invIdxs,setInvIdxs]=useState([0,0,0,0,0]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
   const [isPlaying,setIsPlaying]=useState(false);
   const [bpm,setBpm]=useState(()=>parseInt(localStorage.getItem('jg-bpm')||'120',10));
   const [bassEnabled,setBassEnabled]=useState(()=>localStorage.getItem('jg-bass')!=='false');
   const [metronomeEnabled,setMetronomeEnabled]=useState(()=>localStorage.getItem('jg-met')!=='false');
-  const [isMinor,setIsMinor]=useState(()=>localStorage.getItem('jg-minor')==='true');
+  const [form,setForm]=useState(()=>{
+    const f=localStorage.getItem('jg-form');
+    if(f&&FORM_DEFS[f]) return f;
+    return localStorage.getItem('jg-minor')==='true'?'minor':'major';
+  });
   const [playingChordIdx,setPlayingChordIdx]=useState(null);
   const [playingBar,setPlayingBar]=useState(null);
 
@@ -512,6 +530,7 @@ function IIVIView({keyIdx}){
   const bassRef=useRef(bassEnabled);
   const metronomeRef=useRef(metronomeEnabled);
   const chordsRef=useRef(null);
+  const barsRef=useRef(null);
   const ksBufsRef=useRef(null);
   const clickBufsRef=useRef(null);
   const wafPlayerRef=useRef(null);
@@ -526,28 +545,24 @@ function IIVIView({keyIdx}){
   useEffect(()=>{localStorage.setItem('jg-bpm',bpm);},[bpm]);
   useEffect(()=>{localStorage.setItem('jg-bass',bassEnabled);},[bassEnabled]);
   useEffect(()=>{localStorage.setItem('jg-met',metronomeEnabled);},[metronomeEnabled]);
-  useEffect(()=>{localStorage.setItem('jg-minor',isMinor);},[isMinor]);
+  useEffect(()=>{localStorage.setItem('jg-form',form);},[form]);
 
-  // II=deg1, V=deg4, I=deg0
-  // Major: IIm7 – V7 – Imaj7   Minor: IIm7b5 – V7 – Im7
-  const MIN_Q  =['m7b5','dom7','m7'];
-  const MIN_SYM=['ø7',  '7',   'm7'];
-  const chords=[1,4,0].map((deg,idx)=>{
-    const rootPC=(KEYS[keyIdx].root+MAJOR_SCALE[deg])%12;
-    const quality=isMinor?MIN_Q[idx]:QTYPES[deg];
+  const def=FORM_DEFS[form];
+  const chords=def.chords.map(([off,quality,sym,roman])=>{
+    const rootPC=(KEYS[keyIdx].root+off)%12;
     const tones=getChordTones(rootPC,quality);
-    const sym=isMinor?MIN_SYM[idx]:QSYMS[deg];
     return{rootPC,quality,tones,dnames:DNAMES[quality],
-      name:nn(rootPC,keyIdx)+sym,roman:ROMAN[deg]};
+      name:nn(rootPC,keyIdx)+sym,roman};
   });
   chordsRef.current=chords;
+  barsRef.current=def.bars;
 
   const ssIdx=Math.min(strSetIdx,D2_SETS.length-1);
   const ss=D2_SETS[ssIdx].s;
   const ac=chords[activeChordIdx];
 
-  const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx,isMinor]);
-  const activeVoicings=useMemo(()=>D2_INV.map(inv=>calcVoicing(ss,inv.a,ac.tones)),[activeChordIdx,strSetIdx,keyIdx,isMinor]);
+  const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx,form]);
+  const activeVoicings=useMemo(()=>D2_INV.map(inv=>calcVoicing(ss,inv.a,ac.tones)),[activeChordIdx,strSetIdx,keyIdx,form]);
   const highlight=useMemo(()=>{
     const v=activeVoicings[invIdxs[activeChordIdx]];
     if(!v) return null;
@@ -555,7 +570,7 @@ function IIVIView({keyIdx}){
       const si=ss[i],ti=ac.tones.indexOf((OPEN_PC[si]+f)%12);
       return{s:si,f,ti,dl:ti>=0?ac.dnames[ti]:''};
     });
-  },[activeVoicings,invIdxs,activeChordIdx,strSetIdx,isMinor]);
+  },[activeVoicings,invIdxs,activeChordIdx,strSetIdx,form]);
 
   function loadBassFont(ctx){
     if(!window.WebAudioFontPlayer) return;
@@ -609,10 +624,10 @@ function IIVIView({keyIdx}){
 
   function startPlayback(){
     const allVoicings=chords.map(chord=>D2_INV.map(inv=>calcVoicing(ss,inv.a,chord.tones)));
-    const iiIdx=invIdxs[0];
-    const vIdx=findBestInvIdx(allVoicings[0][iiIdx],allVoicings[1]);
-    const iIdx=findBestInvIdx(allVoicings[1][vIdx],allVoicings[2]);
-    setInvIdxs([iiIdx,vIdx,iIdx]);
+    const idxs=[...invIdxs];
+    for(let i=1;i<chords.length;i++)
+      idxs[i]=findBestInvIdx(allVoicings[i-1][idxs[i-1]],allVoicings[i]);
+    setInvIdxs(idxs);
     setActiveChordIdx(0);
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
     audioCtxRef.current=ctx;
@@ -627,9 +642,13 @@ function IIVIView({keyIdx}){
       if(!audioCtxRef.current) return;
       const beatDur=60/bpmRef.current;
       while(nextTimeRef.current < audioCtxRef.current.currentTime+0.12){
-        const beat=beatRef.current%16;
+        const bars=barsRef.current;
+        const beat=beatRef.current%(bars.length*4);
         const bar=Math.floor(beat/4);
-        const [ci,ti]=BEAT_MAP[beat];
+        const ci=bars[bar];
+        // walk R-3-5-7 each bar; resolve R-5-3-R on a final repeated-chord bar
+        const lastSame=bar===bars.length-1&&bars[bar-1]===ci;
+        const ti=(lastSame?[0,2,1,0]:[0,1,2,3])[beat%4];
         const delay=Math.max(0,(nextTimeRef.current-audioCtxRef.current.currentTime)*1000);
         setTimeout(()=>{if(genRef.current===gen){setPlayingChordIdx(ci);setPlayingBar(bar);setActiveChordIdx(ci);}},delay);
         if(bassRef.current && chordsRef.current){
@@ -680,10 +699,9 @@ function IIVIView({keyIdx}){
     clearTimeout(timerRef.current);
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
     setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
-    setInvIdxs([0,0,0]);setActiveChordIdx(0);
-  },[keyIdx,isMinor]);
+    setInvIdxs([0,0,0,0,0]);setActiveChordIdx(0);
+  },[keyIdx,form]);
 
-  const BAR_ROMAN=['II','V','I','I'];
   const modeBtn=(act,col,actBg)=>({padding:'6px 13px',borderRadius:5,cursor:'pointer',
     fontFamily:MONO,fontSize:'0.78rem',border:'1px solid '+(act?col:BTN_BRD),
     background:act?actBg:'transparent',color:act?col:BTN_OFF,fontWeight:act?700:400,minHeight:44});
@@ -713,9 +731,10 @@ function IIVIView({keyIdx}){
       D2_SETS.map((set,i)=>
         e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
       ),
-      e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginLeft:8}},'MODE'),
-      e('button',{onClick:()=>setIsMinor(false),style:modeBtn(!isMinor,'#4ECDC4',ACT_TEAL)},'MAJOR'),
-      e('button',{onClick:()=>setIsMinor(true), style:modeBtn(isMinor, '#C084FC',ACT_PUR)}, 'MINOR')
+      e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginLeft:8}},'FORM'),
+      Object.keys(FORM_DEFS).map(f=>
+        e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
+      )
     ),
     // Play-along controls
     e('div',{style:{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginBottom:10,
@@ -733,19 +752,18 @@ function IIVIView({keyIdx}){
       e('button',{onClick:()=>setBassEnabled(v=>!v),style:bassBtn},'♩ BASS'),
       e('button',{onClick:()=>setMetronomeEnabled(v=>!v),style:metBtn},'◉ CLICK')
     ),
-    // 4-cell form tracker — always visible, highlights current bar during playback
-    e('div',{style:{display:'flex',gap:5,marginBottom:10}},
-      BAR_ROMAN.map((r,i)=>{
-        const ci=i<2?i:2;
+    // Form tracker — one cell per bar (wraps 4 per row), highlights current bar during playback
+    e('div',{style:{display:'flex',flexWrap:'wrap',gap:5,marginBottom:10}},
+      def.bars.map((ci,i)=>{
         const lit=isPlaying&&playingBar===i;
         return e('div',{key:i,style:{
-          flex:1,textAlign:'center',padding:'5px 4px',borderRadius:5,fontFamily:MONO,
+          flex:'1 1 calc(25% - 5px)',minWidth:0,textAlign:'center',padding:'5px 4px',borderRadius:5,fontFamily:MONO,
           border:'1px solid '+(lit?'#FFD43B':BORDER),
           background:lit?ACT_YEL:BG2,
           color:lit?'#FFD43B':BTN_OFF,
           transition:'background 0.08s,border-color 0.08s,color 0.08s'
         }},
-          e('div',{style:{fontSize:'0.62rem',opacity:0.7,letterSpacing:'1px',marginBottom:2}},r),
+          e('div',{style:{fontSize:'0.62rem',opacity:0.7,letterSpacing:'1px',marginBottom:2}},chords[ci].roman),
           e('div',{style:{fontSize:'0.82rem',fontWeight:lit?700:400}},chords[ci].name)
         );
       })
@@ -805,9 +823,7 @@ function IIVIView({keyIdx}){
     e('div',{style:{marginTop:12,padding:'8px 12px',background:BG2,border:'1px solid '+BORDER,
       borderRadius:6,fontSize:'0.79rem',color:HINT,lineHeight:1.6}},
       e('span',{style:{color:GOLD,fontWeight:700}},'Voice leading tip: '),
-      isMinor
-        ?'Minor II–V–I: the ♭5 of IIø resolves up a half-step to the 5th of Im7. Classic path: IIø (7 bass) → V7 (5 bass) → Im7 root pos.'
-        :'Major II–V–I: keep common tones, move others by step. Classic: IIm7 (7 bass) → V7 (5 bass) → Imaj7 root pos, all on the same string set.'
+      def.tip
     )
   );
 }
@@ -1018,7 +1034,7 @@ function GuideView({openPreset,level}){
      body:['A shell is root + 3rd + 7th. Three fingers, no stretch, and it already sounds like jazz — the 5th is skipped because it adds nothing the other two notes don\'t already say. Form A (R-7-3) skips a string; Form B (R-3-7) sits on adjacent strings.'],
      items:['Play all 7 chords of C major as shells, 6th-string roots first','Say each chord name out loud as you land it']},
     {id:'iivi',title:'Guide tones and the II–V–I',
-     preset:{view:'iivi',key:0,minor:false,bpm:60},
+     preset:{view:'iivi',key:0,form:'major',bpm:60},
      body:['The II–V–I is to jazz what I–IV–V is to blues — it\'s in nearly every standard, in every key. The engine underneath: each chord\'s 3rd and 7th (the guide tones) slide by half-steps into the next chord.'],
      items:['Click each chord and watch which notes move and which stay','Pick a different II inversion — the app voice-leads the V and I to match']},
     {id:'drop2',title:'Drop 2 — the comping workhorse',
@@ -1029,8 +1045,12 @@ function GuideView({openPreset,level}){
      preset:{view:'iivi',key:0,bpm:72},
      body:['Make it groove: bass and click at 60–80 BPM, with the form tracker showing where you are in the 4-bar loop. Comping in time beats playing the fanciest grip out of time.'],
      items:['Strum each chord on beats 1 and 3 first','When that\'s easy, hit beat 1 and the \'and\' of 2 — the Charleston rhythm']},
+    {id:'blues',title:'Jazz up the blues',
+     preset:{view:'iivi',key:5,form:'blues',bpm:66},
+     body:['Take the 12-bar blues you already own and add three jazz moves: a VI7 in bar 8, a IIm7–V7 in bars 9–10, and a V7 turnaround in bar 12. F is the classic jazz-blues key. The I–VI–II–V form is the same idea boiled down to four bars.'],
+     items:['Loop the Jazz Blues form with shells only — one grip per bar','Spot the II–V–I hiding in bars 9–11, then loop I–VI–II–V until it\'s automatic']},
     {id:'minor',title:'The minor II–V–I',
-     preset:{view:'iivi',key:0,minor:true,bpm:60},
+     preset:{view:'iivi',key:0,form:'minor',bpm:60},
      body:['Same engine, darker colour: IIm7♭5 – V7 – Im7. This is where half-diminished earns its keep — and it\'s half of Autumn Leaves.'],
      items:['Loop major then minor in the same key and hear the difference','Listen for the ♭5 of the IIø resolving down into the V7']},
     {id:'keys',title:'Take it around the keys',
@@ -1222,7 +1242,7 @@ function App(){
     if(p.deg!==undefined) setDeg(p.deg);
     if(p.vType) setVType(p.vType);
     if(p.ssIdx!==undefined) setSsIdx(p.ssIdx);
-    if(p.minor!==undefined) localStorage.setItem('jg-minor',p.minor?'true':'false');
+    if(p.form) localStorage.setItem('jg-form',p.form);
     if(p.bpm!==undefined) localStorage.setItem('jg-bpm',String(p.bpm));
     setViewMode(p.view||'diatonic');
     window.scrollTo(0,0);
