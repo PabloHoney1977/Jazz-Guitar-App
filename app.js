@@ -131,6 +131,25 @@ const ROOTLESS=[
   {lbl:'7-9-3-5',type:'B',strs:'5-4-3-2',s:[1,2,3,4],a:[3,0,1,2],bassIdx:3},
   {lbl:'7-9-3-5',type:'B',strs:'4-3-2-1',s:[2,3,4,5],a:[3,0,1,2],bassIdx:3},
 ];
+// Drop 2+4: drop voices 2 and 4 from top. Low→high: R-5-3-7 / 3-7-5-R / 5-R-7-3 / 7-3-R-5
+// Skips one string in the middle (string sets 6-5-3-2 and 5-4-2-1)
+const D24_INV=[
+  {bassIdx:0,a:[0,2,1,3]},{bassIdx:1,a:[1,3,2,0]},
+  {bassIdx:2,a:[2,0,3,1]},{bassIdx:3,a:[3,1,0,2]},
+];
+const D24_SETS=[{lbl:'6-5-3-2',s:[0,1,3,4]},{lbl:'5-4-2-1',s:[1,2,4,5]}];
+// Drop 2+3: drop voices 2 and 3 from top. Low→high: 3-5-R-7 / 5-7-3-R / 7-R-5-3 / R-3-7-5
+// Skips one string on the high side (string sets 6-5-4-2 and 5-4-3-1)
+const D23_INV=[
+  {bassIdx:1,a:[1,2,0,3]},{bassIdx:2,a:[2,3,1,0]},
+  {bassIdx:3,a:[3,0,2,1]},{bassIdx:0,a:[0,1,3,2]},
+];
+const D23_SETS=[{lbl:'6-5-4-2',s:[0,1,2,4]},{lbl:'5-4-3-1',s:[1,2,3,5]}];
+
+const DROP_DATA={drop2:{inv:D2_INV,sets:D2_SETS},drop3:{inv:D3_INV,sets:D3_SETS},
+  drop24:{inv:D24_INV,sets:D24_SETS},drop23:{inv:D23_INV,sets:D23_SETS}};
+const DROP_TYPES=new Set(['drop2','drop3','drop24','drop23']);
+const DROP_LBL={drop2:'DROP 2',drop3:'DROP 3',drop24:'DROP 2+4',drop23:'DROP 2+3'};
 
 // ── Engine ───────────────────────────────────────────────────────────
 const getChordTones=(root,q)=>INTERVALS[q].map(i=>(root+i)%12);
@@ -837,7 +856,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   const [ssIdx,setSsIdx]=useState(2);
   const [invIdx,setInvIdx]=useState(0);
   const [shellIdx,setShellIdx]=useState(0);
-  useEffect(()=>{if(isEss&&vType==='drop3')setVType('drop2');},[level]);
+  useEffect(()=>{if(isEss&&(vType==='drop3'||vType==='drop24'||vType==='drop23'))setVType('drop2');},[level]);
 
   const extType=EXT_TYPES[customTypeIdx];
   const tones=useMemo(()=>getExtTones(customRoot,extType),[customRoot,extType]);
@@ -845,12 +864,13 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   const degNames=extType.dn;
   const chordName=nn(customRoot,0)+extType.sym; // use sharps for custom
 
-  const invData=vType==='drop2'?D2_INV:D3_INV;
-  const setsData=vType==='drop2'?D2_SETS:D3_SETS;
+  const dropD=DROP_DATA[vType]||DROP_DATA.drop2;
+  const invData=dropD.inv, setsData=dropD.sets;
   const safeSSIdx=Math.min(ssIdx,setsData.length-1);
 
   const allVoicings=useMemo(()=>{
     if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,1));
+    if(!DROP_TYPES.has(vType)) return [];
     const ss=setsData[safeSSIdx].s;
     return invData.map(inv=>calcVoicing(ss,inv.a,tones));
   },[vType,safeSSIdx,tones,ssIdx]);
@@ -883,8 +903,8 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   const TABS=isEss?[
     {id:'shell',lbl:'Shell'},{id:'drop2',lbl:'Drop 2'},{id:'arpeggio',lbl:'Arpeggio'}
   ]:[
-    {id:'shell',lbl:'Shell'},{id:'drop2',lbl:'Drop 2'},
-    {id:'drop3',lbl:'Drop 3'},{id:'arpeggio',lbl:'Arpeggio'}
+    {id:'shell',lbl:'Shell'},{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},
+    {id:'drop24',lbl:'Drop 2+4'},{id:'drop23',lbl:'Drop 2+3'},{id:'arpeggio',lbl:'Arpeggio'}
   ];
 
   const shellsA=SHELLS.map((sh,i)=>({sh,i,v:allVoicings[i]})).filter(x=>x.sh.form==='A');
@@ -942,7 +962,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     e('div',{style:{background:BG2,border:'1px solid '+BORDER,borderTop:'none',
       borderRadius:'0 6px 6px 6px',padding:'7px 12px',marginBottom:10,
       display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',minHeight:36}},
-      (vType==='drop2'||vType==='drop3')?[
+      DROP_TYPES.has(vType)?[
         e('span',{key:'lbl',style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'STRING SET'),
         setsData.map((ss,i)=>e('button',{key:i,onClick:()=>{setSsIdx(i);setInvIdx(0);},style:mkSsBtn(safeSSIdx===i)},ss.lbl))
       ]:null,
@@ -957,8 +977,8 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       )
     ),
     // Chord diagrams
-    vType==='drop2'||vType==='drop3'?
-      e(DiagSection,{title:(vType==='drop2'?'DROP 2':'DROP 3')+' INVERSIONS'},
+    DROP_TYPES.has(vType)?
+      e(DiagSection,{title:DROP_LBL[vType]+' INVERSIONS'},
         allVoicings.every(v=>!v)?e(NoShapes,null):
         invData.map((inv,i)=>
           e(ChordBox,{key:i,voicing:allVoicings[i],strings:setsData[safeSSIdx].s,
@@ -1228,7 +1248,7 @@ function App(){
   // Dropping to Essentials while on an advanced tab/chord type
   useEffect(()=>{
     if(isEss){
-      if(vType==='drop3'||vType==='rootless') setVType('shell');
+      if(vType==='drop3'||vType==='drop24'||vType==='drop23'||vType==='rootless') setVType('shell');
       if(customTypeIdx>3) setCustomTypeIdx(2);
     }
   },[level]);
@@ -1262,12 +1282,13 @@ function App(){
   const currentScale=scaleOptions[safeScaleIdx];
   const scalePos=useMemo(()=>getScalePos(rootPC,currentScale.iv,tones),[rootPC,currentScale,tones]);
 
-  const invData=vType==='drop2'?D2_INV:D3_INV;
-  const setsData=vType==='drop2'?D2_SETS:D3_SETS;
+  const dropD=DROP_DATA[vType]||DROP_DATA.drop2;
+  const invData=dropD.inv, setsData=dropD.sets;
   const safeSSIdx=Math.min(ssIdx,setsData.length-1);
 
   const allVoicings=useMemo(()=>{
     if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,1));
+    if(!DROP_TYPES.has(vType)) return [];
     const ss=setsData[safeSSIdx].s;
     return invData.map(inv=>calcVoicing(ss,inv.a,tones));
   },[vType,safeSSIdx,tones,ssIdx]);
@@ -1326,7 +1347,7 @@ function App(){
     padding:'5px 13px',borderRadius:5,cursor:'pointer',fontFamily:MONO,fontSize:'0.75rem',
     border:'1px solid '+(act?'#4ECDC4':BTN_BRD),background:act?ACT_TEAL:BG2,
     color:act?'#4ECDC4':BTN_OFF,fontWeight:act?700:400,minHeight:44};};
-  const voiceOrder=(vType==='drop2'||vType==='drop3')&&invData[invIdx]
+  const voiceOrder=DROP_TYPES.has(vType)&&invData[invIdx]
     ?invData[invIdx].a.map(idx=>degNames[idx]).join(' - '):'';
 
   const shellsA=SHELLS.map((sh,i)=>({sh,i,v:allVoicings[i]})).filter(x=>x.sh.form==='A');
@@ -1442,8 +1463,8 @@ function App(){
       ),
       // Voicing tabs — Essentials shows the starting trio, Full shows everything
       e('div',{style:{display:'flex',gap:2,marginBottom:0,flexWrap:'wrap'}},
-        (isEss?['shell','drop2','arpeggio']:['shell','drop2','drop3','rootless','arpeggio']).map(id=>{
-          const lbls={drop2:'Drop 2',drop3:'Drop 3',shell:'Shell',rootless:'Rootless',arpeggio:'Arpeggio'};
+        (isEss?['shell','drop2','arpeggio']:['shell','drop2','drop3','drop24','drop23','rootless','arpeggio']).map(id=>{
+          const lbls={drop2:'Drop 2',drop3:'Drop 3',drop24:'Drop 2+4',drop23:'Drop 2+3',shell:'Shell',rootless:'Rootless',arpeggio:'Arpeggio'};
           return e('button',{key:id,onClick:()=>setVType(id),style:tabStyle(id)},lbls[id]);
         })
       ),
@@ -1451,13 +1472,15 @@ function App(){
       e('div',{style:{background:BG2,border:'1px solid '+BORDER,borderTop:'none',
         borderRadius:'0 6px 6px 6px',padding:'7px 12px',marginBottom:10,
         display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',minHeight:36}},
-        (vType==='drop2'||vType==='drop3')?[
+        DROP_TYPES.has(vType)?[
           e('span',{key:'lbl',style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'STRING SET'),
           setsData.map((ss,i)=>e('button',{key:i,onClick:()=>{setSsIdx(i);setInvIdx(0);},style:mkSsBtn(safeSSIdx===i)},ss.lbl)),
           voiceOrder?e('span',{key:'vo',style:{marginLeft:'auto',fontSize:'0.7rem',color:HINT}},'voices: '+voiceOrder):null
         ]:null,
         vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'Guide tones: R + 3rd + 7th  ·  Form A = skip-string  ·  Form B = adjacent strings'):null,
         vType==='rootless'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'No root — plays cleanly over a bass player  ·  Type A = 3-5-7-9  ·  Type B = 7-9-3-5'):null,
+        vType==='drop24'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'Drop 2+4: wider open sound — voices 2 and 4 from top both dropped  ·  skips one string'):null,
+        vType==='drop23'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'Drop 2+3: spread voicing — voices 2 and 3 from top both dropped  ·  guide tones on top'):null,
         vType==='arpeggio'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'All chord-tone positions · scale tones shown faintly'):null
       ),
       // Neck
@@ -1471,7 +1494,7 @@ function App(){
       e(ScalePanel,{degree:deg,chordRoot:rootPC,tones,degNames,
         keyIdx:key,scaleIdx:safeScaleIdx,onScaleChange:setScaleIdx,level}),
       // Drop 2 / Drop 3
-      (vType==='drop2'||vType==='drop3')?e(DiagSection,{title:(vType==='drop2'?'DROP 2':'DROP 3')+' INVERSIONS — CLICK TO SELECT'},
+      DROP_TYPES.has(vType)?e(DiagSection,{title:DROP_LBL[vType]+' INVERSIONS — CLICK TO SELECT'},
         allVoicings.every(v=>!v)?e(NoShapes,null):
         invData.map((inv,i)=>
           e(ChordBox,{key:i,voicing:allVoicings[i],strings:setsData[safeSSIdx].s,
