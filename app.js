@@ -86,6 +86,9 @@ const TC    =['#FF6B6B','#4ECDC4','#74C0FC','#FFD43B'];
 const TC_DIM=['#FF6B6B55','#4ECDC455','#74C0FC55','#FFD43B55'];
 const TC_RIM=['#FF6B6B99','#4ECDC499','#74C0FC99','#FFD43B99'];
 const TC_RL =['#C084FC','#4ECDC4','#74C0FC','#FFD43B'];
+// Contrast text for each TC slot: red/teal are dark enough for white; blue/yellow need dark ink
+const TC_TXT=['white','white','#1a1a2e','#1a1a2e'];
+const TC_RL_TXT=['white','white','#1a1a2e','#1a1a2e'];
 const BG     ='var(--bg)';
 const BG2    ='var(--bg2)';
 const BORDER ='var(--brd)';
@@ -300,8 +303,9 @@ function playChordPreview(voicing,strings){
 }
 
 // ── NeckSVG ───────────────────────────────────────────────────────────
-function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
+function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc,hlTxt}){
   hlTc=hlTc||TC;
+  hlTxt=hlTxt||TC_TXT;
   const FW=44,SH=30,PL=38,PT=28,PB=28,NF=15;
   const W=PL+NF*FW+24,H=PT+5*SH+PB;
   const nx=f=>PL+(f-0.5)*FW;
@@ -371,15 +375,16 @@ function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc}){
       return e('g',{key:'hi'+i,filter:'url(#ng)'},
         e('circle',{cx,cy:sy(h.s),r:h.f===0?9:11,fill:hlTc[h.ti],stroke:'var(--hi-dot-str)',strokeWidth:1.8}),
         e('text',{x:cx,y:sy(h.s),textAnchor:'middle',dominantBaseline:'middle',
-          fill:'white',fontSize:9,fontWeight:'bold',fontFamily:UI_FONT},h.dl)
+          fill:hlTxt[h.ti]||'white',fontSize:9,fontWeight:'bold',fontFamily:UI_FONT},h.dl)
       );
     })
   );
 }
 
 // ── ChordBox ──────────────────────────────────────────────────────────
-function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,onClick,tcArr}){
+function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,onClick,tcArr,tcTxtArr}){
   const tc=tcArr||TC;
+  const tcTxt=tcTxtArr||TC_TXT;
   if(!voicing) return null;
   const frets=voicing.frets;
   const allF=[null,null,null,null,null,null];
@@ -416,7 +421,7 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
         const pc=(OPEN_PC[i]+f)%12,ti2=tones.indexOf(pc);
         return e('g',{key:'dt'+i},
           e('circle',{cx:sx(i),cy:fy(f),r:9,fill:ti2>=0?tc[ti2]:'#556',stroke:'var(--hi-dot-str)',strokeWidth:1}),
-          e('text',{x:sx(i),y:fy(f),textAnchor:'middle',dominantBaseline:'middle',fill:'white',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT},ti2>=0?degNames[ti2]:'')
+          e('text',{x:sx(i),y:fy(f),textAnchor:'middle',dominantBaseline:'middle',fill:ti2>=0?tcTxt[ti2]:'white',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT},ti2>=0?degNames[ti2]:'')
         );
       })
     )
@@ -1471,7 +1476,7 @@ function App(){
       e('div',{style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
         padding:'8px 4px 4px',marginBottom:10,overflowX:'auto'}},
         e('div',{style:{minWidth:680}},
-          e(NeckSVG,{arpPos,highlight,scalePos,degNames,hlTc})
+          e(NeckSVG,{arpPos,highlight,scalePos,degNames,hlTc,hlTxt:isRl?TC_RL_TXT:TC_TXT})
         )
       ),
       // Scale panel (diatonic only)
@@ -1508,7 +1513,7 @@ function App(){
             return e(ChordBox,{key:i,voicing:allRootless[i],strings:cfg.s,tones:rlTones,
               degNames:rlDegNames,invLabel:cfg.lbl+' / '+cfg.strs,
               bassLabel:'bass: '+rlDegNames[cfg.bassIdx],
-              selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL});
+              selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL,tcTxtArr:TC_RL_TXT});
           })
         ),
         e(DiagSection,{title:'TYPE B: 7-9-3-5 (7TH ON BOTTOM) — CLICK TO SELECT'},
@@ -1518,7 +1523,7 @@ function App(){
             return e(ChordBox,{key:i,voicing:allRootless[i],strings:cfg.s,tones:rlTones,
               degNames:rlDegNames,invLabel:cfg.lbl+' / '+cfg.strs,
               bassLabel:'bass: '+rlDegNames[cfg.bassIdx],
-              selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL});
+              selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL,tcTxtArr:TC_RL_TXT});
           })
         )
       ):null,
