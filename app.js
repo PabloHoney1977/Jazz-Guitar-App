@@ -321,11 +321,11 @@ function DotModeToggle({dotMode,setDotMode}){
 
 // ── Tour ──────────────────────────────────────────────────────────────
 const TOUR_STEPS=[
-  {target:'key-chip',  title:'Set your key',       text:'Tap to open the key picker. All chords and scales update instantly.'},
-  {target:'chord-row', title:'Pick a chord degree', text:'I through VII — each button is a chord in the key. The color shows the chord quality.'},
-  {target:'voicing-tabs',title:'Choose a voicing family',text:'Shell = 3-note jazz grip to start. Drop 2 and Drop 3 are the comping workhorses.'},
-  {target:'neck-area',  title:'The fretboard',      text:'Bright dots = the selected voicing. Dim dots = all arpeggio positions. The dot label mode (Int/Note/Both) lets you see intervals, note names, or both.'},
-  {target:'bottom-nav', title:'Where to start',     text:'We recommend starting with the ⚑ Guide — it walks you through jazz harmony step by step and opens the right tool at each stage. Tap it now to begin.'},
+  {target:'key-chip',  title:'Set your key',        text:'Tap to open the key picker. Every chord and scale in the app updates to match the key you choose.'},
+  {target:'chord-row', title:'The chords in a key',  text:'Each button is one of the seven chords that naturally occur in the key. The number (I through VII) is its position in the key — you\'ll learn what that means in the Guide.'},
+  {target:'voicing-tabs',title:'How to play each chord', text:'These tabs show different ways to arrange the same chord on the guitar — different string sets, different note on the bottom. Start with Shell, which uses just three strings.'},
+  {target:'neck-area',  title:'The fretboard',       text:'The colored dots show where to put your fingers for the selected chord shape. Dimmer dots show every other place those same notes appear on the neck.'},
+  {target:'bottom-nav', title:'Where to start',      text:'We recommend starting with the ⚑ Guide — it walks you through jazz harmony from the ground up and opens the right tool at each step. Tap it now to begin.'},
 ];
 function TourOverlay({step,onNext,onSkip}){
   const [rect,setRect]=useState(null);
@@ -1552,12 +1552,12 @@ function App(){
       fontSize:'0.82rem',color:'#9ab8d8',lineHeight:1.6}},
       e('div',{style:{flex:1}},
         e('span',{style:{color:'#4ECDC4',fontWeight:700}},'New here? '),
-        'You\'re in Essentials — shells, Drop 2 and the II–V–I, the right place to start. ',
+        'New to jazz guitar? Start with the ',
         e('button',{onClick:()=>{setViewMode('guide');setShowOnboarding(false);localStorage.setItem('jg-visited','1');},
           style:{background:'transparent',border:'none',color:'#4ECDC4',cursor:'pointer',
             fontFamily:UI_FONT,fontSize:'0.82rem',textDecoration:'underline',padding:0}},
-          'Follow the Path'),
-        ' for a step-by-step route from rock & blues to jazz.'
+          'Guide'),
+        ' — it explains every concept from scratch and opens the right tool at each step.'
       ),
       e('button',{onClick:()=>{setShowOnboarding(false);localStorage.setItem('jg-visited','1');},
         style:{background:'transparent',border:'none',color:'#4a6a8a',cursor:'pointer',
