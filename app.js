@@ -420,18 +420,18 @@ function NeckSVG({arpPos,highlight,scalePos,degNames,hlTc,dotMode,dotKeyIdx}){
       if(hiMap[p.s+'-'+p.f]) return null;
       const cx=p.f===0?OPEN_X:nx(p.f);
       return e('g',{key:'ap'+i},
-        e('circle',{cx,cy:sy(p.s),r:8,fill:TC_DIM[p.ti],stroke:TC[p.ti],strokeWidth:1.3}),
+        e('circle',{cx,cy:sy(p.s),r:10,fill:TC_DIM[p.ti],stroke:TC[p.ti],strokeWidth:1.3}),
         e('text',{x:cx,y:sy(p.s),textAnchor:'middle',dominantBaseline:'middle',
-          fill:TC[p.ti],fontSize:6,fontFamily:UI_FONT,pointerEvents:'none'},
+          fill:TC[p.ti],fontSize:7.5,fontFamily:UI_FONT,pointerEvents:'none'},
           noteForDot(dotMode,degNames[p.ti],(OPEN_PC[p.s]+p.f)%12,dotKeyIdx))
       );
     }),
     (highlight||[]).map((h,i)=>{
       const cx=h.f===0?OPEN_X:nx(h.f);
       return e('g',{key:'hi'+i,filter:'url(#ng)'},
-        e('circle',{cx,cy:sy(h.s),r:h.f===0?9:11,fill:hlTc[h.ti],stroke:'var(--hi-dot-str)',strokeWidth:1.8}),
+        e('circle',{cx,cy:sy(h.s),r:h.f===0?11:13,fill:hlTc[h.ti],stroke:'var(--hi-dot-str)',strokeWidth:1.8}),
         e('text',{x:cx,y:sy(h.s),textAnchor:'middle',dominantBaseline:'middle',
-          fill:'var(--dot-lbl)',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT},
+          fill:'var(--dot-lbl)',fontSize:10,fontWeight:'bold',fontFamily:UI_FONT},
           noteForDot(dotMode,h.dl,(OPEN_PC[h.s]+h.f)%12,dotKeyIdx))
       );
     })
