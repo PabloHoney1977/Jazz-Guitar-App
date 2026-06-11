@@ -319,13 +319,71 @@ function DotModeToggle({dotMode,setDotMode}){
   );
 }
 
+// ── GuitarToggle ──────────────────────────────────────────────────────
+function GuitarToggle({level,setLevel}){
+  const isEss=level==='essentials';
+  const ang=isEss?-30:30;
+  return e('div',{style:{display:'flex',alignItems:'center',gap:7,flexShrink:0}},
+    e('span',{style:{fontSize:'0.67rem',fontFamily:UI_FONT,letterSpacing:'0.5px',
+      color:isEss?'#C084FC':'var(--btn-off)',fontWeight:isEss?700:400}},'Ess'),
+    e('button',{onClick:()=>setLevel(isEss?'full':'essentials'),
+      'aria-label':'Currently '+level+' — tap to switch',
+      style:{background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:0,flexShrink:0}},
+      e('svg',{width:30,height:46,viewBox:'0 0 30 46',style:{display:'block'}},
+        e('defs',null,
+          e('linearGradient',{id:'gt-shaft',x1:'0',y1:'0',x2:'1',y2:'0'},
+            e('stop',{offset:'0%',stopColor:'#777'}),
+            e('stop',{offset:'45%',stopColor:'#ddd'}),
+            e('stop',{offset:'100%',stopColor:'#777'})
+          ),
+          e('radialGradient',{id:'gt-pivot',cx:'38%',cy:'32%'},
+            e('stop',{offset:'0%',stopColor:'#aaa'}),
+            e('stop',{offset:'100%',stopColor:'#2a2040'})
+          ),
+          e('linearGradient',{id:'gt-tip',x1:'0',y1:'0',x2:'1',y2:'1'},
+            e('stop',{offset:'0%',stopColor:'#f0e8d0'}),
+            e('stop',{offset:'100%',stopColor:'#c8a060'})
+          )
+        ),
+        // Housing plate
+        e('rect',{x:2,y:2,width:26,height:42,rx:5,
+          fill:'#1a1428',stroke:'#3a3060',strokeWidth:1.5}),
+        // Top highlight
+        e('rect',{x:5,y:4,width:20,height:8,rx:3,fill:'white',opacity:0.06}),
+        // Slot groove
+        e('rect',{x:13,y:9,width:4,height:24,rx:2,
+          fill:'#08060e',stroke:'#25203a',strokeWidth:0.5}),
+        // Lever — CSS transition rotates around pivot
+        e('g',{style:{
+          transform:'rotate('+ang+'deg)',
+          transformOrigin:'15px 32px',
+          transition:'transform 0.14s cubic-bezier(0.4,0,0.2,1)'}},
+          // Shaft
+          e('rect',{x:13,y:18,width:4,height:14,rx:2,fill:'url(#gt-shaft)'}),
+          // Tip knob
+          e('ellipse',{cx:15,cy:16,rx:5.5,ry:6,
+            fill:'url(#gt-tip)',stroke:'#a08050',strokeWidth:0.5}),
+          // Tip highlight
+          e('ellipse',{cx:13.5,cy:14,rx:2,ry:2.5,fill:'white',opacity:0.22})
+        ),
+        // Pivot
+        e('circle',{cx:15,cy:32,r:3.5,fill:'url(#gt-pivot)'}),
+        e('circle',{cx:15,cy:32,r:1.2,fill:'#555'})
+      )
+    ),
+    e('span',{style:{fontSize:'0.67rem',fontFamily:UI_FONT,letterSpacing:'0.5px',
+      color:!isEss?'#C084FC':'var(--btn-off)',fontWeight:!isEss?700:400}},'Full')
+  );
+}
+
 // ── Tour ──────────────────────────────────────────────────────────────
 const TOUR_STEPS=[
-  {target:'key-chip',  title:'Set your key',        text:'Tap to open the key picker. Every chord and scale in the app updates to match the key you choose.'},
-  {target:'chord-row', title:'The chords in a key',  text:'Each button is one of the seven chords that naturally occur in the key. The number (I through VII) is its position in the key — you\'ll learn what that means in the Guide.'},
-  {target:'voicing-tabs',title:'How to play each chord', text:'These tabs show different ways to arrange the same chord on the guitar — different string sets, different note on the bottom. Start with Shell, which uses just three strings.'},
-  {target:'neck-area',  title:'The fretboard',       text:'The colored dots show where to put your fingers for the selected chord shape. Dimmer dots show every other place those same notes appear on the neck.'},
-  {target:'bottom-nav', title:'Where to start',      text:'We recommend starting with the ⚑ Guide — it walks you through jazz harmony from the ground up and opens the right tool at each step. Tap it now to begin.'},
+  {target:'key-chip',    title:'Set your key',            text:'Tap to open the key picker. Every chord and scale in the app updates to match the key you choose.'},
+  {target:'level-switch',title:'Essentials or Full',      text:'This toggle controls how much of the app you see. Essentials keeps things simple — the right starting point. Flip to Full later when you\'re ready for more advanced chord types and techniques.'},
+  {target:'chord-row',   title:'The chords in a key',     text:'Each button is one of the seven chords that naturally occur in the key. The number (I through VII) is its position in the key — you\'ll learn what that means in the Guide.'},
+  {target:'voicing-tabs',title:'How to play each chord',  text:'These tabs show different ways to arrange the same chord on the guitar — different string sets, different note on the bottom. Start with Shell, which uses just three strings.'},
+  {target:'neck-area',   title:'The fretboard',           text:'The colored dots show where to put your fingers for the selected chord shape. Dimmer dots show every other place those same notes appear on the neck.'},
+  {target:'bottom-nav',  title:'Where to start',          text:'We recommend starting with the ⚑ Guide — it walks you through jazz harmony from the ground up and opens the right tool at each step. Tap it now to begin.'},
 ];
 function TourOverlay({step,onNext,onSkip}){
   const [rect,setRect]=useState(null);
@@ -1568,15 +1626,7 @@ function App(){
     // Header — title left, level + theme right
     e('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:12,flexWrap:'wrap'}},
       e('span',{style:{fontFamily:SERIF,fontSize:'1.4rem',fontWeight:700,color:'var(--scale-name)',flexGrow:1}},'Jazz Guitar Lab'),
-      e('div',{style:{display:'flex',gap:0,flexShrink:0,border:'1px solid '+BTN_BRD,borderRadius:18,overflow:'hidden'}},
-        ['essentials','full'].map(l=>
-          e('button',{key:l,onClick:()=>setLevel(l),style:{
-            padding:'4px 13px',cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',border:'none',
-            background:level===l?ACT_PUR:'transparent',
-            color:level===l?'#C084FC':BTN_OFF,fontWeight:level===l?700:400,
-            minHeight:34}},l==='essentials'?'Essentials':'Full')
-        )
-      ),
+      e('div',{'data-tour':'level-switch'},e(GuitarToggle,{level,setLevel})),
       e('button',{onClick:()=>setTourStep(0),'aria-label':'Start tour',style:{padding:'4px 10px',
         borderRadius:18,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',
         border:'1px solid '+BTN_BRD,background:'transparent',
