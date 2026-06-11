@@ -306,7 +306,7 @@ function playChordPreview(voicing,strings){
 
 // ── DotModeToggle ─────────────────────────────────────────────────────
 function DotModeToggle({dotMode,setDotMode}){
-  const opts=[{id:'interval',lbl:'Int'},{id:'note',lbl:'Note'},{id:'both',lbl:'Both'}];
+  const opts=[{id:'interval',lbl:'Interval'},{id:'note',lbl:'Note'},{id:'both',lbl:'Both'}];
   return e('div',{style:{display:'flex',alignItems:'center',gap:6,marginBottom:6}},
     e('span',{style:{fontSize:'0.69rem',color:'var(--hint)',letterSpacing:'1px',flexShrink:0}},'DOTS'),
     e('div',{style:{display:'flex',border:'1px solid var(--btn-brd)',borderRadius:14,overflow:'hidden'}},
@@ -328,21 +328,71 @@ const TOUR_STEPS=[
   {target:'bottom-nav', title:'Four views',         text:'Chords = diatonic harmony. Play = II-V-I play-along. Any Chord = standalone voicing explorer. Guide = step-by-step learning path.'},
 ];
 function TourOverlay({step,onNext,onSkip}){
+  const [rect,setRect]=useState(null);
   const s=TOUR_STEPS[step];
+  useEffect(()=>{
+    if(!s){setRect(null);return;}
+    function measure(){
+      const el=document.querySelector('[data-tour="'+s.target+'"]');
+      if(el){const r=el.getBoundingClientRect();setRect({top:r.top,left:r.left,w:r.width,h:r.height});}
+      else setRect(null);
+    }
+    measure();
+    // Re-measure after a frame in case the layout shifted
+    const id=requestAnimationFrame(measure);
+    return ()=>cancelAnimationFrame(id);
+  },[step,s&&s.target]);
+
   if(!s) return null;
   const isLast=step>=TOUR_STEPS.length-1;
-  return e('div',{style:{position:'fixed',inset:0,zIndex:200,pointerEvents:'none'}},
-    e('div',{style:{position:'absolute',inset:0,background:'rgba(0,0,0,0.72)',pointerEvents:'auto'}}),
+  const PAD=8;
+  const DIM='rgba(0,0,0,0.75)';
+
+  // Spotlight: 4 dark panels leaving target exposed
+  const overlay=rect?[
+    e('div',{key:'ot',style:{position:'absolute',top:0,left:0,right:0,
+      height:Math.max(0,rect.top-PAD),background:DIM,pointerEvents:'auto'}}),
+    e('div',{key:'ob',style:{position:'absolute',left:0,right:0,bottom:0,
+      top:rect.top+rect.h+PAD,background:DIM,pointerEvents:'auto'}}),
+    e('div',{key:'ol',style:{position:'absolute',top:rect.top-PAD,
+      left:0,width:Math.max(0,rect.left-PAD),
+      height:rect.h+PAD*2,background:DIM,pointerEvents:'auto'}}),
+    e('div',{key:'or',style:{position:'absolute',top:rect.top-PAD,
+      left:rect.left+rect.w+PAD,right:0,
+      height:rect.h+PAD*2,background:DIM,pointerEvents:'auto'}}),
+    e('div',{key:'ring',style:{position:'absolute',
+      top:rect.top-PAD,left:rect.left-PAD,
+      width:rect.w+PAD*2,height:rect.h+PAD*2,
+      border:'2px solid #4ECDC4',borderRadius:8,
+      boxShadow:'0 0 12px #4ECDC466',pointerEvents:'none'}}),
+  ]:e('div',{style:{position:'absolute',inset:0,background:DIM,pointerEvents:'auto'}});
+
+  // Tooltip: place below target if it fits, else above; clamp horizontally
+  let tipTop=null,tipBottom=null;
+  if(rect){
+    const vp=window.innerHeight||600;
+    const below=rect.top+rect.h+PAD+16;
+    if(below+220<vp) tipTop=below;
+    else tipBottom=vp-(rect.top-PAD-12);
+  } else {
+    tipBottom=90;
+  }
+  const tipLeft='50%';
+
+  return e('div',{style:{position:'fixed',inset:0,zIndex:200}},
+    overlay,
     e('div',{style:{
-      position:'absolute',bottom:90,left:'50%',transform:'translateX(-50%)',
-      width:'min(380px,92vw)',background:'#0d1a2a',border:'1px solid #1a4a6a',
-      borderRadius:12,padding:'18px 20px',pointerEvents:'auto',
-      boxShadow:'0 8px 32px rgba(0,0,0,0.7)',zIndex:201
+      position:'absolute',
+      ...(tipTop!==null?{top:tipTop}:{bottom:tipBottom}),
+      left:tipLeft,transform:'translateX(-50%)',
+      width:'min(360px,90vw)',background:'#0d1a2a',border:'1px solid #1a4a6a',
+      borderRadius:12,padding:'16px 18px',pointerEvents:'auto',
+      boxShadow:'0 8px 32px rgba(0,0,0,0.8)',zIndex:201
     }},
-      e('div',{style:{fontSize:'0.68rem',color:'#4ECDC4',letterSpacing:'2px',marginBottom:6}},
-        (step+1)+' / '+TOUR_STEPS.length+' — '+s.target.replace(/-/g,' ').toUpperCase()),
-      e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:'#e8d8a0',marginBottom:8}},s.title),
-      e('div',{style:{fontSize:'0.82rem',color:'#9ab8d8',lineHeight:1.65,marginBottom:14}},s.text),
+      e('div',{style:{fontSize:'0.67rem',color:'#4ECDC4',letterSpacing:'2px',marginBottom:5}},
+        (step+1)+' / '+TOUR_STEPS.length),
+      e('div',{style:{fontFamily:SERIF,fontSize:'1.0rem',fontWeight:700,color:'#e8d8a0',marginBottom:7}},s.title),
+      e('div',{style:{fontSize:'0.81rem',color:'#9ab8d8',lineHeight:1.65,marginBottom:14}},s.text),
       e('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
         e('button',{onClick:onSkip,style:{padding:'6px 14px',borderRadius:8,border:'1px solid #1a4a6a',
           background:'transparent',color:'#4a7a9a',fontFamily:UI_FONT,fontSize:'0.79rem',cursor:'pointer',minHeight:36}},
