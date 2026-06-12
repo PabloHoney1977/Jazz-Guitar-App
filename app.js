@@ -47,6 +47,20 @@ const EXT_TYPES=[
   {id:'7b9',  sym:'7♭9',  label:'7♭9',     iv:[0,4,10,1], dn:['R','3','b7','b9']},
   {id:'9sus', sym:'9sus4',label:'9sus4',    iv:[0,5,10,2], dn:['R','4','b7','9']},
 ];
+
+// Extension options per EXT_TYPES index — each replaces the 5th (interval slot 2)
+// with a colour tone. Available only for the four base 7th-chord types (idx 0-3).
+const CHORD_EXTS={
+  0:[{id:'9',  sym:'9',   tone:2, dn:'9'},  {id:'s11',sym:'#11', tone:6, dn:'#11'},{id:'13',sym:'13',tone:9,dn:'13'}],  // maj7
+  1:[{id:'9',  sym:'9',   tone:2, dn:'9'},  {id:'11', sym:'11',  tone:5, dn:'11'}],                                      // m7
+  2:[{id:'9',  sym:'9',   tone:2, dn:'9'},  {id:'b9', sym:'b9',  tone:1, dn:'b9'},{id:'s9',sym:'#9',tone:3,dn:'#9'},
+     {id:'s11',sym:'#11', tone:6, dn:'#11'},{id:'13', sym:'13',  tone:9, dn:'13'}],                                      // dom7
+  3:[{id:'9',  sym:'nat9',tone:2, dn:'9'}],                                                                               // ø7
+};
+  {id:'7alt', sym:'7alt', label:'Altered',  iv:[0,4,10,3], dn:['R','3','b7','#9']},
+  {id:'7b9',  sym:'7♭9',  label:'7♭9',     iv:[0,4,10,1], dn:['R','3','b7','b9']},
+  {id:'9sus', sym:'9sus4',label:'9sus4',    iv:[0,5,10,2], dn:['R','4','b7','9']},
+];
 // Chord types that support rootless voicings (root replaced by 9th)
 const ROOTLESS_OK=new Set(['maj7','m7','dom7','m7b5']);
 
@@ -1038,13 +1052,20 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   const [ssIdx,setSsIdx]=useState(2);
   const [invIdx,setInvIdx]=useState(0);
   const [shellIdx,setShellIdx]=useState(0);
+  const [extOpt,setExtOpt]=useState(null); // active extension id or null
   useEffect(()=>{if(isEss&&(vType==='drop3'||vType==='drop24'||vType==='drop23'))setVType('drop2');},[level]);
+  useEffect(()=>{setExtOpt(null);setInvIdx(0);},[customTypeIdx,customRoot]);
 
-  const extType=EXT_TYPES[customTypeIdx];
-  const tones=useMemo(()=>getExtTones(customRoot,extType),[customRoot,extType]);
+  const baseType=EXT_TYPES[customTypeIdx];
+  const availExts=CHORD_EXTS[customTypeIdx]||[];
+  const extDef=extOpt?availExts.find(e=>e.id===extOpt):null;
+  // Extension replaces the 5th (interval slot 2) with a colour tone
+  const effectiveIv=extDef?baseType.iv.map((x,i)=>i===2?extDef.tone:x):baseType.iv;
+  const degNames=extDef?baseType.dn.map((x,i)=>i===2?extDef.dn:x):baseType.dn;
+  const tones=useMemo(()=>effectiveIv.map(i=>(customRoot+i)%12),[customRoot,customTypeIdx,extOpt]);
   const arpPos=useMemo(()=>getArpPos(tones),[tones]);
-  const degNames=extType.dn;
-  const chordName=nn(customRoot,0)+extType.sym; // use sharps for custom
+  // Build chord name: base sym + extension (e.g. "Cmaj7#11", "C7b9")
+  const chordName=nn(customRoot,0)+baseType.sym+(extDef?extDef.sym:'');
 
   const dropD=DROP_DATA[vType]||DROP_DATA.drop2;
   const invData=dropD.inv, setsData=dropD.sets;
@@ -1122,11 +1143,30 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         )
       )
     ),
+    // Extension row (only for base 7th chord types that have available extensions)
+    availExts.length>0?e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12,alignItems:'center'}},
+      e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'EXTENSION'),
+      // "none" option
+      e('button',{onClick:()=>setExtOpt(null),style:{
+        padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
+        border:'1px solid '+(extOpt===null?'#F4A261':BTN_BRD),
+        background:extOpt===null?ACT_GOLD:BG2,
+        color:extOpt===null?'#F4A261':BTN_OFF,fontWeight:extOpt===null?700:400,minHeight:44}},
+        '—'),
+      availExts.map(ex=>
+        e('button',{key:ex.id,onClick:()=>setExtOpt(extOpt===ex.id?null:ex.id),style:{
+          padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
+          border:'1px solid '+(extOpt===ex.id?'#F4A261':BTN_BRD),
+          background:extOpt===ex.id?ACT_GOLD:BG2,
+          color:extOpt===ex.id?'#F4A261':BTN_OFF,fontWeight:extOpt===ex.id?700:400,minHeight:44}},
+          ex.sym)
+      )
+    ):null,
     // Chord info bar
     e('div',{style:{background:BG2,border:'1px solid '+BORDER,borderRadius:7,
       padding:'8px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}},
       e('span',{style:{fontFamily:SERIF,fontSize:'1.35rem',fontWeight:700,color:GOLD,fontStyle:'italic'}},chordName),
-      e('span',{style:{fontSize:'0.79rem',color:LBL}},'standalone — '+extType.label),
+      e('span',{style:{fontSize:'0.79rem',color:LBL}},'standalone — '+baseType.label+(extDef?' + '+extDef.dn:'')+'  (5th '+(extDef?'→ '+extDef.dn:'included')+')'),
       e('div',{style:{display:'flex',gap:12,flexWrap:'wrap',marginLeft:'auto'}},
         tones.map((t,i)=>
           e('span',{key:i,style:{display:'flex',alignItems:'center',gap:5,fontSize:'0.76rem',color:TC[i]}},
