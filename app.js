@@ -693,13 +693,18 @@ const FORM_DEFS={
     chords:[[0,'dom7','7','I'],[5,'dom7','7','IV'],[9,'dom7','7','VI'],[2,'m7','m7','II'],[7,'dom7','7','V']],
     bars:[0,1,0,0, 1,1,0,2, 3,4,0,4],
     tip:'Jazz blues = the 12-bar you know plus three moves: bar 8 picks up a VI7, bars 9–10 swap the old V–IV for a IIm7–V7, and bar 12 turns around on V7. Spot the II–V–I hiding in bars 9–11.'},
+  autumn:{lbl:'AUTUMN LEAVES',col:'#F4A261',bg:ACT_GOLD,
+    chords:[[2,'m7','m7','IIm7'],[7,'dom7','7','V7'],[0,'maj7','maj7','Imaj7'],[5,'maj7','maj7','IVmaj7'],
+            [11,'m7b5','ø7','VIIø7'],[4,'dom7','7','III7'],[9,'m7','m7','VIm7'],[9,'m7','m7','VIm7']],
+    bars:[0,1,2,3,4,5,6,7],
+    tip:'Autumn Leaves contains two II–V–I cycles: IIm7→V7→Imaj7 in the major key, then VIIø7→III7→VIm7 in the relative minor. Root motion descends in 4ths throughout.'},
 };
 
 // ── IIVIView ──────────────────────────────────────────────────────────
 function IIVIView({keyIdx,dotMode,setDotMode}){
   dotMode=dotMode||'interval';
   const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(localStorage.getItem('jg-strSet')||'2',10));
-  const [invIdxs,setInvIdxs]=useState([0,0,0,0,0]);
+  const [invIdxs,setInvIdxs]=useState([0,0,0,0,0,0,0,0]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
   const [isPlaying,setIsPlaying]=useState(false);
   const [bpm,setBpm]=useState(()=>parseInt(localStorage.getItem('jg-bpm')||'120',10));
@@ -891,7 +896,7 @@ function IIVIView({keyIdx,dotMode,setDotMode}){
     clearTimeout(timerRef.current);
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
     setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
-    setInvIdxs([0,0,0,0,0]);setActiveChordIdx(0);
+    setInvIdxs([0,0,0,0,0,0,0,0]);setActiveChordIdx(0);
   },[keyIdx,form]);
 
   const modeBtn=(act,col,actBg)=>({padding:'6px 13px',borderRadius:5,cursor:'pointer',
