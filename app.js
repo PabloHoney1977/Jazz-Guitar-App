@@ -808,9 +808,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const barsRef=useRef(null);
   const ksBufsRef=useRef(null);
   const clickBufsRef=useRef(null);
-  const wafPlayerRef=useRef(null);
-  const wafReadyRef=useRef(false);
-  const wafFontLoadedRef=useRef(false);
+  const bassRawRef=useRef(null);   // pre-fetched ArrayBuffers (persists across play/stop)
+  const bassSamplesRef=useRef(null); // decoded AudioBuffers for current AudioContext
   const tapTimesRef=useRef([]);
   bpmRef.current=bpm;
   bassRef.current=bassEnabled;
@@ -823,6 +822,28 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   useEffect(()=>{localStorage.setItem('jg-form',form);},[form]);
   useEffect(()=>{localStorage.setItem('jg-cprog',JSON.stringify(customProg));},[customProg]);
   useEffect(()=>{setScaleHint(null);},[activeChordIdx,form]);
+
+  // Pre-fetch real bass guitar samples (recorded bass-electric) on mount so
+  // they are ready before the user hits play.
+  useEffect(()=>{
+    let live=true;
+    const BASE='https://nbrosowsky.github.io/tonejs-instruments/samples/bass-electric/';
+    // Samples every minor-3rd cover the whole octave with ≤1 semitone shift.
+    const FILES={37:'Cs2.mp3',40:'E2.mp3',43:'G2.mp3',46:'As2.mp3'};
+    Promise.all(Object.entries(FILES).map(async([midi,file])=>{
+      try{
+        const r=await fetch(BASE+file);
+        if(!r.ok||!live) return null;
+        return{midi:+midi,data:await r.arrayBuffer()};
+      }catch(e){return null;}
+    })).then(res=>{
+      if(!live) return;
+      const raw={};
+      res.forEach(r=>{if(r)raw[r.midi]=r.data;});
+      if(Object.keys(raw).length>0) bassRawRef.current=raw;
+    });
+    return ()=>{live=false;};
+  },[]);
 
   const def=form==='custom'?null:FORM_DEFS[form];
   const chords=def
@@ -857,51 +878,49 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     });
   },[activeVoicings,invIdxs,activeChordIdx,strSetIdx,form]);
 
-  function loadBassFont(ctx){
-    if(!window.WebAudioFontPlayer) return;
-    wafReadyRef.current=false;
-    const player=new window.WebAudioFontPlayer();
-    wafPlayerRef.current=player;
-    const fontVar='_tone_0320_Acoustic_Bass_sf2_file';
-    function decodeFont(){
-      player.loader.decodeAfterLoading(ctx,fontVar);
-      player.loader.waitLoad(()=>{wafReadyRef.current=true;});
-    }
-    if(wafFontLoadedRef.current||window[fontVar]){
-      wafFontLoadedRef.current=true;
-      decodeFont();
-    } else {
-      const s=document.createElement('script');
-      s.src='https://surikov.github.io/webaudiofont/npm/dist/sf2js/0320_Acoustic_Bass_sf2_file.js';
-      s.crossOrigin='anonymous';
-      s.onload=()=>{wafFontLoadedRef.current=true;decodeFont();};
-      s.onerror=()=>{};
-      document.head.appendChild(s);
-    }
+  function decodeBassRaw(ctx){
+    // Decode pre-fetched ArrayBuffers into AudioBuffers for the current AudioContext.
+    // Uses .slice(0) so the originals survive multiple play/stop cycles.
+    bassSamplesRef.current=null;
+    const raw=bassRawRef.current;
+    if(!raw||Object.keys(raw).length===0) return;
+    Promise.all(Object.entries(raw).map(async([midi,arr])=>{
+      try{return{midi:+midi,buf:await ctx.decodeAudioData(arr.slice(0))};}
+      catch(e){return null;}
+    })).then(res=>{
+      const map={};
+      res.forEach(r=>{if(r)map[r.midi]=r.buf;});
+      bassSamplesRef.current=map;
+    });
   }
 
   function playBassNote(ctx,pc,startTime,beatDur,accent){
-    const midiNote=36+((pc%12+12)%12); // C2–B2 register
-    const vol=accent?1.0:0.65;
-    // Real samples via WebAudioFont
-    const player=wafPlayerRef.current;
-    const fontVar='_tone_0320_Acoustic_Bass_sf2_file';
-    if(player&&wafReadyRef.current&&window[fontVar]){
-      try{
-        player.queueWaveTable(ctx,ctx.destination,window[fontVar],startTime,midiNote,beatDur*0.88,vol);
-        return;
-      }catch(e){}
+    const midiNote=36+((pc%12+12)%12); // C2–B2
+    const vol=accent?0.88:0.56;
+    const samples=bassSamplesRef.current;
+    if(samples&&Object.keys(samples).length>0){
+      const notes=Object.keys(samples).map(Number);
+      const nearest=notes.reduce((a,b)=>Math.abs(b-midiNote)<Math.abs(a-midiNote)?b:a);
+      const rate=Math.pow(2,(midiNote-nearest)/12);
+      const src=ctx.createBufferSource();
+      src.buffer=samples[nearest];
+      src.playbackRate.value=rate;
+      const gain=ctx.createGain();
+      gain.gain.setValueAtTime(0,startTime);
+      gain.gain.linearRampToValueAtTime(vol,startTime+0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.9);
+      src.connect(gain);gain.connect(ctx.destination);
+      src.start(startTime);src.stop(startTime+beatDur+0.1);
+      return;
     }
-    // Fallback: KS one octave down
+    // Fallback: KS at half speed (will be replaced once samples decode)
     const bufs=ksBufsRef.current;
     if(!bufs) return;
-    const normalPc=(pc%12+12)%12;
     const src=ctx.createBufferSource();
-    src.buffer=bufs[normalPc];
+    src.buffer=bufs[(pc%12+12)%12];
     src.playbackRate.value=0.5;
     const gain=ctx.createGain();
-    const pk=accent?0.70:0.44;
-    gain.gain.setValueAtTime(pk,startTime);
+    gain.gain.setValueAtTime(accent?0.70:0.44,startTime);
     gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.92);
     src.connect(gain);gain.connect(ctx.destination);
     src.start(startTime);src.stop(startTime+beatDur);
@@ -918,7 +937,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     audioCtxRef.current=ctx;
     ksBufsRef.current=precomputeKS(ctx);
     clickBufsRef.current={accent:makeClickBuf(ctx,1200,0.90),normal:makeClickBuf(ctx,800,0.55)};
-    if(bassRef.current) loadBassFont(ctx);
+    if(bassRef.current) decodeBassRaw(ctx);
     nextTimeRef.current=ctx.currentTime+0.05;
     beatRef.current=0;
     const gen=++genRef.current;
