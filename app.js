@@ -712,7 +712,29 @@ const FORM_DEFS={
             [11,'m7b5','ø7','VIIø7'],[4,'dom7','7','III7'],[9,'m7','m7','VIm7'],[9,'m7','m7','VIm7']],
     bars:[0,1,2,3,4,5,6,7],
     tip:'Autumn Leaves contains two II–V–I cycles: IIm7→V7→Imaj7 in the major key, then VIIø7→III7→VIm7 in the relative minor. Root motion descends in 4ths throughout.'},
+  minblues:{lbl:'MINOR BLUES',col:'#FF6B6B',bg:ACT_RED,
+    chords:[[0,'m7','m7','Im7'],[5,'m7','m7','IVm7'],[2,'m7b5','ø7','IIø7'],[7,'dom7','7','V7']],
+    bars:[0,0,0,0, 1,1,0,0, 2,3,0,3],
+    tip:'Minor blues: Im7 replaces I7 throughout; bars 9–10 become IIø7–V7 — the minor II–V you already know. The V7 creates stronger pull back to Im7 than in major blues.'},
+  custom:{lbl:'CUSTOM',col:'#9CA3AF',bg:'transparent',chords:[],bars:[],tip:''},
 };
+
+// Scale suggestions per chord quality (shown on neck when user picks a scale)
+const SCALE_HINTS={
+  maj7:[{name:'Ionian',   iv:[0,2,4,5,7,9,11],note:'Home — fully inside key'},
+        {name:'Lydian',   iv:[0,2,4,6,7,9,11],note:'#11 — floating, bright'}],
+  m7:  [{name:'Dorian',   iv:[0,2,3,5,7,9,10],note:'Standard — nat.6'},
+        {name:'Aeolian',  iv:[0,2,3,5,7,8,10],note:'Natural minor — b6'}],
+  dom7:[{name:'Mixolydian',iv:[0,2,4,5,7,9,10],note:'Standard'},
+        {name:'Altered',   iv:[0,1,3,4,6,8,10],note:'Max tension — all tensions altered'},
+        {name:'Lyd. Dom.', iv:[0,2,4,6,7,9,10],note:'#11 — bright dominant'}],
+  m7b5:[{name:'Locrian',   iv:[0,1,3,5,6,8,10],note:'Diatonic — b2, b5'},
+        {name:'Loc. nat2', iv:[0,2,3,5,6,8,10],note:'nat.2 — softer than Locrian'}],
+};
+
+// Default custom progression (C – G7 – C – C)
+const DFLT_CPROG=[{root:0,q:'maj7'},{root:7,q:'dom7'},{root:0,q:'maj7'},{root:0,q:'maj7'}];
+const CPROG_QUALS=['maj7','m7','dom7','m7b5']; // available qualities in custom builder
 
 // ── IIVIView ──────────────────────────────────────────────────────────
 function IIVIView({keyIdx,dotMode,setDotMode}){
@@ -731,6 +753,12 @@ function IIVIView({keyIdx,dotMode,setDotMode}){
   });
   const [playingChordIdx,setPlayingChordIdx]=useState(null);
   const [playingBar,setPlayingBar]=useState(null);
+  const [scaleHint,setScaleHint]=useState(null); // name of active scale suggestion
+  const [customProg,setCustomProg]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem('jg-cprog')||'null')||DFLT_CPROG;}
+    catch(ex){return DFLT_CPROG;}
+  });
+  const [editingBar,setEditingBar]=useState(-1);
 
   const audioCtxRef=useRef(null);
   const timerRef=useRef(null);
@@ -757,23 +785,33 @@ function IIVIView({keyIdx,dotMode,setDotMode}){
   useEffect(()=>{localStorage.setItem('jg-bass',bassEnabled);},[bassEnabled]);
   useEffect(()=>{localStorage.setItem('jg-met',metronomeEnabled);},[metronomeEnabled]);
   useEffect(()=>{localStorage.setItem('jg-form',form);},[form]);
+  useEffect(()=>{localStorage.setItem('jg-cprog',JSON.stringify(customProg));},[customProg]);
+  useEffect(()=>{setScaleHint(null);},[activeChordIdx,form]);
 
-  const def=FORM_DEFS[form];
-  const chords=def.chords.map(([off,quality,sym,roman])=>{
-    const rootPC=(KEYS[keyIdx].root+off)%12;
-    const tones=getChordTones(rootPC,quality);
-    return{rootPC,quality,tones,dnames:DNAMES[quality],
-      name:nn(rootPC,keyIdx)+sym,roman};
-  });
+  const def=form==='custom'?null:FORM_DEFS[form];
+  const chords=def
+    ?def.chords.map(([off,quality,sym,roman])=>{
+        const rootPC=(KEYS[keyIdx].root+off)%12;
+        const tones=getChordTones(rootPC,quality);
+        return{rootPC,quality,tones,dnames:DNAMES[quality],name:nn(rootPC,keyIdx)+sym,roman};
+      })
+    :customProg.map(({root,q})=>{
+        const tones=getChordTones(root,q);
+        const qt=EXT_TYPES.find(t=>t.id===q)||EXT_TYPES[0];
+        return{rootPC:root,quality:q,tones,dnames:DNAMES[q],name:nn(root,0)+qt.sym,roman:qt.sym};
+      });
+  const bars=def?def.bars:customProg.map((_,i)=>i);
   chordsRef.current=chords;
-  barsRef.current=def.bars;
+  barsRef.current=bars;
 
   const ssIdx=Math.min(strSetIdx,D2_SETS.length-1);
   const ss=D2_SETS[ssIdx].s;
   const ac=chords[activeChordIdx];
 
-  const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx,form]);
-  const activeVoicings=useMemo(()=>D2_INV.map(inv=>calcVoicing(ss,inv.a,ac.tones)),[activeChordIdx,strSetIdx,keyIdx,form]);
+  const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx,form,customProg]);
+  const activeVoicings=useMemo(()=>D2_INV.map(inv=>calcVoicing(ss,inv.a,ac.tones)),[activeChordIdx,strSetIdx,keyIdx,form,customProg]);
+  const activeScale=scaleHint?(SCALE_HINTS[ac.quality]||[]).find(s=>s.name===scaleHint):null;
+  const scalePos=useMemo(()=>activeScale?getScalePos(ac.rootPC,activeScale.iv,ac.tones):[],[scaleHint,activeChordIdx,keyIdx,form,customProg]);
   const highlight=useMemo(()=>{
     const v=activeVoicings[invIdxs[activeChordIdx]];
     if(!v) return null;
@@ -963,19 +1001,68 @@ function IIVIView({keyIdx,dotMode,setDotMode}){
       e('button',{onClick:()=>setBassEnabled(v=>!v),style:bassBtn},'♩ BASS'),
       e('button',{onClick:()=>setMetronomeEnabled(v=>!v),style:metBtn},'◉ CLICK')
     ),
+    // Custom progression controls
+    form==='custom'?e('div',{style:{marginBottom:8}},
+      e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:editingBar>=0?6:0,alignItems:'center'}},
+        e('span',{style:{fontSize:'0.77rem',color:'#9CA3AF',letterSpacing:'2px'}},'CUSTOM PROGRESSION'),
+        e('button',{onClick:()=>setCustomProg(p=>[...p,{root:0,q:'dom7'}]),
+          disabled:customProg.length>=12,
+          style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
+            border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:36}},
+          '+ Bar'),
+        customProg.length>1?e('button',{onClick:()=>{setCustomProg(p=>p.slice(0,-1));setEditingBar(-1);},
+          style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
+            border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:36}},
+          '− Bar'):null,
+        e('button',{onClick:()=>setCustomProg(DFLT_CPROG),
+          style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
+            border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:36}},
+          'Reset')
+      ),
+      editingBar>=0?e('div',{style:{padding:'8px 12px',background:BG2,border:'1px solid #4ECDC4',
+        borderRadius:6,marginBottom:6}},
+        e('div',{style:{display:'flex',alignItems:'center',marginBottom:6,gap:10}},
+          e('span',{style:{fontSize:'0.77rem',color:'#4ECDC4',letterSpacing:'2px'}},'BAR '+(editingBar+1)+' — ROOT'),
+          e('button',{onClick:()=>setEditingBar(-1),style:{marginLeft:'auto',padding:'2px 8px',borderRadius:4,
+            cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',border:'1px solid '+BTN_BRD,
+            background:'transparent',color:BTN_OFF,minHeight:32}},'✕ Close')
+        ),
+        e('div',{style:{display:'flex',gap:3,flexWrap:'wrap',marginBottom:8}},
+          KEYS.map((k,i)=>e('button',{key:i,onClick:()=>setCustomProg(p=>p.map((b,j)=>j===editingBar?{...b,root:k.root}:b)),
+            style:{padding:'3px 8px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',minHeight:36,
+              border:'1px solid '+(customProg[editingBar]?.root===k.root?GOLD:BTN_BRD),
+              background:customProg[editingBar]?.root===k.root?ACT_GOLD:BG2,
+              color:customProg[editingBar]?.root===k.root?GOLD:BTN_OFF}},k.name))
+        ),
+        e('div',{style:{display:'flex',gap:4,flexWrap:'wrap',alignItems:'center'}},
+          e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginRight:4}},'QUALITY'),
+          CPROG_QUALS.map(qid=>{const qt=EXT_TYPES.find(t=>t.id===qid);return e('button',{key:qid,
+            onClick:()=>setCustomProg(p=>p.map((b,j)=>j===editingBar?{...b,q:qid}:b)),
+            style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',minHeight:36,
+              border:'1px solid '+(customProg[editingBar]?.q===qid?'#C084FC':BTN_BRD),
+              background:customProg[editingBar]?.q===qid?ACT_PUR:BG2,
+              color:customProg[editingBar]?.q===qid?'#C084FC':BTN_OFF}},qt.sym);})
+        )
+      ):null
+    ):null,
     // Form tracker — one cell per bar (wraps 4 per row), highlights current bar during playback
     e('div',{style:{display:'flex',flexWrap:'wrap',gap:5,marginBottom:10}},
-      def.bars.map((ci,i)=>{
+      bars.map((ci,i)=>{
         const lit=isPlaying&&playingBar===i;
-        return e('div',{key:i,style:{
-          flex:'1 1 calc(25% - 5px)',minWidth:0,textAlign:'center',padding:'5px 4px',borderRadius:5,fontFamily:UI_FONT,
-          border:'1px solid '+(lit?'#FFD43B':BORDER),
-          background:lit?ACT_YEL:BG2,
-          color:lit?'#FFD43B':BTN_OFF,
-          transition:'background 0.08s,border-color 0.08s,color 0.08s'
-        }},
+        const isEditing=form==='custom'&&editingBar===i;
+        return e('div',{key:i,
+          onClick:()=>{setActiveChordIdx(ci);if(form==='custom')setEditingBar(e=>e===i?-1:i);},
+          style:{
+            flex:'1 1 calc(25% - 5px)',minWidth:0,textAlign:'center',padding:'5px 4px',borderRadius:5,fontFamily:UI_FONT,
+            border:'1px solid '+(lit?'#FFD43B':isEditing?'#4ECDC4':BORDER),
+            background:lit?ACT_YEL:isEditing?ACT_TEAL:BG2,
+            color:lit?'#FFD43B':isEditing?'#4ECDC4':BTN_OFF,
+            cursor:form==='custom'?'pointer':'default',
+            transition:'background 0.08s,border-color 0.08s,color 0.08s'
+          }},
           e('div',{style:{fontSize:'0.62rem',opacity:0.7,letterSpacing:'1px',marginBottom:2}},chords[ci].roman),
-          e('div',{style:{fontSize:'0.82rem',fontWeight:lit?700:400}},chords[ci].name)
+          e('div',{style:{fontSize:'0.82rem',fontWeight:lit?700:400}},chords[ci].name),
+          form==='custom'?e('div',{style:{fontSize:'0.6rem',opacity:0.5,marginTop:1}},'tap to edit'):null
         );
       })
     ),
@@ -987,31 +1074,46 @@ function IIVIView({keyIdx,dotMode,setDotMode}){
     ),
     // Neck
     e('div',{style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
-      padding:'8px 4px 4px',marginBottom:12,overflowX:'auto'}},
+      padding:'8px 4px 4px',marginBottom:0,overflowX:'auto'}},
       e('div',{style:{minWidth:680}},
-        e(NeckSVG,{arpPos,highlight,scalePos:[],degNames:ac.dnames,dotMode,dotKeyIdx:keyIdx})
+        e(NeckSVG,{arpPos,highlight,scalePos,degNames:ac.dnames,dotMode,dotKeyIdx:keyIdx})
       )
     ),
-    // Three chord columns
+    // Scale suggestions
+    e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',
+      padding:'6px 10px',background:BG2,border:'1px solid '+BORDER,borderTop:'none',
+      borderRadius:'0 0 9px 9px',marginBottom:12}},
+      e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'2px',flexShrink:0}},'SCALE'),
+      (SCALE_HINTS[ac.quality]||[]).map(sc=>
+        e('button',{key:sc.name,onClick:()=>setScaleHint(h=>h===sc.name?null:sc.name),style:{
+          padding:'3px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
+          border:'1px solid '+(scaleHint===sc.name?'#4ECDC4':BTN_BRD),
+          background:scaleHint===sc.name?ACT_TEAL:BG2,
+          color:scaleHint===sc.name?'#4ECDC4':BTN_OFF,minHeight:36}},
+          sc.name+' — '+sc.note)
+      ),
+      (SCALE_HINTS[ac.quality]||[]).length===0&&e('span',{style:{fontSize:'0.72rem',color:HINT}},'—')
+    ),
+    // Chord columns — for custom form show only the active chord to avoid clutter
     e('div',{style:{display:'flex',gap:14,flexWrap:'wrap'}},
-      chords.map((chord,ci)=>{
+      (form==='custom'?[{chord:ac,ci:activeChordIdx}]:chords.map((chord,ci)=>({chord,ci})))
+      .map(({chord,ci})=>{
         const voicings=D2_INV.map(inv=>calcVoicing(ss,inv.a,chord.tones));
-        const isActive=activeChordIdx===ci;
         const isNowPlaying=playingChordIdx===ci;
-        const borderColor=isNowPlaying?'#FFD43B':isActive?'#4ECDC4':BORDER;
-        const bgColor=isNowPlaying?ACT_YEL:isActive?ACT_TEAL:BG2;
-        const romanColor=isNowPlaying?'#FFD43B':isActive?'#4ECDC4':LBL;
+        const borderColor=isNowPlaying?'#FFD43B':'#4ECDC4';
+        const bgColor=isNowPlaying?ACT_YEL:ACT_TEAL;
+        const romanColor=isNowPlaying?'#FFD43B':'#4ECDC4';
         return e('div',{key:ci,style:{flex:'1 1 200px',minWidth:190}},
           e('div',{style:{marginBottom:8,padding:'8px 12px',background:bgColor,
-            border:'1px solid '+borderColor,borderRadius:6,cursor:'pointer',
+            border:'1px solid '+borderColor,borderRadius:6,cursor:form==='custom'?'default':'pointer',
             transition:'border-color 0.12s,background 0.12s'},
-            onClick:()=>setActiveChordIdx(ci)},
+            onClick:()=>form!=='custom'&&setActiveChordIdx(ci)},
             e('div',{style:{fontSize:'0.73rem',color:romanColor,letterSpacing:'2px',marginBottom:2}},chord.roman),
             e('div',{style:{fontFamily:SERIF,fontSize:'1.1rem',fontWeight:700,color:GOLD,marginBottom:4}},chord.name),
             e('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
               chord.tones.map((t,ti)=>
                 e('span',{key:ti,style:{fontSize:'0.77rem',color:TC[ti],fontFamily:UI_FONT}},
-                  chord.dnames[ti]+'='+nn(t,keyIdx))
+                  chord.dnames[ti]+'='+nn(t,form==='custom'?0:keyIdx))
               )
             )
           ),
@@ -1021,12 +1123,9 @@ function IIVIView({keyIdx,dotMode,setDotMode}){
               e(ChordBox,{key:ii,voicing:voicings[ii],strings:ss,tones:chord.tones,
                 degNames:chord.dnames,invLabel:ii===0?'Root pos.':chord.dnames[inv.bassIdx]+' bass',
                 bassLabel:ii===0?'bass: '+chord.dnames[inv.bassIdx]:null,
-                selected:isActive&&invIdxs[ci]===ii,
-                dotMode,dotKeyIdx:keyIdx,
-                onClick:()=>{
-                  const n=[...invIdxs];n[ci]=ii;setInvIdxs(n);
-                  setActiveChordIdx(ci);
-                }
+                selected:invIdxs[ci]===ii,
+                dotMode,dotKeyIdx:form==='custom'?chord.rootPC:keyIdx,
+                onClick:()=>{const n=[...invIdxs];n[ci]=ii;setInvIdxs(n);setActiveChordIdx(ci);}
               })
             )
           )
@@ -1034,11 +1133,11 @@ function IIVIView({keyIdx,dotMode,setDotMode}){
       })
     ),
     // Voice-leading tip
-    e('div',{style:{marginTop:12,padding:'8px 12px',background:BG2,border:'1px solid '+BORDER,
+    def?e('div',{style:{marginTop:12,padding:'8px 12px',background:BG2,border:'1px solid '+BORDER,
       borderRadius:6,fontSize:'0.79rem',color:HINT,lineHeight:1.6}},
       e('span',{style:{color:GOLD,fontWeight:700}},'Voice leading tip: '),
       def.tip
-    )
+    ):null
   );
 }
 
