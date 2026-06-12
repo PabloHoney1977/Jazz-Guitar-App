@@ -770,7 +770,7 @@ const DFLT_CPROG=[{root:0,q:'maj7'},{root:7,q:'dom7'},{root:0,q:'maj7'},{root:0,
 const CPROG_QUALS=['maj7','m7','dom7','m7b5']; // available qualities in custom builder
 
 // ── IIVIView ──────────────────────────────────────────────────────────
-function IIVIView({keyIdx,dotMode,setDotMode}){
+function IIVIView({keyIdx,dotMode,setDotMode,level}){
   dotMode=dotMode||'interval';
   const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(localStorage.getItem('jg-strSet')||'2',10));
   const [invIdxs,setInvIdxs]=useState([0,0,0,0,0,0,0,0]);
@@ -792,6 +792,9 @@ function IIVIView({keyIdx,dotMode,setDotMode}){
     catch(ex){return DFLT_CPROG;}
   });
   const [editingBar,setEditingBar]=useState(-1);
+
+  // If user switches back to Basic while a non-major form is active, reset to major
+  useEffect(()=>{if(level==='essentials'&&form!=='major'){setForm('major');setIsPlaying(false);}},[level]);
 
   const audioCtxRef=useRef(null);
   const timerRef=useRef(null);
@@ -1014,7 +1017,7 @@ function IIVIView({keyIdx,dotMode,setDotMode}){
         e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
       ),
       e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginLeft:8}},'FORM'),
-      Object.keys(FORM_DEFS).map(f=>
+      (level==='essentials'?['major']:Object.keys(FORM_DEFS)).map(f=>
         e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
       )
     ),
@@ -1834,7 +1837,7 @@ function App(){
     ):null,
 
     // ── IIVI VIEW ────────────────────────────────────────────────────
-    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode}):null,
+    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level}):null,
 
     // ── CUSTOM CHORD VIEW ────────────────────────────────────────────
     viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode}):null,
