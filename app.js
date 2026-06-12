@@ -330,69 +330,96 @@ function DotModeToggle({dotMode,setDotMode}){
 }
 
 // ── GuitarToggle ──────────────────────────────────────────────────────
-// Styled as a Les Paul pickup-selector toggle: horizontal chrome plate,
-// horizontal slot, ivory knob tip sweeps left (Basic) or right (Full).
+// Styled as a Les Paul pickup-selector: circular cream plate, knurled
+// chrome bushing, chrome dome, ivory teardrop tip pivots up (Basic) / down (Full).
 function GuitarToggle({level,setLevel}){
-  const isEss=level==='essentials';
-  const ang=isEss?-23:23;
-  return e('div',{style:{display:'flex',alignItems:'center',gap:7,flexShrink:0}},
-    e('span',{style:{fontSize:'0.67rem',fontFamily:UI_FONT,letterSpacing:'0.5px',
-      color:isEss?'#C084FC':'var(--btn-off)',fontWeight:isEss?700:400}},'Basic'),
-    e('button',{onClick:()=>setLevel(isEss?'full':'essentials'),
-      'aria-label':'Currently '+(isEss?'Basic':'Full')+' — tap to switch',
-      style:{background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:0,flexShrink:0}},
-      e('svg',{width:64,height:48,viewBox:'0 0 64 48',style:{display:'block',overflow:'visible'}},
+  const isBasic=level==='essentials';
+  // -28° = tip points upper-left (Basic); 152° = tip points lower-right (Full).
+  // 180° sweep = clearly top vs bottom without going fully horizontal.
+  const tipAng=isBasic?-28:152;
+  return e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,flexShrink:0}},
+    e('span',{style:{
+      fontSize:'0.6rem',fontFamily:'Georgia,"Times New Roman",serif',
+      letterSpacing:'0.4px',userSelect:'none',lineHeight:1.2,
+      color:isBasic?'#C084FC':'var(--btn-off)',fontWeight:isBasic?700:400,
+    }},'Basic'),
+    e('button',{
+      onClick:()=>setLevel(isBasic?'full':'essentials'),
+      'aria-label':'Currently '+(isBasic?'Basic':'Full')+' — tap to switch',
+      style:{background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:0},
+    },
+      e('svg',{width:52,height:52,viewBox:'0 0 52 52',style:{display:'block'}},
         e('defs',null,
-          // Chrome plate: top-lit metallic sheen
-          e('linearGradient',{id:'gtp',x1:'0',y1:'0',x2:'0',y2:'1'},
-            e('stop',{offset:'0%',stopColor:'#e8e8e8'}),
-            e('stop',{offset:'30%',stopColor:'#f8f8f8'}),
-            e('stop',{offset:'68%',stopColor:'#c0c0c0'}),
-            e('stop',{offset:'100%',stopColor:'#888'})
+          // Cream/ivory plate
+          e('radialGradient',{id:'lpPl',cx:'42%',cy:'33%',r:'66%'},
+            e('stop',{offset:'0%',stopColor:'#FCF9F0'}),
+            e('stop',{offset:'72%',stopColor:'#ECE3C6'}),
+            e('stop',{offset:'100%',stopColor:'#D4CA9E'}),
           ),
-          // Shaft: side-lit chrome rod
-          e('linearGradient',{id:'gts',x1:'0',y1:'0',x2:'1',y2:'0'},
-            e('stop',{offset:'0%',stopColor:'#555'}),
-            e('stop',{offset:'42%',stopColor:'#e8e8e8'}),
-            e('stop',{offset:'100%',stopColor:'#666'})
+          // Chrome knurled ring (dark to simulate side lighting)
+          e('radialGradient',{id:'lpRg',cx:'38%',cy:'27%',r:'70%'},
+            e('stop',{offset:'0%',stopColor:'#DCDCDC'}),
+            e('stop',{offset:'38%',stopColor:'#ACACAC'}),
+            e('stop',{offset:'68%',stopColor:'#6C6C6C'}),
+            e('stop',{offset:'100%',stopColor:'#404040'}),
           ),
-          // Knob: cream/ivory with warm amber highlight (classic Les Paul tip)
-          e('radialGradient',{id:'gtk',cx:'33%',cy:'28%',r:'65%'},
-            e('stop',{offset:'0%',stopColor:'#fffbf0'}),
-            e('stop',{offset:'50%',stopColor:'#e8c878'}),
-            e('stop',{offset:'100%',stopColor:'#a06818'})
-          )
+          // Chrome dome (bright specular ball)
+          e('radialGradient',{id:'lpDm',cx:'32%',cy:'26%',r:'66%'},
+            e('stop',{offset:'0%',stopColor:'#F2F2F2'}),
+            e('stop',{offset:'20%',stopColor:'#D4D4D4'}),
+            e('stop',{offset:'58%',stopColor:'#989898'}),
+            e('stop',{offset:'100%',stopColor:'#585858'}),
+          ),
+          // Ivory teardrop tip
+          e('radialGradient',{id:'lpTp',cx:'36%',cy:'22%',r:'70%'},
+            e('stop',{offset:'0%',stopColor:'#FFFEFB'}),
+            e('stop',{offset:'52%',stopColor:'#EEE6D0'}),
+            e('stop',{offset:'100%',stopColor:'#CEC29A'}),
+          ),
         ),
-        // ── Plate shadow
-        e('rect',{x:5,y:28,width:54,height:14,rx:7,fill:'#000',opacity:0.45}),
-        // ── Chrome mounting plate (horizontal oval)
-        e('rect',{x:4,y:25,width:56,height:14,rx:7,fill:'url(#gtp)',stroke:'#aaa',strokeWidth:0.6}),
-        // Top bevel highlight
-        e('rect',{x:7,y:26,width:50,height:5,rx:4,fill:'white',opacity:0.40}),
-        // ── Horizontal slot (where lever sweeps through)
-        e('rect',{x:12,y:29,width:40,height:7,rx:3.5,fill:'#07070f',stroke:'#2a2a3a',strokeWidth:0.5}),
-        e('rect',{x:13,y:29.5,width:38,height:2.5,rx:2,fill:'white',opacity:0.04}),
-        // ── Lever (pivot at slot centre, knob tip swings left or right)
+        // Soft drop shadow
+        e('circle',{cx:26,cy:27.5,r:23,fill:'rgba(0,0,0,0.18)'}),
+        // Cream circular plate
+        e('circle',{cx:26,cy:26,r:23,fill:'url(#lpPl)',stroke:'#C0B48A',strokeWidth:0.8}),
+        // Chrome knurled bushing ring
+        e('circle',{cx:26,cy:26,r:13.5,fill:'url(#lpRg)'}),
+        // Knurled serration — dashed ring simulates the gear-cut edge
+        e('circle',{cx:26,cy:26,r:14,fill:'none',
+          stroke:'rgba(12,12,12,0.45)',strokeWidth:2.6,strokeDasharray:'1.65 1.1'}),
+        // Inner ring highlight (edge of smooth bore)
+        e('circle',{cx:26,cy:26,r:12,fill:'none',
+          stroke:'rgba(255,255,255,0.18)',strokeWidth:0.7}),
+        // ── Ivory teardrop tip (rotates around dome centre 26,26) ──
+        // Base orientation: tip pointing straight up. Tip apex at (26,7),
+        // base at y≈19 (merges seamlessly under dome).
         e('g',{style:{
-          transform:`rotate(${ang}deg)`,
-          transformOrigin:'32px 33px',
-          transition:'transform 0.15s cubic-bezier(0.4,0,0.2,1)'}},
-          // Shaft
-          e('rect',{x:30,y:9,width:4,height:24,rx:2,fill:'url(#gts)'}),
-          // Ivory knob tip
-          e('circle',{cx:32,cy:7,r:7.5,fill:'url(#gtk)',stroke:'#b07820',strokeWidth:0.7}),
-          // Knob specular highlight
-          e('ellipse',{cx:29.5,cy:4.5,rx:3,ry:2.5,fill:'white',opacity:0.55})
+          transform:`rotate(${tipAng}deg)`,
+          transformOrigin:'26px 26px',
+          transition:'transform 0.18s cubic-bezier(0.4,0,0.2,1)',
+        }},
+          e('path',{
+            d:'M 23,19 C 21.5,13 22.5,8 26,7 C 29.5,8 30.5,13 29,19 Z',
+            fill:'url(#lpTp)',
+            stroke:'rgba(168,152,112,0.55)',
+            strokeWidth:0.5,
+          }),
+          // Specular highlight — offset to simulate dome-lit cream surface
+          e('ellipse',{cx:24.5,cy:11.5,rx:1.4,ry:2.6,
+            fill:'rgba(255,255,255,0.46)',
+            transform:'rotate(-12,24.5,11.5)'}),
         ),
-        // ── Pivot screw (chrome, cross-slot)
-        e('circle',{cx:32,cy:33,r:4,fill:'url(#gtp)',stroke:'#777',strokeWidth:0.6}),
-        e('circle',{cx:32,cy:33,r:1.6,fill:'#2a2a2a'}),
-        e('line',{x1:30,y1:33,x2:34,y2:33,stroke:'#777',strokeWidth:0.8}),
-        e('line',{x1:32,y1:31,x2:32,y2:35,stroke:'#777',strokeWidth:0.8})
+        // Chrome dome (sits on top, covering base of tip)
+        e('circle',{cx:26,cy:26,r:9,fill:'url(#lpDm)'}),
+        e('circle',{cx:26,cy:26,r:9,fill:'none',stroke:'rgba(0,0,0,0.2)',strokeWidth:0.5}),
+        // Dome specular highlight
+        e('circle',{cx:23.5,cy:23.5,r:2.8,fill:'rgba(255,255,255,0.38)'}),
       )
     ),
-    e('span',{style:{fontSize:'0.67rem',fontFamily:UI_FONT,letterSpacing:'0.5px',
-      color:!isEss?'#C084FC':'var(--btn-off)',fontWeight:!isEss?700:400}},'Full')
+    e('span',{style:{
+      fontSize:'0.6rem',fontFamily:'Georgia,"Times New Roman",serif',
+      letterSpacing:'0.4px',userSelect:'none',lineHeight:1.2,
+      color:!isBasic?'#C084FC':'var(--btn-off)',fontWeight:!isBasic?700:400,
+    }},'Full'),
   );
 }
 
