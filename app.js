@@ -57,10 +57,6 @@ const CHORD_EXTS={
      {id:'s11',sym:'#11', tone:6, dn:'#11'},{id:'13', sym:'13',  tone:9, dn:'13'}],                                      // dom7
   3:[{id:'9',  sym:'nat9',tone:2, dn:'9'}],                                                                               // ø7
 };
-  {id:'7alt', sym:'7alt', label:'Altered',  iv:[0,4,10,3], dn:['R','3','b7','#9']},
-  {id:'7b9',  sym:'7♭9',  label:'7♭9',     iv:[0,4,10,1], dn:['R','3','b7','b9']},
-  {id:'9sus', sym:'9sus4',label:'9sus4',    iv:[0,5,10,2], dn:['R','4','b7','9']},
-];
 // Chord types that support rootless voicings (root replaced by 9th)
 const ROOTLESS_OK=new Set(['maj7','m7','dom7','m7b5']);
 
