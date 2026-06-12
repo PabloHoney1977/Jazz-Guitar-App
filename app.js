@@ -1185,7 +1185,10 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   const [invIdx,setInvIdx]=useState(0);
   const [shellIdx,setShellIdx]=useState(0);
   const [extOpt,setExtOpt]=useState(null); // active extension id or null
-  useEffect(()=>{if(isEss&&(vType==='drop3'||vType==='drop24'||vType==='drop23'))setVType('drop2');},[level]);
+  useEffect(()=>{
+    if(isEss&&(vType==='drop3'||vType==='drop24'||vType==='drop23'))setVType('drop2');
+    if(isEss)setExtOpt(null);
+  },[level]);
   useEffect(()=>{setExtOpt(null);setInvIdx(0);},[customTypeIdx,customRoot]);
 
   const baseType=EXT_TYPES[customTypeIdx];
@@ -1275,8 +1278,8 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         )
       )
     ),
-    // Extension row (only for base 7th chord types that have available extensions)
-    availExts.length>0?e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12,alignItems:'center'}},
+    // Extension row — Full mode only
+    availExts.length>0&&!isEss?e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12,alignItems:'center'}},
       e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'EXTENSION'),
       // "none" option
       e('button',{onClick:()=>setExtOpt(null),style:{
