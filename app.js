@@ -1317,6 +1317,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const [loopCount,setLoopCount]=useState(0);
   const [rideEnabled,setRideEnabled]=useState(()=>localStorage.getItem('jg-ride')!=='false');
   const [showGTLine,setShowGTLine]=useState(false);
+  const [showTip,setShowTip]=useState(false);
   const [eqGains,setEqGains]=useState(()=>{
     try{return JSON.parse(localStorage.getItem('jg-eq')||'null')||[0,0,0,0,0];}
     catch{return [0,0,0,0,0];}
@@ -1547,11 +1548,10 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     src.start(startTime);src.stop(startTime+sustainSecs+0.05);
   }
 
-  function playGuitarChord(ctx,midiNotes,startTime,beatDur){
+  function playGuitarChord(ctx,midiNotes,startTime,sustainSecs,vol){
     if(!midiNotes||midiNotes.length===0) return;
-    const sustainSecs=Math.min(beatDur*3.2,2.2);
     midiNotes.forEach((midi,i)=>{
-      playGuitarNote(ctx,midi,startTime+i*0.013,sustainSecs,0.32);
+      playGuitarNote(ctx,midi,startTime+i*0.013,sustainSecs,vol);
     });
   }
 
@@ -1627,8 +1627,26 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         const ti=(lastSame?[0,2,1,0]:[0,1,2,3])[beat%4];
         bassPC=chordsRef.current[ci].tones[ti];
       }
-      if(guitarEnabledRef.current&&beat%4===0){
-        playGuitarChord(ctx,compMidiRef.current[ci]||[],nextTimeRef.current,beatDur);
+      if(guitarEnabledRef.current){
+        const midi=compMidiRef.current[ci]||[];
+        if(midi.length>0){
+          const b=beat%4;
+          const sustLong=Math.min(beatDur*1.7,1.5);
+          const sustStab=Math.min(beatDur*0.28,0.22);
+          if(b===0){
+            // Beat 1: full chord strum
+            playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.30);
+          } else if(b===1){
+            // Beat 2: short stab, top 3 notes only
+            playGuitarChord(ctx,midi.slice(-Math.min(3,midi.length)),nextTimeRef.current,sustStab,0.17);
+          } else if(b===2){
+            // Beat 3: full chord, slightly softer
+            playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.24);
+          } else {
+            // "And" of beat 4: anticipation stab into next bar
+            playGuitarChord(ctx,midi.slice(-Math.min(3,midi.length)),nextTimeRef.current+beatDur*(2/3),sustStab,0.21);
+          }
+        }
       }
       if(bassRef.current && chordsRef.current){
         playBassNote(ctx,bassPC,nextTimeRef.current,beatDur,beat%4===0);
@@ -1948,24 +1966,24 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         )
       ):null
     ):null,
-    // Form tracker — one cell per bar (wraps 4 per row), highlights current bar during playback
-    e('div',{style:{display:'flex',flexWrap:'wrap',gap:5,marginBottom:10}},
+    // Bar tracker — tap any bar to select its chord and see voicing options below
+    e('div',{style:{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}},
       bars.map((ci,i)=>{
         const lit=isPlaying&&playingBar===i;
         const isEditing=form==='custom'&&editingBar===i;
+        const isSel=!isPlaying&&ci===activeChordIdx;
         return e('div',{key:i,
           onClick:()=>{setActiveChordIdx(ci);if(form==='custom')setEditingBar(e=>e===i?-1:i);},
           style:{
-            flex:'1 1 calc(25% - 5px)',minWidth:0,textAlign:'center',padding:'5px 4px',borderRadius:5,fontFamily:UI_FONT,
-            border:'1px solid '+(lit?'#FFD43B':isEditing?GOLD:BORDER),
-            background:lit?ACT_YEL:isEditing?ACT_GOLD:BG2,
-            color:lit?'#FFD43B':isEditing?GOLD:BTN_OFF,
-            cursor:form==='custom'?'pointer':'default',
+            flex:'1 1 calc(25% - 4px)',minWidth:0,textAlign:'center',padding:'3px 2px',borderRadius:5,
+            fontFamily:UI_FONT,cursor:'pointer',
+            border:'1px solid '+(lit?'#FFD43B':isEditing?GOLD:isSel?GOLD+'88':BORDER),
+            background:lit?ACT_YEL:isEditing?ACT_GOLD:isSel?ACT_GOLD+'44':BG2,
+            color:lit?'#FFD43B':isEditing||isSel?GOLD:BTN_OFF,
             transition:'background 0.08s,border-color 0.08s,color 0.08s'
           }},
-          e('div',{style:{fontSize:'0.62rem',opacity:0.7,letterSpacing:'1px',marginBottom:2}},chords[ci].roman),
-          e('div',{style:{fontSize:'0.82rem',fontWeight:lit?700:400}},chords[ci].name),
-          form==='custom'?e('div',{style:{fontSize:'0.6rem',opacity:0.5,marginTop:1}},'tap to edit'):null
+          e('div',{style:{fontSize:'0.58rem',opacity:0.7,marginBottom:1}},chords[ci].roman),
+          e('div',{style:{fontSize:'0.74rem',fontWeight:lit||isSel?700:400}},chords[ci].name)
         );
       })
     ),
@@ -1999,63 +2017,77 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           color:showGTLine?GOLD:BTN_OFF,minHeight:44}},'Guide tones ♦')
       )
     ),
-    // Chord columns — for custom form show only the active chord to avoid clutter
-    e('div',{style:{display:'flex',gap:14,flexWrap:'wrap'}},
-      (form==='custom'?[{chord:ac,ci:activeChordIdx}]:chords.map((chord,ci)=>({chord,ci})))
-      .map(({chord,ci})=>{
-        const voicings=vType==='shell'
-          ?SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1))
-          :dropD.inv.map(inv=>calcVoicing(ss,inv.a,chord.tones));
-        const isNowPlaying=playingChordIdx===ci;
-        const isActive=activeChordIdx===ci&&!isPlaying;
-        const borderColor=isNowPlaying?'#FFD43B':isActive?GOLD:BORDER;
-        const bgColor=isNowPlaying?ACT_YEL:isActive?ACT_GOLD:BG2;
-        const romanColor=isNowPlaying?'#FFD43B':isActive?GOLD:LBL;
-        return e('div',{key:ci,style:{flex:'1 1 200px',minWidth:190}},
-          e('div',{style:{marginBottom:8,padding:'8px 12px',background:bgColor,
-            border:'1px solid '+borderColor,borderRadius:6,cursor:form==='custom'?'default':'pointer',
-            transition:'border-color 0.12s,background 0.12s'},
-            onClick:()=>form!=='custom'&&setActiveChordIdx(ci)},
-            e('div',{style:{fontSize:'0.73rem',color:romanColor,letterSpacing:'0.5px',marginBottom:2,fontWeight:600}},chord.roman),
-            e('div',{style:{fontFamily:SERIF,fontSize:'1.1rem',fontWeight:700,color:GOLD,marginBottom:4}},chord.name),
-            e('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
-              chord.tones.map((t,ti)=>
-                e('span',{key:ti,style:{fontSize:'0.77rem',color:TC[ti],fontFamily:UI_FONT}},
-                  chord.dnames[ti]+'='+nn(t,form==='custom'?0:keyIdx))
-              )
+    // Active-chord voicing picker — bar tracker above serves as navigation
+    e('div',null,
+      // Chord header with prev/next navigation
+      e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:6}},
+        e('button',{
+          onClick:()=>setActiveChordIdx(Math.max(0,activeChordIdx-1)),
+          disabled:activeChordIdx===0,
+          style:{padding:'2px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
+            fontSize:'0.8rem',border:'1px solid '+BTN_BRD,background:'transparent',
+            color:activeChordIdx===0?BTN_BRD:BTN_OFF,minHeight:36}
+        },'◀'),
+        e('div',{style:{flex:1,padding:'6px 10px',background:BG2,border:'1px solid '+GOLD+'66',
+          borderRadius:6,display:'flex',alignItems:'center',gap:10}},
+          e('div',{style:{display:'flex',flexDirection:'column'}},
+            e('div',{style:{fontSize:'0.7rem',color:GOLD,fontWeight:600}},ac.roman),
+            e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:GOLD,lineHeight:1.1}},ac.name)
+          ),
+          e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginLeft:8}},
+            ac.tones.map((t,ti)=>
+              e('span',{key:ti,style:{fontSize:'0.72rem',color:TC[ti],fontFamily:UI_FONT}},
+                ac.dnames[ti]+'='+nn(t,form==='custom'?0:keyIdx))
             )
           ),
-          // Voicing diagrams
-          e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
-            vType==='shell'
-              ?SHELLS.map((sh,ii)=>
-                  e(ChordBox,{key:ii,voicing:voicings[ii],strings:sh.s,tones:chord.tones,
-                    degNames:chord.dnames,invLabel:sh.lbl+' ('+sh.root+')',
-                    bassLabel:'bass: R',
-                    selected:invIdxs[ci]===ii,
-                    dotMode,dotKeyIdx:form==='custom'?chord.rootPC:keyIdx,
-                    onClick:()=>{const n=[...invIdxs];n[ci]=ii;setInvIdxs(n);setActiveChordIdx(ci);}
-                  })
-                )
-              :dropD.inv.map((inv,ii)=>
-                  e(ChordBox,{key:ii,voicing:voicings[ii],strings:ss,tones:chord.tones,
-                    degNames:chord.dnames,invLabel:ii===0?'Root pos.':chord.dnames[inv.bassIdx]+' bass',
-                    bassLabel:ii===0?'bass: '+chord.dnames[inv.bassIdx]:null,
-                    selected:invIdxs[ci]===ii,
-                    dotMode,dotKeyIdx:form==='custom'?chord.rootPC:keyIdx,
-                    onClick:()=>{const n=[...invIdxs];n[ci]=ii;setInvIdxs(n);setActiveChordIdx(ci);}
-                  })
-                )
-          )
-        );
-      })
-    ),
-    // Voice-leading tip
-    def?e('div',{style:{marginTop:12,padding:'8px 12px',background:BG2,border:'1px solid '+BORDER,
-      borderRadius:6,fontSize:'0.79rem',color:HINT,lineHeight:1.6}},
-      e('span',{style:{color:GOLD,fontWeight:700}},'Voice leading tip: '),
-      def.tip
-    ):null
+          def?e('button',{onClick:()=>setShowTip(v=>!v),style:{
+            marginLeft:'auto',flexShrink:0,padding:'2px 7px',borderRadius:4,cursor:'pointer',
+            fontFamily:UI_FONT,fontSize:'0.7rem',border:'1px solid '+(showTip?GOLD:BTN_BRD),
+            background:'transparent',color:showTip?GOLD:BTN_OFF,minHeight:28
+          }},'?'):null
+        ),
+        e('button',{
+          onClick:()=>setActiveChordIdx(Math.min(chords.length-1,activeChordIdx+1)),
+          disabled:activeChordIdx===chords.length-1,
+          style:{padding:'2px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
+            fontSize:'0.8rem',border:'1px solid '+BTN_BRD,background:'transparent',
+            color:activeChordIdx===chords.length-1?BTN_BRD:BTN_OFF,minHeight:36}
+        },'▶')
+      ),
+      // Voice-leading tip (collapsible)
+      showTip&&def?e('div',{style:{marginBottom:8,padding:'7px 10px',background:BG2,
+        border:'1px solid '+BORDER,borderRadius:6,fontSize:'0.76rem',color:HINT,lineHeight:1.55}},
+        e('span',{style:{color:GOLD,fontWeight:700}},'Voice leading: '),def.tip
+      ):null,
+      // Voicing diagrams for the active chord
+      e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
+        (()=>{
+          const voicings=vType==='shell'
+            ?SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ac.tones,1))
+            :dropD.inv.map(inv=>calcVoicing(ss,inv.a,ac.tones));
+          const ci=activeChordIdx;
+          return vType==='shell'
+            ?SHELLS.map((sh,ii)=>
+                e(ChordBox,{key:ii,voicing:voicings[ii],strings:sh.s,tones:ac.tones,
+                  degNames:ac.dnames,invLabel:sh.lbl+' ('+sh.root+')',bassLabel:'bass: R',
+                  selected:invIdxs[ci]===ii,dotMode,
+                  dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,
+                  onClick:()=>{const n=[...invIdxs];n[ci]=ii;setInvIdxs(n);}
+                })
+              )
+            :dropD.inv.map((inv,ii)=>
+                e(ChordBox,{key:ii,voicing:voicings[ii],strings:ss,tones:ac.tones,
+                  degNames:ac.dnames,
+                  invLabel:ii===0?'Root pos.':ac.dnames[inv.bassIdx]+' bass',
+                  bassLabel:ii===0?'bass: '+ac.dnames[inv.bassIdx]:null,
+                  selected:invIdxs[ci]===ii,dotMode,
+                  dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,
+                  onClick:()=>{const n=[...invIdxs];n[ci]=ii;setInvIdxs(n);}
+                })
+              );
+        })()
+      )
+    )
   );
 }
 
