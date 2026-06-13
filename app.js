@@ -1881,7 +1881,7 @@ function GuideView({openPreset,level}){
      preset:{view:'diatonic',key:0,deg:0,vType:'shell'},
      body:['Jazz harmony is built on four types of 7th chord. A 7th chord has four notes — a root, a 3rd, a 5th, and a 7th — stacked in thirds. What makes each type sound the way it does is the specific combination of intervals between those notes.',
            'Major 7 (Cmaj7): stable, lush — the I chord, the "home" sound. Minor 7 (Dm7): smooth, slightly unresolved — the II and VI chords. Dominant 7 (G7): tense, pulling toward resolution — the V chord. Half-diminished (Bm7♭5): unstable, searching — the VII chord and the II of a minor key.'],
-     items:['In the app, open Chords and click through I, II, V and VII — one chord of each quality','Set the dot mode to "Interval" to see exactly which intervals make up each chord','Listen: can you name the quality before reading the label?']},
+     items:['In the app, open Chords and click through I, II, V and VII — one chord of each quality','Set the dot mode to "Interval" — the colored dots show the four chord tones: Root (red), 3rd (teal), 5th (blue), 7th (gold). These same colors appear everywhere in the app','Listen: can you name the quality before you read the label?']},
     {id:'shells',title:'Shell voicings — your first jazz grips',
      preset:{view:'diatonic',key:0,deg:0,vType:'shell'},
      body:['A shell voicing uses just three notes: root, 3rd, and 7th. The 5th is left out because it adds no harmonic information the other two notes don\'t already provide — it just says "this is a chord," which the 3rd and 7th already say more precisely.',
@@ -1932,6 +1932,7 @@ function GuideView({openPreset,level}){
   const doneCount=stages.filter(s=>done[s.id]).length;
   function stage(n,st){
     const isDone=!!done[st.id];
+    const theoryOpen=!!expanded['st_'+st.id];
     return e('div',{key:st.id,style:{display:'flex',gap:12,padding:'12px 14px',marginBottom:10,
       background:BG,border:'1px solid '+(isDone?'#4ECDC440':BORDER),borderRadius:8,opacity:isDone?0.72:1}},
       e('div',{style:{flexShrink:0,width:26,height:26,borderRadius:'50%',
@@ -1940,9 +1941,8 @@ function GuideView({openPreset,level}){
         fontSize:'0.8rem',fontWeight:700,fontFamily:UI_FONT}},isDone?'✓':String(n)),
       e('div',{style:{flex:1}},
         e('div',{style:{fontFamily:SERIF,fontSize:'0.98rem',fontWeight:700,color:'var(--scale-name)',marginBottom:6}},st.title),
-        st.body.map((t,i)=>e('p',{key:'b'+i,style:{...P,marginBottom:5}},t)),
-        st.items&&st.items.length?ul(...st.items):null,
-        e('div',{style:{display:'flex',gap:8,marginTop:8,flexWrap:'wrap'}},
+        st.body.length>0?e('p',{style:{...P,marginBottom:8}},st.body[0]):null,
+        e('div',{style:{display:'flex',gap:8,marginBottom:8,flexWrap:'wrap'}},
           e('button',{onClick:()=>openPreset(st.preset),style:{
             padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',
             border:'1px solid #4ECDC4',background:ACT_TEAL,color:'#4ECDC4',fontWeight:700,minHeight:40}},'▶ Open in app'),
@@ -1950,62 +1950,81 @@ function GuideView({openPreset,level}){
             padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',
             border:'1px solid '+(isDone?'#4ECDC4':BTN_BRD),background:isDone?ACT_TEAL:'transparent',
             color:isDone?'#4ECDC4':BTN_OFF,minHeight:40}},isDone?'✓ Done':'Mark done')
-        )
+        ),
+        st.items&&st.items.length?ul(...st.items):null,
+        st.body.length>1?e('div',{style:{marginTop:6}},
+          e('button',{onClick:ev=>{ev.stopPropagation();tog('st_'+st.id);},style:{
+            background:'transparent',border:'none',cursor:'pointer',fontFamily:UI_FONT,
+            fontSize:'0.74rem',color:HINT,padding:'4px 0',display:'flex',alignItems:'center',gap:5,minHeight:0}},
+            e('span',{style:{color:GOLD,fontSize:'0.8rem'}},theoryOpen?'▾':'▸'),' Why it works'),
+          theoryOpen?e('div',{style:{marginTop:4,paddingLeft:10,borderLeft:'2px solid '+BORDER}},
+            ...st.body.slice(1).map((t,i)=>e('p',{key:'bt'+i,style:{...P,marginBottom:5}},t))
+          ):null
+        ):null
       )
     );
   }
   return e('div',{style:{maxWidth:780}},
-    sec('Intervals — the building blocks',
-      p('Every chord and scale in music is built from intervals — the distance between two notes, measured in half-steps (semitones). On the guitar, one fret = one semitone. Knowing intervals by ear and by name is the hidden fluency that makes theory click.'),
-      e('div',{style:{overflowX:'auto',marginTop:10,marginBottom:4}},
-        e('table',{style:{borderCollapse:'collapse',fontSize:'0.82rem',width:'100%',minWidth:340}},
-          e('thead',null,
-            e('tr',null,
-              ['Semitones','Name','Abbr.','Example (from C)','Sound / feel'].map((h,i)=>
-                e('th',{key:i,style:{padding:'5px 10px',textAlign:'left',color:LBL,
-                  borderBottom:'1px solid '+BORDER,fontWeight:600,whiteSpace:'nowrap'}},h)
-              )
-            )
-          ),
-          e('tbody',null,
-            [
-              [0,'Unison','1','C → C','Same note — root'],
-              [1,'Minor 2nd','b2','C → Db','Half-step, sharp tension'],
-              [2,'Major 2nd','2','C → D','Whole-step, mild step'],
-              [3,'Minor 3rd','b3','C → Eb','Minor quality — dark'],
-              [4,'Major 3rd','3','C → E','Major quality — bright'],
-              [5,'Perfect 4th','4','C → F','Stable, open-sounding'],
-              [6,'Tritone','b5 / #4','C → F#/Gb','Maximum tension'],
-              [7,'Perfect 5th','5','C → G','Strong, stable'],
-              [8,'Minor 6th','b6','C → Ab','Dark color'],
-              [9,'Major 6th','6','C → A','Warm, bossa-friendly'],
-              [10,'Minor 7th','b7','C → Bb','Blues / dominant sound'],
-              [11,'Major 7th','Δ7','C → B','Jazz stable — pulls to root'],
-              [12,'Octave','8','C → C (high)','Same note, one octave up'],
-            ].map(([st,name,abbr,ex,feel],ri)=>
-              e('tr',{key:ri,style:{background:ri%2===0?'transparent':'var(--bg2)'}},
-                e('td',{style:{padding:'4px 10px',color:'#FFD43B',fontWeight:700,textAlign:'center'}},st),
-                e('td',{style:{padding:'4px 10px',color:'var(--txt)',fontWeight:600}},name),
-                e('td',{style:{padding:'4px 10px',color:'#4ECDC4',fontFamily:'Georgia,serif',fontStyle:'italic'}},abbr),
-                e('td',{style:{padding:'4px 10px',color:'#74C0FC'}},[ex]),
-                e('td',{style:{padding:'4px 10px',color:HINT,fontSize:'0.77rem'}},[feel])
-              )
-            )
-          )
-        )
-      ),
-      p('In the app, the colored dots on the neck each represent one chord-tone interval: ',
-        e('span',{style:{color:'#FF6B6B',fontWeight:700}},'Root (R)'),', ',
-        e('span',{style:{color:'#4ECDC4',fontWeight:700}},'3rd'),', ',
-        e('span',{style:{color:'#74C0FC',fontWeight:700}},'5th'),', and ',
-        e('span',{style:{color:'#FFD43B',fontWeight:700}},'7th'),
-        '. The dimmer dots show every occurrence of those intervals across the whole neck; the bright ones are the voicing you\'ve selected.'
-      )
-    ),
     sec('Start Here',
       p('This guide assumes you can finger and strum chords from a chart, and that\'s all. No music theory background is needed — every concept is introduced from scratch, with an explanation of why it works, not just what it is. The goal is to understand jazz harmony well enough to use it, not just play through it.'),
       p('Jazz uses ',e('b',{style:HL},'four-note chords (7th chords)'),' as its basic unit. A standard triad (three notes) tells you major or minor. The 7th chord adds one more note — the 7th interval — and that extra note is what gives jazz its characteristic richness, tension, and color. Learning to hear, name, and voice these four chord types is the foundation of everything that follows.'),
       callout(e('b',null,'How to use this page: '),'The Path below is a step-by-step route. Each stage explains one concept and opens the right tool already configured. Mark stages done as you go. The Glossary at the bottom is your reference whenever a term is unfamiliar. Tap any chord diagram in the app to hear it.')
+    ),
+    e('div',{style:S},
+      e('div',{style:{cursor:'pointer',userSelect:'none',display:'flex',alignItems:'center',gap:8,
+        fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:'var(--scale-name)',marginBottom:expanded.intervals?8:0},
+        onClick:()=>tog('intervals')},
+        e('span',{style:{color:GOLD,marginRight:2}},expanded.intervals?'▾':'▸'),
+        'Intervals — reference table'
+      ),
+      !expanded.intervals?e('p',{style:{...P,marginBottom:0,marginTop:4}},'The distance between two notes, measured in semitones. One guitar fret = one semitone. Tap to expand the full reference table.'):null,
+      expanded.intervals?e('div',null,
+        p('Every chord and scale in music is built from intervals — the distance between two notes, measured in half-steps (semitones). On the guitar, one fret = one semitone. Knowing intervals by ear and by name is the hidden fluency that makes theory click.'),
+        e('div',{style:{overflowX:'auto',marginTop:10,marginBottom:4}},
+          e('table',{style:{borderCollapse:'collapse',fontSize:'0.82rem',width:'100%',minWidth:340}},
+            e('thead',null,
+              e('tr',null,
+                ['Semitones','Name','Abbr.','Example (from C)','Sound / feel'].map((h,i)=>
+                  e('th',{key:i,style:{padding:'5px 10px',textAlign:'left',color:LBL,
+                    borderBottom:'1px solid '+BORDER,fontWeight:600,whiteSpace:'nowrap'}},h)
+                )
+              )
+            ),
+            e('tbody',null,
+              [
+                [0,'Unison','1','C → C','Same note — root'],
+                [1,'Minor 2nd','b2','C → Db','Half-step, sharp tension'],
+                [2,'Major 2nd','2','C → D','Whole-step, mild step'],
+                [3,'Minor 3rd','b3','C → Eb','Minor quality — dark'],
+                [4,'Major 3rd','3','C → E','Major quality — bright'],
+                [5,'Perfect 4th','4','C → F','Stable, open-sounding'],
+                [6,'Tritone','b5 / #4','C → F#/Gb','Maximum tension'],
+                [7,'Perfect 5th','5','C → G','Strong, stable'],
+                [8,'Minor 6th','b6','C → Ab','Dark color'],
+                [9,'Major 6th','6','C → A','Warm, bossa-friendly'],
+                [10,'Minor 7th','b7','C → Bb','Blues / dominant sound'],
+                [11,'Major 7th','Δ7','C → B','Jazz stable — pulls to root'],
+                [12,'Octave','8','C → C (high)','Same note, one octave up'],
+              ].map(([sem,name,abbr,ex,feel],ri)=>
+                e('tr',{key:ri,style:{background:ri%2===0?'transparent':'var(--bg2)'}},
+                  e('td',{style:{padding:'4px 10px',color:'#FFD43B',fontWeight:700,textAlign:'center'}},sem),
+                  e('td',{style:{padding:'4px 10px',color:'var(--txt)',fontWeight:600}},name),
+                  e('td',{style:{padding:'4px 10px',color:'#4ECDC4',fontFamily:'Georgia,serif',fontStyle:'italic'}},abbr),
+                  e('td',{style:{padding:'4px 10px',color:'#74C0FC'}},[ex]),
+                  e('td',{style:{padding:'4px 10px',color:HINT,fontSize:'0.77rem'}},[feel])
+                )
+              )
+            )
+          )
+        ),
+        p('In the app, the colored dots on the neck each represent one chord-tone interval: ',
+          e('span',{style:{color:'#FF6B6B',fontWeight:700}},'Root (R)'),', ',
+          e('span',{style:{color:'#4ECDC4',fontWeight:700}},'3rd'),', ',
+          e('span',{style:{color:'#74C0FC',fontWeight:700}},'5th'),', and ',
+          e('span',{style:{color:'#FFD43B',fontWeight:700}},'7th'),
+          '. The dimmer dots show every occurrence of those intervals across the whole neck; the bright ones are the voicing you\'ve selected.'
+        )
+      ):null
     ),
     e('div',{style:S},
       e('div',{style:{...H,display:'flex',justifyContent:'space-between',alignItems:'baseline',flexWrap:'wrap',gap:8}},
