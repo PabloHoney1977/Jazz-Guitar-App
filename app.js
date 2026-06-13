@@ -1322,6 +1322,12 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     catch{return [0,0,0,0,0];}
   });
   const [showEq,setShowEq]=useState(false);
+  const [guitarEnabled,setGuitarEnabled]=useState(()=>localStorage.getItem('jg-guitar')!=='false');
+  const [guitarEqGains,setGuitarEqGains]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem('jg-geq')||'null')||[0,0,0,0,0];}
+    catch{return [0,0,0,0,0];}
+  });
+  const [showGuitarEq,setShowGuitarEq]=useState(false);
   const [vType,setVType]=useState(()=>localStorage.getItem('jg-vtype')||'drop2');
   const [customProg,setCustomProg]=useState(()=>{
     try{return JSON.parse(localStorage.getItem('jg-cprog')||'null')||DFLT_CPROG;}
@@ -1351,6 +1357,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const rideRef=useRef(rideEnabled); rideRef.current=rideEnabled;
   const preRideRef=useRef({accent:null,norm:null}); // async-rendered ride buffers
   const eqRef=useRef([0,0,0,0,0]); eqRef.current=eqGains;
+  const guitarEnabledRef=useRef(guitarEnabled); guitarEnabledRef.current=guitarEnabled;
+  const guitarEqRef=useRef([0,0,0,0,0]); guitarEqRef.current=guitarEqGains;
+  const guitarRawRef=useRef(null);
+  const guitarSamplesRef=useRef(null);
+  const compMidiRef=useRef([]);
   bpmRef.current=bpm;
   bassRef.current=bassEnabled;
   metronomeRef.current=metronomeEnabled;
@@ -1361,6 +1372,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   useEffect(()=>{localStorage.setItem('jg-met',metronomeEnabled);},[metronomeEnabled]);
   useEffect(()=>{localStorage.setItem('jg-ride',rideEnabled);},[rideEnabled]);
   useEffect(()=>{localStorage.setItem('jg-eq',JSON.stringify(eqGains));},[eqGains]);
+  useEffect(()=>{localStorage.setItem('jg-guitar',guitarEnabled);},[guitarEnabled]);
+  useEffect(()=>{localStorage.setItem('jg-geq',JSON.stringify(guitarEqGains));},[guitarEqGains]);
   useEffect(()=>{localStorage.setItem('jg-form',form);},[form]);
   useEffect(()=>{localStorage.setItem('jg-cprog',JSON.stringify(customProg));},[customProg]);
   useEffect(()=>{localStorage.setItem('jg-vtype',vType);},[vType]);
@@ -1384,6 +1397,27 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       const raw={};
       res.forEach(r=>{if(r)raw[r.midi]=r.data;});
       if(Object.keys(raw).length>0) bassRawRef.current=raw;
+    });
+    return ()=>{live=false;};
+  },[]);
+
+  // Pre-fetch guitar-electric samples for comping
+  useEffect(()=>{
+    let live=true;
+    const BASE='https://nbrosowsky.github.io/tonejs-instruments/samples/guitar-electric/';
+    // Three anchors spread across guitar range: F#2 (42), F#3 (54), F#4 (66)
+    const FILES={42:'Fs2.mp3',54:'Fs3.mp3',66:'Fs4.mp3'};
+    Promise.all(Object.entries(FILES).map(async([midi,file])=>{
+      try{
+        const r=await fetch(BASE+file);
+        if(!r.ok||!live) return null;
+        return{midi:+midi,data:await r.arrayBuffer()};
+      }catch(e){return null;}
+    })).then(res=>{
+      if(!live) return;
+      const raw={};
+      res.forEach(r=>{if(r)raw[r.midi]=r.data;});
+      if(Object.keys(raw).length>0) guitarRawRef.current=raw;
     });
     return ()=>{live=false;};
   },[]);
@@ -1414,6 +1448,15 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const ssIdx=Math.min(strSetIdx,dropD.sets.length-1);
   const ss=vType==='shell'?null:dropD.sets[ssIdx].s;
   const ac=chords[activeChordIdx];
+  // Keep compMidiRef current so tick() can strum the right notes
+  compMidiRef.current=chords.map((chord,ci)=>{
+    const vx=vType==='shell'
+      ?SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1))
+      :dropD.inv.map(inv=>calcVoicing(ss,inv.a,chord.tones));
+    const maxI=vx.length-1;
+    const v=vx[Math.min(invIdxs[ci]||0,maxI)];
+    return v?[...v.midis].sort((a,b)=>a-b):[];
+  });
 
   const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx,form,customProg]);
   const activeVoicings=useMemo(()=>{
@@ -1468,6 +1511,47 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       const map={};
       res.forEach(r=>{if(r)map[r.midi]=r.buf;});
       bassSamplesRef.current=map;
+    });
+  }
+
+  function decodeGuitarRaw(ctx){
+    guitarSamplesRef.current=null;
+    const raw=guitarRawRef.current;
+    if(!raw||Object.keys(raw).length===0) return;
+    Promise.all(Object.entries(raw).map(async([midi,arr])=>{
+      try{return{midi:+midi,buf:await ctx.decodeAudioData(arr.slice(0))};}
+      catch(e){return null;}
+    })).then(res=>{
+      const map={};
+      res.forEach(r=>{if(r)map[r.midi]=r.buf;});
+      guitarSamplesRef.current=map;
+    });
+  }
+
+  function playGuitarNote(ctx,midiNote,startTime,sustainSecs,vol){
+    const samples=guitarSamplesRef.current;
+    if(!samples||Object.keys(samples).length===0) return;
+    const notes=Object.keys(samples).map(Number);
+    const nearest=notes.reduce((a,b)=>Math.abs(b-midiNote)<Math.abs(a-midiNote)?b:a);
+    const src=ctx.createBufferSource();
+    src.buffer=samples[nearest];
+    src.detune.value=(midiNote-nearest)*100;
+    const eqG=guitarEqRef.current;
+    const eq=EQ_FREQS.map((fr,i)=>{const f=ctx.createBiquadFilter();f.type=EQ_TYPES[i];f.frequency.value=fr;f.Q.value=1.2;f.gain.value=eqG[i]||0;return f;});
+    const gain=ctx.createGain();
+    gain.gain.setValueAtTime(0.001,startTime);
+    gain.gain.linearRampToValueAtTime(vol,startTime+0.01);
+    gain.gain.exponentialRampToValueAtTime(vol*0.45,startTime+0.35);
+    gain.gain.exponentialRampToValueAtTime(0.001,startTime+sustainSecs);
+    src.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);gain.connect(ctx.destination);
+    src.start(startTime);src.stop(startTime+sustainSecs+0.05);
+  }
+
+  function playGuitarChord(ctx,midiNotes,startTime,beatDur){
+    if(!midiNotes||midiNotes.length===0) return;
+    const sustainSecs=Math.min(beatDur*3.2,2.2);
+    midiNotes.forEach((midi,i)=>{
+      playGuitarNote(ctx,midi,startTime+i*0.013,sustainSecs,0.32);
     });
   }
 
@@ -1543,6 +1627,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         const ti=(lastSame?[0,2,1,0]:[0,1,2,3])[beat%4];
         bassPC=chordsRef.current[ci].tones[ti];
       }
+      if(guitarEnabledRef.current&&beat%4===0){
+        playGuitarChord(ctx,compMidiRef.current[ci]||[],nextTimeRef.current,beatDur);
+      }
       if(bassRef.current && chordsRef.current){
         playBassNote(ctx,bassPC,nextTimeRef.current,beatDur,beat%4===0);
       }
@@ -1574,6 +1661,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     clickBufsRef.current.rideAccent=preRideRef.current.accent||makeRideBuf(ctx,1,true);
     clickBufsRef.current.rideNorm=preRideRef.current.norm||makeRideBuf(ctx,1,false);
     if(bassRef.current) decodeBassRaw(ctx);
+    if(guitarEnabledRef.current) decodeGuitarRaw(ctx);
     // Schedule 4 count-in clicks, then begin real playback
     for(let i=0;i<4;i++){
       const t=ctx.currentTime+0.05+i*beatDur;
@@ -1725,11 +1813,20 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       // Right: toggles pushed to right edge
       e('div',{style:{display:'flex',gap:6,marginLeft:'auto',alignItems:'stretch'}},
         e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:'#74C0FC'}),
-        e('button',{onClick:()=>setShowEq(v=>!v),'aria-label':'Bass EQ',title:'Bass EQ',style:{
+        e('button',{onClick:()=>{setShowEq(v=>!v);setShowGuitarEq(false);},'aria-label':'Bass EQ',title:'Bass EQ',style:{
           display:'flex',alignItems:'center',justifyContent:'center',
           width:28,borderRadius:6,cursor:'pointer',flexShrink:0,border:'none',
           background:showEq?'#74C0FC28':'transparent',
           color:showEq?'#74C0FC':BTN_OFF,
+          fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
+          minHeight:44,padding:0,
+        }},'EQ'),
+        e(LedToggle,{label:'COMP',enabled:guitarEnabled,onToggle:()=>setGuitarEnabled(v=>!v),color:'#86EFAC'}),
+        e('button',{onClick:()=>{setShowGuitarEq(v=>!v);setShowEq(false);},'aria-label':'Comp EQ',title:'Comp guitar EQ',style:{
+          display:'flex',alignItems:'center',justifyContent:'center',
+          width:28,borderRadius:6,cursor:'pointer',flexShrink:0,border:'none',
+          background:showGuitarEq?'#86EFAC28':'transparent',
+          color:showGuitarEq?'#86EFAC':BTN_OFF,
           fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
           minHeight:44,padding:0,
         }},'EQ'),
@@ -1765,6 +1862,41 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
                 writingMode:'vertical-lr',direction:'rtl',
                 width:28,height:96,cursor:'pointer',
                 accentColor:GOLD,touchAction:'none',
+              }
+            }),
+            e('span',{style:{fontSize:'0.65rem',color:LBL,fontFamily:UI_FONT}},EQ_LABELS[i])
+          )
+        )
+      )
+    ):null,
+    // Comp guitar EQ panel
+    showGuitarEq?e('div',{style:{
+      marginBottom:10,padding:'10px 14px',background:BG2,
+      border:'1px solid #86EFAC44',borderRadius:8,
+    }},
+      e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
+        e('span',{style:{fontSize:'0.72rem',color:'#86EFAC',letterSpacing:'0.3px',fontFamily:UI_FONT}},'Comp EQ'),
+        e('button',{onClick:()=>setGuitarEqGains([0,0,0,0,0]),style:{
+          marginLeft:'auto',padding:'2px 10px',borderRadius:4,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,
+          background:'transparent',color:BTN_OFF,minHeight:44,
+        }},'Flat')
+      ),
+      e('div',{style:{display:'flex',justifyContent:'space-around'}},
+        EQ_FREQS.map((freq,i)=>
+          e('div',{key:i,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4}},
+            e('span',{style:{
+              fontSize:'0.65rem',fontFamily:UI_FONT,minWidth:28,textAlign:'center',
+              color:guitarEqGains[i]>0?GOLD:guitarEqGains[i]<0?'#FF6B6B':HINT,
+            }},(guitarEqGains[i]>0?'+':'')+guitarEqGains[i]),
+            e('input',{
+              type:'range',min:-12,max:12,step:1,value:guitarEqGains[i],
+              onChange:ev=>{const g=[...guitarEqGains];g[i]=+ev.target.value;setGuitarEqGains(g);},
+              style:{
+                WebkitAppearance:'slider-vertical',
+                writingMode:'vertical-lr',direction:'rtl',
+                width:28,height:96,cursor:'pointer',
+                accentColor:'#86EFAC',touchAction:'none',
               }
             }),
             e('span',{style:{fontSize:'0.65rem',color:LBL,fontFamily:UI_FONT}},EQ_LABELS[i])
