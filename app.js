@@ -424,8 +424,8 @@ function DotModeToggle({dotMode,setDotMode}){
     e('div',{style:{display:'flex',border:'1px solid var(--btn-brd)',borderRadius:14,overflow:'hidden'}},
       opts.map(({id,lbl})=>e('button',{key:id,onClick:()=>setDotMode(id),style:{
         padding:'3px 10px',fontFamily:UI_FONT,fontSize:'0.69rem',border:'none',cursor:'pointer',
-        background:dotMode===id?'var(--act-teal)':'transparent',
-        color:dotMode===id?'#4ECDC4':'var(--btn-off)',fontWeight:dotMode===id?700:400,minHeight:28
+        background:dotMode===id?'var(--bg)':'transparent',
+        color:dotMode===id?'var(--txt)':'var(--btn-off)',fontWeight:dotMode===id?700:400,minHeight:28
       }},lbl))
     )
   );
@@ -751,8 +751,8 @@ function TourOverlay({step,onNext,onSkip}){
     e('div',{key:'ring',style:{position:'absolute',
       top:rect.top-PAD,left:rect.left-PAD,
       width:rect.w+PAD*2,height:rect.h+PAD*2,
-      border:'2px solid #4ECDC4',borderRadius:8,
-      boxShadow:'0 0 12px #4ECDC466',pointerEvents:'none'}}),
+      border:'2px solid #d4a855',borderRadius:8,
+      boxShadow:'0 0 12px #d4a85566',pointerEvents:'none'}}),
   ]:e('div',{style:{position:'absolute',inset:0,background:DIM,pointerEvents:'auto'}});
 
   // Tooltip: place below target if it fits, else above; clamp horizontally
@@ -777,7 +777,7 @@ function TourOverlay({step,onNext,onSkip}){
       borderRadius:12,padding:'16px 18px',pointerEvents:'auto',
       boxShadow:'0 8px 32px rgba(0,0,0,0.8)',zIndex:201
     }},
-      e('div',{style:{fontSize:'0.67rem',color:'#4ECDC4',letterSpacing:'2px',marginBottom:5}},
+      e('div',{style:{fontSize:'0.67rem',color:'#d4a855',letterSpacing:'2px',marginBottom:5}},
         (step+1)+' / '+TOUR_STEPS.length),
       e('div',{style:{fontFamily:SERIF,fontSize:'1.0rem',fontWeight:700,color:'#e8d8a0',marginBottom:7}},s.title),
       e('div',{style:{fontSize:'0.81rem',color:'#9ab8d8',lineHeight:1.65,marginBottom:14}},s.text),
@@ -941,8 +941,8 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
   const fy=f=>PT+(f-SF)*FS+FS/2;
   return e('div',{onClick:()=>{playChordPreview(voicing,strings);if(onClick)onClick();},style:{cursor:'pointer',flexShrink:0}},
     e('svg',{width:W,height:H,viewBox:`0 0 ${W} ${H}`},
-      e('rect',{width:W,height:H,rx:9,fill:selected?'var(--cb-sel)':'var(--cb-bg)',stroke:selected?'#4ECDC4':BORDER,strokeWidth:selected?2:1.5}),
-      e('text',{x:W/2,y:20,textAnchor:'middle',fill:selected?'#4ECDC4':BTN_OFF,fontSize:13,fontWeight:selected?'bold':'normal',fontFamily:UI_FONT},invLabel),
+      e('rect',{width:W,height:H,rx:9,fill:selected?'var(--cb-sel)':'var(--cb-bg)',stroke:selected?'var(--txt)':BORDER,strokeWidth:selected?2.5:1.5}),
+      e('text',{x:W/2,y:20,textAnchor:'middle',fill:selected?'var(--txt)':BTN_OFF,fontSize:13,fontWeight:selected?'bold':'normal',fontFamily:UI_FONT},invLabel),
       bassLabel?e('text',{x:W/2,y:38,textAnchor:'middle',fill:selected?'#4ECDC488':HINT,fontSize:11,fontFamily:UI_FONT},bassLabel):null,
       !showNut?e('text',{x:3,y:PT+FS/2,dominantBaseline:'middle',fill:HINT,fontSize:10,fontFamily:UI_FONT},SF+'fr'):null,
       showNut?e('rect',{x:sx(0)-2,y:PT-5,width:5*SS+4,height:5,fill:'#c8a855',rx:1.5}):null,
@@ -1099,6 +1099,29 @@ const DFLT_CPROG=[{root:0,q:'maj7'},{root:7,q:'dom7'},{root:0,q:'maj7'},{root:0,
 const CPROG_QUALS=['maj7','m7','dom7','m7b5']; // available qualities in custom builder
 
 // ── IIVIView ──────────────────────────────────────────────────────────
+// Guitar-pedal-style LED toggle for transport controls
+function LedToggle({label,enabled,onToggle,color}){
+  return e('button',{onClick:onToggle,style:{
+    display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+    gap:5,padding:'6px 12px',borderRadius:8,cursor:'pointer',minWidth:54,minHeight:52,
+    border:'1px solid '+(enabled?color+'66':BTN_BRD),
+    background:enabled?color+'18':BG2,
+    transition:'border-color 0.15s,background 0.15s',fontFamily:UI_FONT
+  }},
+    e('div',{style:{
+      width:9,height:9,borderRadius:'50%',flexShrink:0,
+      background:enabled?color:'rgba(255,255,255,0.07)',
+      boxShadow:enabled?`0 0 8px ${color},0 0 3px ${color}`:'inset 0 1px 2px rgba(0,0,0,0.5)',
+      border:`1px solid ${enabled?color+'aa':'rgba(255,255,255,0.1)'}`,
+      transition:'background 0.15s,box-shadow 0.15s'
+    }}),
+    e('span',{style:{
+      fontSize:'0.6rem',letterSpacing:'1.5px',fontWeight:enabled?700:400,
+      color:enabled?color:BTN_OFF,transition:'color 0.15s'
+    }},label)
+  );
+}
+
 function IIVIView({keyIdx,dotMode,setDotMode,level}){
   dotMode=dotMode||'interval';
   const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(localStorage.getItem('jg-strSet')||'2',10));
@@ -1421,24 +1444,17 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     fontFamily:UI_FONT,fontSize:'0.78rem',border:'1px solid '+(act?col:BTN_BRD),
     background:act?actBg:'transparent',color:act?col:BTN_OFF,fontWeight:act?700:400,minHeight:44});
   const playBtn={
-    padding:'8px 28px',
-    background:isPlaying?'#FF6B6B':'#4ECDC4',
-    border:'none',
-    borderRadius:8,
-    color:isPlaying?'#fff':'#07070f',
-    cursor:'pointer',fontFamily:UI_FONT,
-    fontSize:'0.95rem',fontWeight:'bold',letterSpacing:'1.5px',minHeight:48,
-    boxShadow:isPlaying?'0 0 16px #FF6B6B66':'0 0 16px #4ECDC466',
-    transition:'background 0.15s,box-shadow 0.15s',
+    width:64,height:64,borderRadius:'50%',
+    cursor:'pointer',border:'none',flexShrink:0,
+    background:isPlaying?'#c41a1a':'#1a9944',
+    color:'#ffffff',fontFamily:UI_FONT,
+    fontSize:'0.7rem',fontWeight:700,letterSpacing:'1.5px',
+    boxShadow:isPlaying
+      ?'0 4px 0 #801010,0 0 20px #ff333344'
+      :'0 4px 0 #0e6628,0 0 20px #22dd5544',
+    transition:'background 0.12s,box-shadow 0.12s',
+    display:'flex',alignItems:'center',justifyContent:'center',
   };
-  const bassBtn={padding:'6px 14px',background:bassEnabled?ACT_BLUE:'transparent',
-    border:'1px solid '+(bassEnabled?'#74C0FC':BTN_BRD),borderRadius:6,
-    color:bassEnabled?'#74C0FC':BTN_OFF,cursor:'pointer',fontFamily:UI_FONT,
-    fontSize:'0.82rem',minHeight:44};
-  const metBtn={padding:'6px 14px',background:metronomeEnabled?ACT_YEL:'transparent',
-    border:'1px solid '+(metronomeEnabled?'#FFD43B':BTN_BRD),borderRadius:6,
-    color:metronomeEnabled?'#FFD43B':BTN_OFF,cursor:'pointer',fontFamily:UI_FONT,
-    fontSize:'0.82rem',minHeight:44};
 
   return e('div',null,
     // String set selector
@@ -1459,7 +1475,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       e('div',{style:{display:'flex',alignItems:'center',gap:8}},
         countIn>0
           ?e('div',{style:{minWidth:80,textAlign:'center',fontSize:'1.6rem',fontWeight:700,
-              color:'#4ECDC4',fontFamily:SERIF,letterSpacing:4}},countIn)
+              color:'#ffffff',fontFamily:SERIF,letterSpacing:4}},countIn)
           :e('button',{onClick:isPlaying?stopPlayback:startPlayback,style:playBtn},
               isPlaying?'■ STOP':'▶ PLAY'),
         isPlaying&&loopCount>0?e('span',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,minWidth:52}},
@@ -1469,13 +1485,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       e(BpmKnob,{bpm,setBpm,onTap:handleTap}),
       // Toggles
       e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
-        e('button',{onClick:()=>setBassEnabled(v=>!v),style:bassBtn},'♩ BASS'),
-        e('button',{onClick:()=>setMetronomeEnabled(v=>!v),style:metBtn},'◉ CLICK'),
-        e('button',{onClick:()=>setRideEnabled(v=>!v),style:{
-          padding:'6px 12px',background:rideEnabled?'#1a1208':'transparent',
-          border:'1px solid '+(rideEnabled?GOLD:BTN_BRD),borderRadius:6,
-          color:rideEnabled?GOLD:BTN_OFF,cursor:'pointer',fontFamily:UI_FONT,
-          fontSize:'0.82rem',minHeight:44}},'♩ RIDE')
+        e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:'#74C0FC'}),
+        e(LedToggle,{label:'CLICK',enabled:metronomeEnabled,onToggle:()=>setMetronomeEnabled(v=>!v),color:'#aaaacc'}),
+        e(LedToggle,{label:'RIDE',enabled:rideEnabled,onToggle:()=>setRideEnabled(v=>!v),color:GOLD})
       )
     ),
     // Custom progression controls
@@ -2069,7 +2081,6 @@ function GuideView({openPreset,level}){
 // ── App ───────────────────────────────────────────────────────────────
 function App(){
   const [theme,setTheme]=useState(()=>localStorage.getItem('jg-theme')||'dark');
-  const [showOnboarding,setShowOnboarding]=useState(()=>!localStorage.getItem('jg-visited'));
   function toggleTheme(){
     const next=theme==='dark'?'light':'dark';
     setTheme(next);
@@ -2085,22 +2096,16 @@ function App(){
   },[theme]);
   // Global state
   const [key,setKey]=useState(()=>parseInt(localStorage.getItem('jg-key')||'0',10));
-  const [viewMode,setViewMode]=useState(()=>localStorage.getItem('jg-viewMode')||(!localStorage.getItem('jg-visited')?'guide':'diatonic')); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
+  const [viewMode,setViewMode]=useState(()=>localStorage.getItem('jg-viewMode')||'guide'); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
   const [keyOpen,setKeyOpen]=useState(false);
   const [dotMode,setDotMode]=useState(()=>localStorage.getItem('jg-dotMode')||'interval');
   const [tourStep,setTourStep]=useState(null);
   useEffect(()=>{localStorage.setItem('jg-dotMode',dotMode);},[dotMode]);
-  useEffect(()=>{
-    if(!localStorage.getItem('jg-toured')&&!localStorage.getItem('jg-visited')){
-      const t=setTimeout(()=>setTourStep(0),900);
-      return ()=>clearTimeout(t);
-    }
-  },[]);
   function tourNext(){
-    if(tourStep>=TOUR_STEPS.length-1){setTourStep(null);localStorage.setItem('jg-toured','1');localStorage.setItem('jg-visited','1');setShowOnboarding(false);setViewMode('guide');window.scrollTo(0,0);}
+    if(tourStep>=TOUR_STEPS.length-1){setTourStep(null);localStorage.setItem('jg-toured','1');setViewMode('guide');window.scrollTo(0,0);}
     else setTourStep(s=>s+1);
   }
-  function tourSkip(){setTourStep(null);localStorage.setItem('jg-toured','1');localStorage.setItem('jg-visited','1');setShowOnboarding(false);}
+  function tourSkip(){setTourStep(null);localStorage.setItem('jg-toured','1');}
   useEffect(()=>{
     if(tourStep===null) return;
     const v=TOUR_STEPS[tourStep]&&TOUR_STEPS[tourStep].view;
@@ -2108,7 +2113,7 @@ function App(){
   },[tourStep]);
   // Level: Essentials hides the advanced half of the app. New users start
   // in Essentials; anyone who used the app before the level existed keeps Full.
-  const [level,setLevel]=useState(()=>localStorage.getItem('jg-level')||(localStorage.getItem('jg-visited')?'full':'essentials'));
+  const [level,setLevel]=useState(()=>localStorage.getItem('jg-level')||'essentials');
   const isEss=level==='essentials';
   // Diatonic state
   const [deg,setDeg]=useState(0);
@@ -2234,26 +2239,6 @@ function App(){
 
   return e('div',{style:{background:BG,minHeight:'100vh',color:'var(--txt)',fontFamily:UI_FONT}},
   e('div',{style:{maxWidth:720,margin:'0 auto',padding:'14px 14px 84px'}},
-
-    // Onboarding banner (first visit only)
-    showOnboarding?e('div',{style:{
-      display:'flex',alignItems:'flex-start',gap:12,padding:'10px 14px',
-      background:'#091a2a',border:'1px solid #1a3a5a',borderRadius:7,marginBottom:12,
-      fontSize:'0.82rem',color:'#9ab8d8',lineHeight:1.6}},
-      e('div',{style:{flex:1}},
-        e('span',{style:{color:'#4ECDC4',fontWeight:700}},'New here? '),
-        'New to jazz guitar? Start with the ',
-        e('button',{onClick:()=>{setViewMode('guide');setShowOnboarding(false);localStorage.setItem('jg-visited','1');},
-          style:{background:'transparent',border:'none',color:'#4ECDC4',cursor:'pointer',
-            fontFamily:UI_FONT,fontSize:'0.82rem',textDecoration:'underline',padding:0}},
-          'Guide'),
-        ' — it explains every concept from scratch and opens the right tool at each step.'
-      ),
-      e('button',{onClick:()=>{setShowOnboarding(false);localStorage.setItem('jg-visited','1');},
-        style:{background:'transparent',border:'none',color:'#4a6a8a',cursor:'pointer',
-          fontFamily:UI_FONT,fontSize:'1rem',padding:'0 4px',lineHeight:1,minHeight:0}},
-        '✕')
-    ):null,
 
     // Header — title left, legend + level + theme right
     e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8,flexWrap:'wrap'}},
@@ -2437,8 +2422,8 @@ function App(){
         return e('button',{key:id,onClick:()=>{setViewMode(id);window.scrollTo(0,0);},style:{
           flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:1,
           padding:'7px 0 5px',background:'transparent',border:'none',
-          borderTop:'2px solid '+(act?'#4ECDC4':'transparent'),
-          color:act?'#4ECDC4':BTN_OFF,fontFamily:UI_FONT,cursor:'pointer',minHeight:52}},
+          borderTop:'2px solid '+(act?'var(--txt)':'transparent'),
+          color:act?'var(--txt)':BTN_OFF,fontFamily:UI_FONT,cursor:'pointer',minHeight:52}},
           e('span',{style:{fontSize:'1.1rem',lineHeight:1.2}},icon),
           e('span',{style:{fontSize:'0.64rem',letterSpacing:'0.5px',fontWeight:act?700:400}},lbl)
         );
