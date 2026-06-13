@@ -158,6 +158,9 @@ const D23_SETS=[{lbl:'6-5-4-2',s:[0,1,2,4]},{lbl:'5-4-3-1',s:[1,2,3,5]}];
 
 const DROP_DATA={drop2:{inv:D2_INV,sets:D2_SETS},drop3:{inv:D3_INV,sets:D3_SETS},
   drop24:{inv:D24_INV,sets:D24_SETS},drop23:{inv:D23_INV,sets:D23_SETS}};
+const EQ_FREQS=[80,250,800,2500,8000];
+const EQ_LABELS=['80','250','800','2.5k','8k'];
+const EQ_TYPES=['lowshelf','peaking','peaking','peaking','highshelf'];
 const DROP_TYPES=new Set(['drop2','drop3','drop24','drop23']);
 const DROP_LBL={drop2:'DROP 2',drop3:'DROP 3',drop24:'DROP 2+4',drop23:'DROP 2+3'};
 
@@ -1314,6 +1317,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const [loopCount,setLoopCount]=useState(0);
   const [rideEnabled,setRideEnabled]=useState(()=>localStorage.getItem('jg-ride')!=='false');
   const [showGTLine,setShowGTLine]=useState(false);
+  const [eqGains,setEqGains]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem('jg-eq')||'null')||[0,0,0,0,0];}
+    catch{return [0,0,0,0,0];}
+  });
+  const [showEq,setShowEq]=useState(false);
   const [vType,setVType]=useState(()=>localStorage.getItem('jg-vtype')||'drop2');
   const [customProg,setCustomProg]=useState(()=>{
     try{return JSON.parse(localStorage.getItem('jg-cprog')||'null')||DFLT_CPROG;}
@@ -1342,6 +1350,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const loopCountRef=useRef(0);
   const rideRef=useRef(rideEnabled); rideRef.current=rideEnabled;
   const preRideRef=useRef({accent:null,norm:null}); // async-rendered ride buffers
+  const eqRef=useRef([0,0,0,0,0]); eqRef.current=eqGains;
   bpmRef.current=bpm;
   bassRef.current=bassEnabled;
   metronomeRef.current=metronomeEnabled;
@@ -1351,6 +1360,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   useEffect(()=>{localStorage.setItem('jg-bass',bassEnabled);},[bassEnabled]);
   useEffect(()=>{localStorage.setItem('jg-met',metronomeEnabled);},[metronomeEnabled]);
   useEffect(()=>{localStorage.setItem('jg-ride',rideEnabled);},[rideEnabled]);
+  useEffect(()=>{localStorage.setItem('jg-eq',JSON.stringify(eqGains));},[eqGains]);
   useEffect(()=>{localStorage.setItem('jg-form',form);},[form]);
   useEffect(()=>{localStorage.setItem('jg-cprog',JSON.stringify(customProg));},[customProg]);
   useEffect(()=>{localStorage.setItem('jg-vtype',vType);},[vType]);
@@ -1477,12 +1487,16 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       midCut.type='peaking';midCut.frequency.value=650;midCut.Q.value=0.9;midCut.gain.value=-11;
       const hiShelf=ctx.createBiquadFilter();
       hiShelf.type='highshelf';hiShelf.frequency.value=3000;hiShelf.gain.value=-9;
+      const eqG=eqRef.current;
+      const eq=EQ_FREQS.map((fr,i)=>{const f=ctx.createBiquadFilter();f.type=EQ_TYPES[i];f.frequency.value=fr;f.Q.value=1.2;f.gain.value=eqG[i]||0;return f;});
       const gain=ctx.createGain();
       gain.gain.setValueAtTime(0.001,startTime);
       gain.gain.exponentialRampToValueAtTime(vol,startTime+0.004);
       gain.gain.exponentialRampToValueAtTime(vol*0.85,startTime+0.055);
       gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*1.65);
-      src.connect(lowShelf);lowShelf.connect(midCut);midCut.connect(hiShelf);hiShelf.connect(gain);gain.connect(ctx.destination);
+      src.connect(lowShelf);lowShelf.connect(midCut);midCut.connect(hiShelf);
+      hiShelf.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);
+      gain.connect(ctx.destination);
       src.start(startTime);src.stop(startTime+beatDur+0.1);
       return;
     }
@@ -1695,12 +1709,55 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         e(BpmKnob,{bpm,setBpm,onTap:handleTap})
       ),
       // Right: toggles pushed to right edge
-      e('div',{style:{display:'flex',gap:6,marginLeft:'auto'}},
+      e('div',{style:{display:'flex',gap:6,marginLeft:'auto',alignItems:'stretch'}},
         e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:'#74C0FC'}),
+        e('button',{onClick:()=>setShowEq(v=>!v),'aria-label':'Bass EQ',title:'Bass EQ',style:{
+          display:'flex',alignItems:'center',justifyContent:'center',
+          width:28,borderRadius:6,cursor:'pointer',flexShrink:0,border:'none',
+          background:showEq?'#74C0FC28':'transparent',
+          color:showEq?'#74C0FC':BTN_OFF,
+          fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
+          minHeight:44,padding:0,
+        }},'EQ'),
         e(LedToggle,{label:'CLICK',enabled:metronomeEnabled,onToggle:()=>setMetronomeEnabled(v=>!v),color:'#aaaacc'}),
         e(LedToggle,{label:'RIDE',enabled:rideEnabled,onToggle:()=>setRideEnabled(v=>!v),color:GOLD})
       )
     ),
+    // Bass EQ panel
+    showEq?e('div',{style:{
+      marginBottom:10,padding:'10px 14px',background:BG2,
+      border:'1px solid #74C0FC44',borderRadius:8,
+    }},
+      e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
+        e('span',{style:{fontSize:'0.72rem',color:'#74C0FC',letterSpacing:'2px',fontFamily:UI_FONT}},'BASS EQ'),
+        e('button',{onClick:()=>setEqGains([0,0,0,0,0]),style:{
+          marginLeft:'auto',padding:'2px 10px',borderRadius:4,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,
+          background:'transparent',color:BTN_OFF,minHeight:28,
+        }},'Flat')
+      ),
+      e('div',{style:{display:'flex',justifyContent:'space-around'}},
+        EQ_FREQS.map((freq,i)=>
+          e('div',{key:i,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4}},
+            e('span',{style:{
+              fontSize:'0.65rem',fontFamily:UI_FONT,minWidth:28,textAlign:'center',
+              color:eqGains[i]>0?GOLD:eqGains[i]<0?'#FF6B6B':HINT,
+            }},(eqGains[i]>0?'+':'')+eqGains[i]),
+            e('input',{
+              type:'range',min:-12,max:12,step:1,value:eqGains[i],
+              onChange:ev=>{const g=[...eqGains];g[i]=+ev.target.value;setEqGains(g);},
+              style:{
+                WebkitAppearance:'slider-vertical',
+                writingMode:'vertical-lr',direction:'rtl',
+                width:28,height:96,cursor:'pointer',
+                accentColor:GOLD,touchAction:'none',
+              }
+            }),
+            e('span',{style:{fontSize:'0.65rem',color:LBL,fontFamily:UI_FONT}},EQ_LABELS[i])
+          )
+        )
+      )
+    ):null,
     // Custom progression controls
     form==='custom'?e('div',{style:{marginBottom:8}},
       e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:editingBar>=0?6:0,alignItems:'center'}},
