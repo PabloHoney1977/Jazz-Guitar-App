@@ -1550,8 +1550,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
 
   function playGuitarChord(ctx,midiNotes,startTime,sustainSecs,vol){
     if(!midiNotes||midiNotes.length===0) return;
-    midiNotes.forEach((midi,i)=>{
-      playGuitarNote(ctx,midi,startTime+i*0.013,sustainSecs,vol);
+    midiNotes.forEach(midi=>{
+      playGuitarNote(ctx,midi,startTime,sustainSecs,vol);
     });
   }
 
@@ -2725,20 +2725,19 @@ function App(){
   return e('div',{style:{background:BG,minHeight:'100vh',color:'var(--txt)',fontFamily:UI_FONT}},
   e('div',{style:{maxWidth:Math.min(960,winW-28),margin:'0 auto',padding:'14px 14px 84px'}},
 
-    // Header — title left, legend + level + theme right
-    e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8,flexWrap:'wrap'}},
-      e('span',{style:{fontFamily:SERIF,fontSize:'1.4rem',fontWeight:700,color:'var(--scale-name)',flexGrow:1}},'Jazz Guitar Lab'),
-
+    // Header — title + theme toggle left, level switch + tour right
+    e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
+      e('span',{style:{fontFamily:SERIF,fontSize:'1.4rem',fontWeight:700,color:'var(--scale-name)'}},'Jazz Guitar Lab'),
+      e('button',{onClick:toggleTheme,'aria-label':'Toggle theme',style:{
+        padding:'2px 6px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.9rem',
+        border:'none',background:'transparent',color:'var(--hint)',minHeight:0,opacity:0.7,flexShrink:0}},
+        theme==='dark'?'☀':'☾'),
+      e('div',{style:{flex:1}}),
       e('div',{'data-tour':'level-switch'},e(GuitarToggle,{level,setLevel})),
       e('button',{onClick:()=>setTourStep(0),'aria-label':'Start tour',style:{padding:'4px 10px',
         borderRadius:18,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',
         border:'1px solid '+BTN_BRD,background:'transparent',
         color:BTN_OFF,minHeight:44,flexShrink:0}},'? Tour'),
-      e('button',{onClick:toggleTheme,'aria-label':'Toggle theme',style:{padding:'4px 10px',
-        borderRadius:18,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',
-        border:'1px solid '+BTN_BRD,background:'transparent',
-        color:BTN_OFF,minHeight:44,flexShrink:0}},
-        theme==='dark'?'☀':'☾')
     ),
 
     // Key chip (hidden in custom/guide/quiz mode)

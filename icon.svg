@@ -1,0 +1,36 @@
+<svg viewBox="0 0 24 40" xmlns="http://www.w3.org/2000/svg">
+  <!-- Headstock -->
+  <rect x="9" y="0" width="6" height="3" rx="1.5" fill="#c49030"/>
+  <!-- Tuning pegs -->
+  <circle cx="8" cy="1" r="1" fill="#888"/>
+  <circle cx="8" cy="2.5" r="1" fill="#888"/>
+  <circle cx="16" cy="1" r="1" fill="#888"/>
+  <circle cx="16" cy="2.5" r="1" fill="#888"/>
+  <!-- Neck -->
+  <rect x="10.5" y="2.5" width="3" height="11" rx="1" fill="#c49030"/>
+  <!-- Nut -->
+  <rect x="10" y="2.5" width="4" height="0.8" rx="0.4" fill="#e8d090"/>
+  <!-- Body (archtop) with f-holes cut out -->
+  <path fill="#d4a855" fill-rule="evenodd" d="
+    M 12 12
+    C 5 12 3.5 17 3.5 21
+    C 3.5 23.5 5 25 5 27
+    C 5 29.5 2.5 32 2.5 36
+    C 2.5 38.5 7 40 12 40
+    C 17 40 21.5 38.5 21.5 36
+    C 21.5 32 19 29.5 19 27
+    C 19 25 20.5 23.5 20.5 21
+    C 20.5 17 19 12 12 12 Z
+    M 7.5 27 a 1.2 3.5 0 1 0 2.4 0 a 1.2 3.5 0 1 0 -2.4 0
+    M 14.1 27 a 1.2 3.5 0 1 0 2.4 0 a 1.2 3.5 0 1 0 -2.4 0
+  "/>
+  <!-- Sound hole highlight -->
+  <ellipse cx="12" cy="26" rx="2.5" ry="0.8" fill="none" stroke="#b08020" stroke-width="0.4" opacity="0.5"/>
+  <!-- Strings -->
+  <line x1="11" y1="3" x2="9.5" y2="35" stroke="#c0c0c0" stroke-width="0.25" opacity="0.6"/>
+  <line x1="11.6" y1="3" x2="10.5" y2="35" stroke="#c0c0c0" stroke-width="0.25" opacity="0.6"/>
+  <line x1="12.2" y1="3" x2="11.5" y2="35" stroke="#c0c0c0" stroke-width="0.25" opacity="0.6"/>
+  <line x1="12.8" y1="3" x2="12.5" y2="35" stroke="#c0c0c0" stroke-width="0.25" opacity="0.6"/>
+  <line x1="13.4" y1="3" x2="13.5" y2="35" stroke="#c0c0c0" stroke-width="0.25" opacity="0.6"/>
+  <line x1="14" y1="3" x2="14.5" y2="35" stroke="#c0c0c0" stroke-width="0.25" opacity="0.6"/>
+</svg>
