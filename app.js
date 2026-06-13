@@ -648,12 +648,12 @@ function EarTrainingView(){
 
 // ── Tour ──────────────────────────────────────────────────────────────
 const TOUR_STEPS=[
-  {target:'key-chip',    title:'Set your key',            text:'Tap to open the key picker. Every chord and scale in the app updates to match the key you choose.'},
-  {target:'level-switch',title:'Basic or Full',      text:'This toggle controls how much of the app you see. Basic keeps things simple — the right starting point. Flip to Full later when you\'re ready for more advanced chord types and techniques.'},
-  {target:'chord-row',   title:'The chords in a key',     text:'Each button is one of the seven chords that naturally occur in the key. The number (I through VII) is its position in the key — you\'ll learn what that means in the Guide.'},
-  {target:'voicing-tabs',title:'How to play each chord',  text:'These tabs show different ways to arrange the same chord on the guitar — different string sets, different note on the bottom. Start with Shell, which uses just three strings.'},
-  {target:'neck-area',   title:'The fretboard',           text:'The colored dots show where to put your fingers for the selected chord shape. Dimmer dots show every other place those same notes appear on the neck.'},
-  {target:'bottom-nav',  title:'Where to start',          text:'We recommend starting with the ⚑ Guide — it walks you through jazz harmony from the ground up and opens the right tool at each step. Tap it now to begin.'},
+  {target:'key-chip',    view:'diatonic', title:'Set your key',            text:'Tap to open the key picker. Every chord and scale in the app updates to match the key you choose.'},
+  {target:'level-switch',view:'diatonic', title:'Essentials or Full',      text:'This toggle controls how much of the app you see. Essentials keeps things simple — the right starting point. Flip to Full later when you\'re ready for more advanced chord types and techniques.'},
+  {target:'chord-row',   view:'diatonic', title:'The chords in a key',     text:'Each button is one of the seven chords that naturally occur in the key. The number (I through VII) is its position in the key — you\'ll learn what that means in the Guide.'},
+  {target:'voicing-tabs',view:'diatonic', title:'How to play each chord',  text:'These tabs show different ways to arrange the same chord on the guitar — different string sets, different note on the bottom. Start with Shell, which uses just three strings.'},
+  {target:'neck-area',   view:'diatonic', title:'The fretboard',           text:'The colored dots show where to put your fingers for the selected chord shape. Dimmer dots show every other place those same notes appear on the neck.'},
+  {target:'bottom-nav',  view:null,       title:'Where to start',          text:'We recommend starting with the ⚑ Guide — it walks you through jazz harmony from the ground up and opens the right tool at each step. Tap it now to begin.'},
 ];
 function TourOverlay({step,onNext,onSkip}){
   const [rect,setRect]=useState(null);
@@ -748,14 +748,7 @@ function NeckSVG({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotK
   const OPEN_X=PL-5; // x-position for fret-0 (open string) indicators, sits within nut
   const SINGLE_INLAYS=[3,5,7,9,15];
 
-  // Clip viewBox to active voicing so neck fits mobile without horizontal scroll
-  const _hf=(highlight||[]).filter(h=>h.f>0).map(h=>h.f);
-  const _wLo=_hf.length?Math.max(1,Math.min(..._hf)-1):1;
-  const _wHi=_hf.length?Math.min(NF,Math.max(_wLo+4,Math.max(..._hf)+1)):NF;
-  const _vx=_wLo===1?0:PL+(_wLo-1)*FW-10;
-  const _vw=(PL+_wHi*FW+15)-_vx;
-
-  return e('svg',{width:'100%',viewBox:`${_vx} 0 ${_vw} ${H}`,style:{display:'block'}},
+  return e('svg',{width:'100%',viewBox:`0 0 ${W} ${H}`,style:{display:'block'}},
     e('defs',null,
       e('filter',{id:'ng',x:'-60%',y:'-60%',width:'220%',height:'220%'},
         e('feGaussianBlur',{stdDeviation:'3.5',result:'b'}),
@@ -830,6 +823,42 @@ function NeckSVG({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotK
           fill:d.color,fontSize:6.5,fontWeight:700,fontFamily:UI_FONT,pointerEvents:'none'},d.role)
       );
     })
+  );
+}
+
+// ── ScrollNeck ────────────────────────────────────────────────────────
+// Full-width neck that scrolls only when the active voicing would be off-screen.
+// Targets iPad layout (720px content); on iPhone it scrolls to keep dots visible.
+function ScrollNeck({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotKeyIdx,
+  marginBottom,dataTour}){
+  const scrollRef=useRef(null);
+  const FW=44,PL=38,SVG_W=PL+15*FW+24; // 722 — matches NeckSVG W
+  useEffect(()=>{
+    const el=scrollRef.current;
+    if(!el) return;
+    const frets=(highlight||[]).filter(h=>h.f>0).map(h=>h.f);
+    if(!frets.length) return;
+    const lo=Math.min(...frets),hi=Math.max(...frets);
+    const scale=el.scrollWidth/SVG_W;
+    const voiceLeft=(PL+(lo-1)*FW)*scale-20;
+    const voiceRight=(PL+hi*FW)*scale+20;
+    const sl=el.scrollLeft,vw=el.clientWidth;
+    if(voiceLeft<sl){
+      el.scrollTo({left:Math.max(0,voiceLeft-10),behavior:'smooth'});
+    } else if(voiceRight>sl+vw){
+      el.scrollTo({left:voiceRight-vw+10,behavior:'smooth'});
+    }
+  },[highlight]);
+  return e('div',{
+    'data-tour':dataTour,
+    ref:scrollRef,
+    style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
+      padding:'8px 4px 4px',marginBottom:marginBottom!==undefined?marginBottom:10,
+      overflowX:'auto',WebkitOverflowScrolling:'touch'}
+  },
+    e('div',{style:{minWidth:680}},
+      e(NeckSVG,{arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotKeyIdx})
+    )
   );
 }
 
@@ -1452,10 +1481,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       setDotMode?e(DotModeToggle,{dotMode,setDotMode}):null
     ),
     // Neck
-    e('div',{style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
-      padding:'8px 4px 4px',marginBottom:0}},
-      e(NeckSVG,{arpPos,highlight,scalePos,extraDots:gtDots,degNames:ac.dnames,dotMode,dotKeyIdx:keyIdx})
-    ),
+    e(ScrollNeck,{arpPos,highlight,scalePos,extraDots:gtDots,degNames:ac.dnames,dotMode,dotKeyIdx:keyIdx,marginBottom:0}),
     // Scale + guide-tone controls
     e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',
       padding:'6px 10px',background:BG2,border:'1px solid '+BORDER,borderTop:'none',
@@ -1679,10 +1705,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     ),
     // Neck (with dot-mode toggle)
     e('div',{style:{marginBottom:6}},setDotMode?e(DotModeToggle,{dotMode,setDotMode}):null),
-    e('div',{style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
-      padding:'8px 4px 4px',marginBottom:10}},
-      e(NeckSVG,{arpPos,highlight,scalePos:[],degNames,dotMode,dotKeyIdx:customRoot})
-    ),
+    e(ScrollNeck,{arpPos,highlight,scalePos:[],degNames,dotMode,dotKeyIdx:customRoot}),
     // Chord diagrams
     DROP_TYPES.has(vType)?
       e(DiagSection,{title:DROP_LBL[vType]+' INVERSIONS'},
@@ -2009,6 +2032,11 @@ function App(){
     else setTourStep(s=>s+1);
   }
   function tourSkip(){setTourStep(null);localStorage.setItem('jg-toured','1');localStorage.setItem('jg-visited','1');setShowOnboarding(false);}
+  useEffect(()=>{
+    if(tourStep===null) return;
+    const v=TOUR_STEPS[tourStep]&&TOUR_STEPS[tourStep].view;
+    if(v) setViewMode(v);
+  },[tourStep]);
   // Level: Essentials hides the advanced half of the app. New users start
   // in Essentials; anyone who used the app before the level existed keeps Full.
   const [level,setLevel]=useState(()=>localStorage.getItem('jg-level')||(localStorage.getItem('jg-visited')?'full':'essentials'));
@@ -2258,10 +2286,7 @@ function App(){
       ),
       // Neck (with dot-mode toggle)
       e(DotModeToggle,{dotMode,setDotMode}),
-      e('div',{'data-tour':'neck-area',style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
-        padding:'8px 4px 4px',marginBottom:10}},
-        e(NeckSVG,{arpPos,highlight,scalePos,degNames,hlTc,dotMode,dotKeyIdx:key})
-      ),
+      e(ScrollNeck,{arpPos,highlight,scalePos,degNames,hlTc,dotMode,dotKeyIdx:key,dataTour:'neck-area'}),
       // Scale panel (diatonic only)
       e(ScalePanel,{degree:deg,chordRoot:rootPC,tones,degNames,
         keyIdx:key,scaleIdx:safeScaleIdx,onScaleChange:setScaleIdx,level}),
