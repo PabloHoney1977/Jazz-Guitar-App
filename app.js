@@ -198,7 +198,7 @@ function calcVoicing(strings,assignment,tones,minFret){
     if(!ok) continue;
     if(spanOK(frets)){
       const mn=Math.min(...frets),mx=Math.max(...frets);
-      if(mn>12){
+      if(mn>12||mx>15){
         const lf=frets.map(f=>f-12);
         if(Math.min(...lf)>=minFret&&spanOK(lf)){
           return{frets:lf,midis:midis.map(m=>m-12),mn:mn-12,mx:mx-12};
