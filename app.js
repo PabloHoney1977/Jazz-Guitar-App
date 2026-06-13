@@ -169,8 +169,8 @@ const getRootlessTones=(root,q)=>{const t=getChordTones(root,q);return[(root+2)%
 const noteForDot=(mode,degName,pc,keyIdx)=>{
   const note=nn(pc,keyIdx);
   if(mode==='note') return note;
-  if(mode==='interval'||mode==='finger') return degName;
-  return note+(degName?'/'+degName:'');
+  if(mode==='both') return note+(degName?'/'+degName:'');
+  return degName; // interval + finger both show interval name (finger overrides in ChordBox/NeckSVG)
 };
 // A 4-fret span only works from the 5th fret up, where the frets are narrow enough.
 // Anything wider is rejected and the shape is retried an octave higher.
@@ -418,7 +418,7 @@ function playChordPreview(voicing,strings){
 
 // ── DotModeToggle ─────────────────────────────────────────────────────
 function DotModeToggle({dotMode,setDotMode}){
-  const opts=[{id:'interval',lbl:'Interval'},{id:'note',lbl:'Note'},{id:'both',lbl:'Both'},{id:'finger',lbl:'Finger'}];
+  const opts=[{id:'interval',lbl:'Interval'},{id:'note',lbl:'Note'},{id:'finger',lbl:'Finger'}];
   return e('div',{style:{display:'flex',alignItems:'center',gap:6,marginBottom:6}},
     e('span',{style:{fontSize:'0.69rem',color:'var(--hint)',letterSpacing:'1px',flexShrink:0}},'DOTS'),
     e('div',{style:{display:'flex',border:'1px solid var(--btn-brd)',borderRadius:14,overflow:'hidden'}},
@@ -541,6 +541,7 @@ function ColorLegend(){
 
 // ── BpmKnob ───────────────────────────────────────────────────────────
 function BpmKnob({bpm,setBpm,onTap}){
+  const dragRef=useRef(null);
   const min=40,max=300;
   const pct=(bpm-min)/(max-min);
   const angle=-135+pct*270;
@@ -560,9 +561,20 @@ function BpmKnob({bpm,setBpm,onTap}){
     if(ev.key==='ArrowUp'||ev.key==='ArrowRight') setBpm(b=>Math.min(max,b+5));
     if(ev.key==='ArrowDown'||ev.key==='ArrowLeft') setBpm(b=>Math.max(min,b-5));
   }
+  function handlePointerDown(ev){
+    ev.currentTarget.setPointerCapture(ev.pointerId);
+    dragRef.current={startY:ev.clientY,startBpm:bpm};
+  }
+  function handlePointerMove(ev){
+    if(!dragRef.current) return;
+    const delta=Math.round((dragRef.current.startY-ev.clientY)/1.5);
+    setBpm(Math.max(min,Math.min(max,dragRef.current.startBpm+delta)));
+  }
+  function handlePointerUp(){dragRef.current=null;}
   return e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:1,cursor:'pointer',flexShrink:0},
     onWheel:handleWheel,onKeyDown:handleKey,tabIndex:0,'aria-label':'BPM '+bpm},
-    e('svg',{width:60,height:60,viewBox:'0 0 60 60',style:{display:'block',userSelect:'none'}},
+    e('svg',{width:60,height:60,viewBox:'0 0 60 60',style:{display:'block',userSelect:'none',touchAction:'none'},
+      onPointerDown:handlePointerDown,onPointerMove:handlePointerMove,onPointerUp:handlePointerUp},
       e('path',{d:arcPath(-135,135,20),fill:'none',stroke:'var(--brd)',strokeWidth:3,strokeLinecap:'round'}),
       e('path',{d:arcPath(-135,angle,20),fill:'none',stroke:GOLD,strokeWidth:3,strokeLinecap:'round'}),
       e('circle',{cx,cy,r:16,fill:'var(--bg2)',stroke:'var(--brd)',strokeWidth:1.5}),
@@ -915,6 +927,17 @@ function NeckSVG({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotK
   const sy=si=>PT+(5-si)*SH;
   const hiMap={};
   (highlight||[]).forEach(h=>{hiMap[h.s+'-'+h.f]=h;});
+  // Finger assignments for highlight dots (used when dotMode==='finger')
+  const hiFingerMap={};
+  if(dotMode==='finger'&&highlight){
+    const played=highlight.filter(h=>h.f>0).sort((a,b)=>a.f-b.f);
+    const groups=[];
+    played.forEach(h=>{
+      if(!groups.length||groups[groups.length-1].f!==h.f) groups.push({f:h.f,strings:[h.s]});
+      else groups[groups.length-1].strings.push(h.s);
+    });
+    groups.forEach((g,gi)=>{if(gi<4) g.strings.forEach(s=>{hiFingerMap[s]=gi+1;});});
+  }
   const OPEN_X=PL-5; // x-position for fret-0 (open string) indicators, sits within nut
   const SINGLE_INLAYS=[3,5,7,9,15];
 
@@ -976,11 +999,13 @@ function NeckSVG({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotK
     }),
     (highlight||[]).map((h,i)=>{
       const cx=h.f===0?OPEN_X:nx(h.f);
+      const lbl=dotMode==='finger'
+        ?(h.f>0&&hiFingerMap[h.s]!=null?String(hiFingerMap[h.s]):'')
+        :noteForDot(dotMode,h.dl,(OPEN_PC[h.s]+h.f)%12,dotKeyIdx);
       return e('g',{key:'hi'+i,filter:'url(#ng)'},
         e('circle',{cx,cy:sy(h.s),r:h.f===0?11:13,fill:hlTc[h.ti],stroke:'var(--hi-dot-str)',strokeWidth:1.8}),
         e('text',{x:cx,y:sy(h.s),textAnchor:'middle',dominantBaseline:'middle',
-          fill:'var(--dot-lbl)',fontSize:10,fontWeight:'bold',fontFamily:UI_FONT},
-          noteForDot(dotMode,h.dl,(OPEN_PC[h.s]+h.f)%12,dotKeyIdx))
+          fill:'var(--dot-lbl)',fontSize:dotMode==='finger'?11:10,fontWeight:'bold',fontFamily:UI_FONT},lbl)
       );
     }),
     (extraDots||[]).map((d,i)=>{
@@ -2275,7 +2300,7 @@ function App(){
   const [key,setKey]=useState(()=>parseInt(localStorage.getItem('jg-key')||'0',10));
   const [viewMode,setViewMode]=useState(()=>localStorage.getItem('jg-viewMode')||'guide'); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
   const [keyOpen,setKeyOpen]=useState(false);
-  const [dotMode,setDotMode]=useState(()=>localStorage.getItem('jg-dotMode')||'interval');
+  const [dotMode,setDotMode]=useState(()=>{const m=localStorage.getItem('jg-dotMode')||'interval';return m==='both'?'interval':m;});
   const [tourStep,setTourStep]=useState(null);
   useEffect(()=>{localStorage.setItem('jg-dotMode',dotMode);},[dotMode]);
   function tourNext(){
