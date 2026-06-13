@@ -999,9 +999,9 @@ function NeckSVG({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotK
       if(hiMap[p.s+'-'+p.f]) return null;
       const cx=p.f===0?OPEN_X:nx(p.f);
       return e('g',{key:'ap'+i},
-        e('circle',{cx,cy:sy(p.s),r:10,fill:TC_DIM[p.ti],stroke:TC[p.ti],strokeWidth:1.3}),
+        e('circle',{cx,cy:sy(p.s),r:10,style:{fill:'var(--tc-dim-'+p.ti+')'},stroke:TC[p.ti],strokeWidth:1.3}),
         e('text',{x:cx,y:sy(p.s),textAnchor:'middle',dominantBaseline:'middle',
-          fill:TC[p.ti],fontSize:7.5,fontFamily:UI_FONT,pointerEvents:'none'},
+          fill:'#fff',fontSize:7.5,fontFamily:UI_FONT,pointerEvents:'none'},
           noteForDot(dotMode,degNames[p.ti],(OPEN_PC[p.s]+p.f)%12,dotKeyIdx))
       );
     }),
@@ -1105,7 +1105,7 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
       !showNut?e('text',{x:3,y:PT+FS/2,dominantBaseline:'middle',fill:HINT,fontSize:10,fontFamily:UI_FONT},SF+'fr'):null,
       showNut?e('rect',{x:sx(0)-2,y:PT-5,width:5*SS+4,height:5,fill:'#c8a855',rx:1.5}):null,
       Array.from({length:NF+1},(_,k)=>
-        e('line',{key:'frl'+k,x1:sx(0),y1:PT+k*FS,x2:sx(5),y2:PT+k*FS,stroke:(k===0&&showNut)?'#c8a855':'#22223a',strokeWidth:1})
+        e('line',{key:'frl'+k,x1:sx(0),y1:PT+k*FS,x2:sx(5),y2:PT+k*FS,stroke:(k===0&&showNut)?'#c8a855':'var(--cb-str)',strokeWidth:1})
       ),
       Array.from({length:6},(_,i)=>
         e('line',{key:'stl'+i,x1:sx(i),y1:PT,x2:sx(i),y2:PT+NF*FS,stroke:'var(--cb-str)',strokeWidth:1})

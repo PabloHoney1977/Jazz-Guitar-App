@@ -34,6 +34,9 @@
       --neck-wood1: #1c1508; --neck-wood2: #130e05; --neck-wood3: #0c0902;
       --neck-edge: #2a1f08; --neck-fret: #2e2010; --neck-fret12: #4a3520;
       --neck-inlay: #2e2010; --neck-lbl: #9a8850;
+      /* chord-tone dim fills for arpPos dots — semi-transparent in dark mode */
+      --tc-dim-0: #FF6B6B55; --tc-dim-1: #4ECDC455;
+      --tc-dim-2: #74C0FC55; --tc-dim-3: #FFD43B55;
     }
     :root[data-theme="light"] {
       --bg: #f5f5fa; --bg2: #eaeaf5; --brd: #b8b8d8;
@@ -42,7 +45,7 @@
       --gold: #8a5a10; --scale-name: #5a3a00;
       --cb-bg: #ffffff; --cb-sel: #ddf0fa; --cb-str: #a8a8c8;
       --scale-circ: rgba(0,0,0,0.06); --scale-circ-str: rgba(0,0,0,0.22);
-      --scale-circ-txt: rgba(0,0,0,0.50); --hi-dot-str: rgba(0,0,0,0.65);
+      --scale-circ-txt: rgba(0,0,0,0.50); --hi-dot-str: rgba(0,0,0,0.70);
       --dot-lbl: #1a1a2e;
       --leg-circ: rgba(0,0,0,0.28); --leg-txt: rgba(0,0,0,0.65);
       --parent-key: #1a8a80; --parent-key-brd: rgba(78,205,196,0.35); --parent-other: #484890;
@@ -52,7 +55,12 @@
       --act-blue: #e0eefa; --act-pur: #f5e0fc; --act-yel: #fffbe0;
       --neck-wood1: #c8a870; --neck-wood2: #b89050; --neck-wood3: #a07830;
       --neck-edge: #8a6030; --neck-fret: #7a5828; --neck-fret12: #9a7040;
-      --neck-inlay: #7a5828; --neck-lbl: #7a5828;
+      --neck-inlay: #7a5828; --neck-lbl: #5a4010;
+      /* chord-tone dim fills — darker, more opaque so they read on warm wood */
+      --tc-dim-0: rgba(200,40,40,0.82);  /* root: dark red   */
+      --tc-dim-1: rgba(15,148,138,0.82); /* 3rd:  dark teal  */
+      --tc-dim-2: rgba(30,108,195,0.82); /* 5th:  dark blue  */
+      --tc-dim-3: rgba(172,108,0,0.85);  /* 7th:  dark amber */
     }
 
     body {
