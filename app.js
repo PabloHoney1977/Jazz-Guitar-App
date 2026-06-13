@@ -1354,7 +1354,6 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   useEffect(()=>{localStorage.setItem('jg-form',form);},[form]);
   useEffect(()=>{localStorage.setItem('jg-cprog',JSON.stringify(customProg));},[customProg]);
   useEffect(()=>{localStorage.setItem('jg-vtype',vType);},[vType]);
-  useEffect(()=>{setInvIdxs([0,0,0,0,0,0,0,0]);},[vType]);
   useEffect(()=>{setScaleHint(null);},[activeChordIdx,form]);
 
   // Pre-fetch real bass guitar samples (recorded bass-electric) on mount so
@@ -1572,20 +1571,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     setTimeout(()=>{
       if(!audioCtxRef.current||audioCtxRef.current!==ctx) return;
       setCountIn(0);
-      // Now begin actual playback — voice-lead all chords from chord 0 forward
-      const allVoicings=chords.map(chord=>{
-        if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1));
-        return dropD.inv.map(inv=>calcVoicing(ss,inv.a,chord.tones));
-      });
-      const idxs=[...invIdxs];
-      for(let i=1;i<chords.length;i++)
-        idxs[i]=findBestInvIdx(allVoicings[i-1][idxs[i-1]],allVoicings[i]);
-      // Wrap-around: re-pick chord 0 based on the last chord so loops are smooth
-      idxs[0]=findBestInvIdx(allVoicings[chords.length-1][idxs[chords.length-1]],allVoicings[0]);
-      // Then re-voice 1..n-1 from the updated chord 0
-      for(let i=1;i<chords.length;i++)
-        idxs[i]=findBestInvIdx(allVoicings[i-1][idxs[i-1]],allVoicings[i]);
-      setInvIdxs(idxs);
+      // invIdxs already voice-led by the auto-VL effect; respect any manual overrides.
       setActiveChordIdx(0);
       nextTimeRef.current=ctx.currentTime+0.05;
       beatRef.current=0;
@@ -1630,8 +1616,30 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     clearTimeout(timerRef.current);
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
     setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
-    setInvIdxs([0,0,0,0,0,0,0,0]);setActiveChordIdx(0);
+    setActiveChordIdx(0);
   },[keyIdx,form]);
+
+  // Auto voice-lead: recompute optimal inversions whenever the progression,
+  // voicing type, or string set changes. This means the user always sees good
+  // voice leading without having to hit Play first.
+  useEffect(()=>{
+    const cs=chordsRef.current;
+    if(!cs||cs.length<2) return;
+    const dD=DROP_DATA[vType]||DROP_DATA.drop2;
+    const sIdx=Math.min(strSetIdx,dD.sets.length-1);
+    const strSet=vType==='shell'?null:dD.sets[sIdx].s;
+    const allVoicings=cs.map(chord=>{
+      if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1));
+      return dD.inv.map(inv=>calcVoicing(strSet,inv.a,chord.tones));
+    });
+    const idxs=allVoicings.map(()=>0);
+    for(let i=1;i<cs.length;i++)
+      idxs[i]=findBestInvIdx(allVoicings[i-1][idxs[i-1]],allVoicings[i]);
+    idxs[0]=findBestInvIdx(allVoicings[cs.length-1][idxs[cs.length-1]],allVoicings[0]);
+    for(let i=1;i<cs.length;i++)
+      idxs[i]=findBestInvIdx(allVoicings[i-1][idxs[i-1]],allVoicings[i]);
+    setInvIdxs(idxs);
+  },[form,keyIdx,vType,strSetIdx,customProg]);
 
   const modeBtn=(act,col,actBg)=>({padding:'6px 13px',borderRadius:5,cursor:'pointer',
     fontFamily:UI_FONT,fontSize:'0.78rem',border:'1px solid '+(act?col:BTN_BRD),
