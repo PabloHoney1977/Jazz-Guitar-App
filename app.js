@@ -1418,19 +1418,18 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       const src=ctx.createBufferSource();
       src.buffer=samples[nearest];
       src.detune.value=(midiNote-nearest)*100;
-      // Cut the plucked-string twang zone (~650Hz), then gentle high-shelf rolloff.
-      // 1200Hz LPF was too aggressive — killed definition and made it sound muffled.
+      const lowShelf=ctx.createBiquadFilter();
+      lowShelf.type='lowshelf';lowShelf.frequency.value=90;lowShelf.gain.value=6;
       const midCut=ctx.createBiquadFilter();
       midCut.type='peaking';midCut.frequency.value=650;midCut.Q.value=1.2;midCut.gain.value=-7;
       const hiShelf=ctx.createBiquadFilter();
       hiShelf.type='highshelf';hiShelf.frequency.value=3000;hiShelf.gain.value=-9;
       const gain=ctx.createGain();
-      // Near-instant attack (electric bass pluck is ~2-4ms), then pluck-compression dip, then sustain
       gain.gain.setValueAtTime(0.001,startTime);
       gain.gain.exponentialRampToValueAtTime(vol,startTime+0.004);
-      gain.gain.exponentialRampToValueAtTime(vol*0.68,startTime+0.055);
-      gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.88);
-      src.connect(midCut);midCut.connect(hiShelf);hiShelf.connect(gain);gain.connect(ctx.destination);
+      gain.gain.exponentialRampToValueAtTime(vol*0.75,startTime+0.055);
+      gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*1.05);
+      src.connect(lowShelf);lowShelf.connect(midCut);midCut.connect(hiShelf);hiShelf.connect(gain);gain.connect(ctx.destination);
       src.start(startTime);src.stop(startTime+beatDur+0.1);
       return;
     }
