@@ -21,7 +21,7 @@ const nn=(pc,k)=>(FLAT_KEYS.has(k)?N_FLAT:N_SHARP)[((pc%12)+12)%12];
 const MAJOR_SCALE=[0,2,4,5,7,9,11];
 const QTYPES=['maj7','m7','m7','maj7','dom7','m7','m7b5'];
 const QSYMS =['maj7','m7','m7','maj7','7','m7','m7b5'];
-const ROMAN =['I','II','III','IV','V','VI','VII'];
+const ROMAN =['I','ii','iii','IV','V','vi','vii'];
 const INTERVALS={maj7:[0,4,7,11],m7:[0,3,7,10],dom7:[0,4,7,10],m7b5:[0,3,6,10]};
 
 // FIX: maj7's 7th was 'd7' (diminished 7) — corrected to 'Δ7' (major 7)
@@ -1349,7 +1349,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const [editingBar,setEditingBar]=useState(-1);
 
   // If user switches back to Basic while a non-major form is active, reset to major
-  useEffect(()=>{if(level==='essentials'&&form!=='major'){setForm('major');setIsPlaying(false);}},[level]);
+  useEffect(()=>{if(level==='essentials'&&form!=='major'&&form!=='minor'){setForm('major');setIsPlaying(false);}},[level]);
 
   const audioCtxRef=useRef(null);
   const timerRef=useRef(null);
@@ -1448,7 +1448,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     ?def.chords.map(([off,quality,sym,roman])=>{
         const rootPC=(KEYS[keyIdx].root+off)%12;
         const tones=getChordTones(rootPC,quality);
-        return{rootPC,quality,tones,dnames:DNAMES[quality],name:nn(rootPC,keyIdx)+sym,roman};
+        const minorQ=quality==='m7'||quality==='m7b5';
+        const romanCased=minorQ?roman.replace(/[IVX]+/,m=>m.toLowerCase()):roman;
+        return{rootPC,quality,tones,dnames:DNAMES[quality],name:nn(rootPC,keyIdx)+sym,roman:romanCased};
       })
     :customProg.map(({root,q})=>{
         const tones=getChordTones(root,q);
@@ -1825,7 +1827,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     level==='essentials'
       ?e('div',{style:{display:'flex',gap:6,alignItems:'center',marginBottom:10}},
           e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Form'),
-          e('button',{onClick:()=>setForm('major'),style:modeBtn(form==='major',FORM_DEFS.major.col,FORM_DEFS.major.bg)},FORM_DEFS.major.lbl)
+          e('button',{onClick:()=>setForm('major'),style:modeBtn(form==='major',FORM_DEFS.major.col,FORM_DEFS.major.bg)},FORM_DEFS.major.lbl),
+          e('button',{onClick:()=>setForm('minor'),style:modeBtn(form==='minor',FORM_DEFS.minor.col,FORM_DEFS.minor.bg)},FORM_DEFS.minor.lbl)
         )
       :e('div',{style:{marginBottom:10}},
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',marginBottom:5}},
