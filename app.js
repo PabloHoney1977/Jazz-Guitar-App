@@ -748,7 +748,14 @@ function NeckSVG({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotK
   const OPEN_X=PL-5; // x-position for fret-0 (open string) indicators, sits within nut
   const SINGLE_INLAYS=[3,5,7,9,15];
 
-  return e('svg',{width:'100%',viewBox:`0 0 ${W} ${H}`,style:{display:'block'}},
+  // Clip viewBox to active voicing so neck fits mobile without horizontal scroll
+  const _hf=(highlight||[]).filter(h=>h.f>0).map(h=>h.f);
+  const _wLo=_hf.length?Math.max(1,Math.min(..._hf)-1):1;
+  const _wHi=_hf.length?Math.min(NF,Math.max(_wLo+4,Math.max(..._hf)+1)):NF;
+  const _vx=_wLo===1?0:PL+(_wLo-1)*FW-10;
+  const _vw=(PL+_wHi*FW+15)-_vx;
+
+  return e('svg',{width:'100%',viewBox:`${_vx} 0 ${_vw} ${H}`,style:{display:'block'}},
     e('defs',null,
       e('filter',{id:'ng',x:'-60%',y:'-60%',width:'220%',height:'220%'},
         e('feGaussianBlur',{stdDeviation:'3.5',result:'b'}),
@@ -1446,10 +1453,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     ),
     // Neck
     e('div',{style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
-      padding:'8px 4px 4px',marginBottom:0,overflowX:'auto'}},
-      e('div',{style:{minWidth:680}},
-        e(NeckSVG,{arpPos,highlight,scalePos,extraDots:gtDots,degNames:ac.dnames,dotMode,dotKeyIdx:keyIdx})
-      )
+      padding:'8px 4px 4px',marginBottom:0}},
+      e(NeckSVG,{arpPos,highlight,scalePos,extraDots:gtDots,degNames:ac.dnames,dotMode,dotKeyIdx:keyIdx})
     ),
     // Scale + guide-tone controls
     e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',
@@ -1675,10 +1680,8 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     // Neck (with dot-mode toggle)
     e('div',{style:{marginBottom:6}},setDotMode?e(DotModeToggle,{dotMode,setDotMode}):null),
     e('div',{style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
-      padding:'8px 4px 4px',marginBottom:10,overflowX:'auto'}},
-      e('div',{style:{minWidth:680}},
-        e(NeckSVG,{arpPos,highlight,scalePos:[],degNames,dotMode,dotKeyIdx:customRoot})
-      )
+      padding:'8px 4px 4px',marginBottom:10}},
+      e(NeckSVG,{arpPos,highlight,scalePos:[],degNames,dotMode,dotKeyIdx:customRoot})
     ),
     // Chord diagrams
     DROP_TYPES.has(vType)?
@@ -2256,10 +2259,8 @@ function App(){
       // Neck (with dot-mode toggle)
       e(DotModeToggle,{dotMode,setDotMode}),
       e('div',{'data-tour':'neck-area',style:{background:'var(--neck-wrap)',border:'1px solid '+BORDER,borderRadius:9,
-        padding:'8px 4px 4px',marginBottom:10,overflowX:'auto'}},
-        e('div',{style:{minWidth:680}},
-          e(NeckSVG,{arpPos,highlight,scalePos,degNames,hlTc,dotMode,dotKeyIdx:key})
-        )
+        padding:'8px 4px 4px',marginBottom:10}},
+        e(NeckSVG,{arpPos,highlight,scalePos,degNames,hlTc,dotMode,dotKeyIdx:key})
       ),
       // Scale panel (diatonic only)
       e(ScalePanel,{degree:deg,chordRoot:rootPC,tones,degNames,
