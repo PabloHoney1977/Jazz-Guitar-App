@@ -431,12 +431,12 @@ function playChordPreview(voicing,strings){
 function DotModeToggle({dotMode,setDotMode}){
   const opts=[{id:'interval',lbl:'Interval'},{id:'note',lbl:'Note'},{id:'finger',lbl:'Finger'}];
   return e('div',{style:{display:'flex',alignItems:'center',gap:6,marginBottom:6}},
-    e('span',{style:{fontSize:'0.69rem',color:'var(--hint)',letterSpacing:'1px',flexShrink:0}},'DOTS'),
+    e('span',{style:{fontSize:'0.68rem',color:'var(--lbl)',letterSpacing:'0.5px',flexShrink:0}},'● Dots'),
     e('div',{style:{display:'flex',border:'1px solid var(--btn-brd)',borderRadius:14,overflow:'hidden'}},
       opts.map(({id,lbl})=>e('button',{key:id,onClick:()=>setDotMode(id),style:{
         padding:'3px 10px',fontFamily:UI_FONT,fontSize:'0.69rem',border:'none',cursor:'pointer',
         background:dotMode===id?'var(--bg)':'transparent',
-        color:dotMode===id?'var(--txt)':'var(--btn-off)',fontWeight:dotMode===id?700:400,minHeight:28
+        color:dotMode===id?'var(--txt)':'var(--btn-off)',fontWeight:dotMode===id?700:400,minHeight:44
       }},lbl))
     )
   );
@@ -553,7 +553,7 @@ function ColorLegend(){
 // ── BpmKnob ───────────────────────────────────────────────────────────
 function BpmKnob({bpm,setBpm,onTap}){
   const dragRef=useRef(null);
-  const min=40,max=300;
+  const min=35,max=150;
   const pct=(bpm-min)/(max-min);
   const angle=-135+pct*270;
   const cx=30,cy=30,r=24;
@@ -595,7 +595,7 @@ function BpmKnob({bpm,setBpm,onTap}){
     e('div',{style:{fontSize:'0.6rem',color:'var(--lbl)',letterSpacing:'1px',lineHeight:1}},'BPM'),
     e('button',{onClick:onTap,style:{fontSize:'0.7rem',color:'var(--btn-off)',background:'transparent',
       border:'1px solid var(--btn-brd)',borderRadius:4,padding:'4px 12px',cursor:'pointer',
-      fontFamily:UI_FONT,minHeight:36,marginTop:2}},'TAP')
+      fontFamily:UI_FONT,minHeight:44,marginTop:2}},'TAP')
   );
 }
 
@@ -805,7 +805,7 @@ function EarTrainingView({level}){
         fontFamily:UI_FONT,fontSize:'0.79rem',fontWeight:mode===id?700:400,
         border:'1px solid '+BTN_BRD,borderBottom:mode===id?'1px solid '+BG2:'1px solid '+BTN_BRD,
         background:mode===id?BG2:'transparent',color:mode===id?'var(--txt)':BTN_OFF,
-        marginBottom:mode===id?'-1px':0,position:'relative',zIndex:mode===id?1:0,minHeight:34
+        marginBottom:mode===id?'-1px':0,position:'relative',zIndex:mode===id?1:0,minHeight:44
       }},lbl))
     ):null,
     e('div',{style:{background:BG2,border:'1px solid '+BTN_BRD,
@@ -1194,7 +1194,7 @@ function ScalePanel({degree,chordRoot,tones,degNames,keyIdx,scaleIdx,onScaleChan
 // ── DiagSection ───────────────────────────────────────────────────────
 function DiagSection({title,children}){
   return e('div',{style:{marginBottom:14}},
-    e('div',{style:{fontSize:'0.6rem',color:LBL,letterSpacing:'2px',marginBottom:6}},title),
+    e('div',{style:{fontSize:'0.71rem',color:LBL,letterSpacing:'0.3px',marginBottom:6,fontWeight:600}},title),
     e('div',{style:{display:'flex',flexWrap:'wrap',gap:8,alignItems:'flex-start'}},children)
   );
 }
@@ -1302,7 +1302,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const [invIdxs,setInvIdxs]=useState([0,0,0,0,0,0,0,0]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
   const [isPlaying,setIsPlaying]=useState(false);
-  const [bpm,setBpm]=useState(()=>parseInt(localStorage.getItem('jg-bpm')||'120',10));
+  const [bpm,setBpm]=useState(()=>Math.max(35,Math.min(150,parseInt(localStorage.getItem('jg-bpm')||'120',10))));
   const [bassEnabled,setBassEnabled]=useState(()=>localStorage.getItem('jg-bass')!=='false');
   const [metronomeEnabled,setMetronomeEnabled]=useState(()=>localStorage.getItem('jg-met')!=='false');
   const [form,setForm]=useState(()=>{
@@ -1613,7 +1613,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       const intervals=[];
       for(let i=1;i<recent.length;i++) intervals.push(recent[i]-recent[i-1]);
       const avg=intervals.reduce((s,v)=>s+v,0)/intervals.length;
-      setBpm(Math.max(40,Math.min(300,Math.round(60000/avg))));
+      setBpm(Math.max(35,Math.min(150,Math.round(60000/avg))));
     }
   }
 
@@ -1675,20 +1675,20 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     // Voicing type + string set selector — grouped so labels don't detach from their buttons on wrap
     e('div',{style:{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap',alignItems:'center'}},
       e('div',{style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
-        e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'VOICING'),
+        e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Voicing'),
         (level==='essentials'
           ?[{id:'drop2',lbl:'Drop 2'},{id:'shell',lbl:'Shell'}]
           :[{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},{id:'shell',lbl:'Shell'}]
         ).map(({id,lbl})=>e('button',{key:id,onClick:()=>setVType(id),style:mkSsBtn(vType===id)},lbl))
       ),
       vType!=='shell'?e('div',{key:'ssg',style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
-        e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'SET'),
+        e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Set'),
         dropD.sets.map((set,i)=>
           e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
         )
       ):null,
       e('div',{style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
-        e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'FORM'),
+        e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Form'),
         (level==='essentials'?['major']:Object.keys(FORM_DEFS)).map(f=>
           e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
         )
@@ -1729,11 +1729,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       border:'1px solid #74C0FC44',borderRadius:8,
     }},
       e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
-        e('span',{style:{fontSize:'0.72rem',color:'#74C0FC',letterSpacing:'2px',fontFamily:UI_FONT}},'BASS EQ'),
+        e('span',{style:{fontSize:'0.72rem',color:'#74C0FC',letterSpacing:'0.3px',fontFamily:UI_FONT}},'Bass EQ'),
         e('button',{onClick:()=>setEqGains([0,0,0,0,0]),style:{
           marginLeft:'auto',padding:'2px 10px',borderRadius:4,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,
-          background:'transparent',color:BTN_OFF,minHeight:28,
+          background:'transparent',color:BTN_OFF,minHeight:44,
         }},'Flat')
       ),
       e('div',{style:{display:'flex',justifyContent:'space-around'}},
@@ -1761,7 +1761,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     // Custom progression controls
     form==='custom'?e('div',{style:{marginBottom:8}},
       e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:editingBar>=0?6:0,alignItems:'center'}},
-        e('span',{style:{fontSize:'0.77rem',color:'#9CA3AF',letterSpacing:'2px'}},'CUSTOM PROGRESSION'),
+        e('span',{style:{fontSize:'0.72rem',color:'#9CA3AF',letterSpacing:'0.3px'}},'Custom progression'),
         e('button',{onClick:()=>setCustomProg(p=>[...p,{root:0,q:'dom7'}]),
           disabled:customProg.length>=12,
           style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
@@ -1776,10 +1776,10 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
             border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:36}},
           'Reset')
       ),
-      editingBar>=0?e('div',{style:{padding:'8px 12px',background:BG2,border:'1px solid #4ECDC4',
+      editingBar>=0?e('div',{style:{padding:'8px 12px',background:BG2,border:'1px solid '+GOLD,
         borderRadius:6,marginBottom:6}},
         e('div',{style:{display:'flex',alignItems:'center',marginBottom:6,gap:10}},
-          e('span',{style:{fontSize:'0.77rem',color:'#4ECDC4',letterSpacing:'2px'}},'BAR '+(editingBar+1)+' — ROOT'),
+          e('span',{style:{fontSize:'0.77rem',color:GOLD,letterSpacing:'0.5px',fontWeight:600}},'Bar '+(editingBar+1)+' — Root'),
           e('button',{onClick:()=>setEditingBar(-1),style:{marginLeft:'auto',padding:'2px 8px',borderRadius:4,
             cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',border:'1px solid '+BTN_BRD,
             background:'transparent',color:BTN_OFF,minHeight:32}},'✕ Close')
@@ -1792,7 +1792,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
               color:customProg[editingBar]?.root===k.root?GOLD:BTN_OFF}},k.name))
         ),
         e('div',{style:{display:'flex',gap:4,flexWrap:'wrap',alignItems:'center'}},
-          e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginRight:4}},'QUALITY'),
+          e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',marginRight:4}},'Quality'),
           CPROG_QUALS.map(qid=>{const qt=EXT_TYPES.find(t=>t.id===qid);return e('button',{key:qid,
             onClick:()=>setCustomProg(p=>p.map((b,j)=>j===editingBar?{...b,q:qid}:b)),
             style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',minHeight:36,
@@ -1811,9 +1811,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           onClick:()=>{setActiveChordIdx(ci);if(form==='custom')setEditingBar(e=>e===i?-1:i);},
           style:{
             flex:'1 1 calc(25% - 5px)',minWidth:0,textAlign:'center',padding:'5px 4px',borderRadius:5,fontFamily:UI_FONT,
-            border:'1px solid '+(lit?'#FFD43B':isEditing?'#4ECDC4':BORDER),
-            background:lit?ACT_YEL:isEditing?ACT_TEAL:BG2,
-            color:lit?'#FFD43B':isEditing?'#4ECDC4':BTN_OFF,
+            border:'1px solid '+(lit?'#FFD43B':isEditing?GOLD:BORDER),
+            background:lit?ACT_YEL:isEditing?ACT_GOLD:BG2,
+            color:lit?'#FFD43B':isEditing?GOLD:BTN_OFF,
             cursor:form==='custom'?'pointer':'default',
             transition:'background 0.08s,border-color 0.08s,color 0.08s'
           }},
@@ -1825,8 +1825,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     ),
     // Neck label + dot mode
     e('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:4}},
-      e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',flexGrow:1}},
-        'NECK — '+ac.roman+' · '+ac.name),
+      e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'0.3px',flexGrow:1}},
+        ac.roman+' — '+ac.name),
       setDotMode?e(DotModeToggle,{dotMode,setDotMode}):null
     ),
     // Neck
@@ -1835,13 +1835,13 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',
       padding:'6px 10px',background:BG2,border:'1px solid '+BORDER,borderTop:'none',
       borderRadius:'0 0 9px 9px',marginBottom:12}},
-      e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'2px',flexShrink:0}},'SCALE'),
+      e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.5px',flexShrink:0}},'Scale'),
       (SCALE_HINTS[ac.quality]||[]).map(sc=>
         e('button',{key:sc.name,onClick:()=>setScaleHint(h=>h===sc.name?null:sc.name),style:{
           padding:'3px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
-          border:'1px solid '+(scaleHint===sc.name?'#4ECDC4':BTN_BRD),
-          background:scaleHint===sc.name?ACT_TEAL:BG2,
-          color:scaleHint===sc.name?'#4ECDC4':BTN_OFF,minHeight:36}},
+          border:'1px solid '+(scaleHint===sc.name?GOLD:BTN_BRD),
+          background:scaleHint===sc.name?ACT_GOLD:BG2,
+          color:scaleHint===sc.name?GOLD:BTN_OFF,minHeight:36}},
           sc.name+' — '+sc.note)
       ),
       (SCALE_HINTS[ac.quality]||[]).length===0&&e('span',{style:{fontSize:'0.72rem',color:HINT}},'—'),
@@ -1861,15 +1861,16 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           ?SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1))
           :dropD.inv.map(inv=>calcVoicing(ss,inv.a,chord.tones));
         const isNowPlaying=playingChordIdx===ci;
-        const borderColor=isNowPlaying?'#FFD43B':'#4ECDC4';
-        const bgColor=isNowPlaying?ACT_YEL:ACT_TEAL;
-        const romanColor=isNowPlaying?'#FFD43B':'#4ECDC4';
+        const isActive=activeChordIdx===ci&&!isPlaying;
+        const borderColor=isNowPlaying?'#FFD43B':isActive?GOLD:BORDER;
+        const bgColor=isNowPlaying?ACT_YEL:isActive?ACT_GOLD:BG2;
+        const romanColor=isNowPlaying?'#FFD43B':isActive?GOLD:LBL;
         return e('div',{key:ci,style:{flex:'1 1 200px',minWidth:190}},
           e('div',{style:{marginBottom:8,padding:'8px 12px',background:bgColor,
             border:'1px solid '+borderColor,borderRadius:6,cursor:form==='custom'?'default':'pointer',
             transition:'border-color 0.12s,background 0.12s'},
             onClick:()=>form!=='custom'&&setActiveChordIdx(ci)},
-            e('div',{style:{fontSize:'0.73rem',color:romanColor,letterSpacing:'2px',marginBottom:2}},chord.roman),
+            e('div',{style:{fontSize:'0.73rem',color:romanColor,letterSpacing:'0.5px',marginBottom:2,fontWeight:600}},chord.roman),
             e('div',{style:{fontFamily:SERIF,fontSize:'1.1rem',fontWeight:700,color:GOLD,marginBottom:4}},chord.name),
             e('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
               chord.tones.map((t,ti)=>
@@ -1990,7 +1991,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     // Root + type selectors
     e('div',{style:{display:'flex',gap:10,flexWrap:'wrap',marginBottom:12,alignItems:'flex-start'}},
       e('div',null,
-        e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginBottom:6}},'ROOT'),
+        e('div',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',marginBottom:6,fontWeight:600}},'Root'),
         e('div',{style:{display:'flex',flexWrap:'wrap',gap:3}},
           KEYS.map((k,i)=>
             e('button',{key:i,onClick:()=>{setCustomRoot(k.root);setInvIdx(0);},style:{
@@ -2003,7 +2004,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         )
       ),
       e('div',null,
-        e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginBottom:6}},'CHORD TYPE'),
+        e('div',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',marginBottom:6,fontWeight:600}},'Chord type'),
         e('div',{style:{display:'flex',flexWrap:'wrap',gap:3}},
           (isEss?EXT_TYPES.slice(0,4):EXT_TYPES).map((t,i)=>
             e('button',{key:i,onClick:()=>{setCustomTypeIdx(i);setInvIdx(0);},style:{
@@ -2018,7 +2019,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     ),
     // Extension row — Full mode only
     availExts.length>0&&!isEss?e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12,alignItems:'center'}},
-      e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'EXTENSION'),
+      e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Extension'),
       // "none" option
       e('button',{onClick:()=>setExtOpt(null),style:{
         padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
@@ -2058,7 +2059,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       borderRadius:'0 6px 6px 6px',padding:'7px 12px',marginBottom:10,
       display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',minHeight:36}},
       DROP_TYPES.has(vType)?[
-        e('span',{key:'lbl',style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'STRING SET'),
+        e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
         setsData.map((ss,i)=>e('button',{key:i,onClick:()=>{setSsIdx(i);setInvIdx(0);},style:mkSsBtn(safeSSIdx===i)},ss.lbl))
       ]:null,
       vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'Guide tones: R + 3rd + 7th'):null,
@@ -2069,7 +2070,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     e(ScrollNeck,{arpPos,highlight,scalePos:[],degNames,dotMode,dotKeyIdx:customRoot}),
     // Chord diagrams
     DROP_TYPES.has(vType)?
-      e(DiagSection,{title:DROP_LBL[vType]+' INVERSIONS'},
+      e(DiagSection,{title:DROP_LBL[vType]+' inversions'},
         allVoicings.every(v=>!v)?e(NoShapes,null):
         invData.map((inv,i)=>
           e(ChordBox,{key:i,voicing:allVoicings[i],strings:setsData[safeSSIdx].s,
@@ -2079,14 +2080,14 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         )
       ):null,
     vType==='shell'?e('div',null,
-      e(DiagSection,{title:'FORM A — SKIP-STRING'},
+      e(DiagSection,{title:'Form A — skip-string'},
         shellsA.map(x=>
           e(ChordBox,{key:x.i,voicing:x.v,strings:x.sh.s,tones,degNames,
             invLabel:x.sh.lbl,bassLabel:'bass: '+degNames[x.sh.bassIdx]+' ('+x.sh.root+')',
             selected:safeShellIdx===x.i,onClick:()=>setShellIdx(x.i),dotMode,dotKeyIdx:customRoot})
         )
       ),
-      e(DiagSection,{title:'FORM B — ADJACENT STRINGS'},
+      e(DiagSection,{title:'Form B — adjacent strings'},
         shellsB.map(x=>
           e(ChordBox,{key:x.i,voicing:x.v,strings:x.sh.s,tones,degNames,
             invLabel:x.sh.lbl,bassLabel:'bass: '+degNames[x.sh.bassIdx]+' ('+x.sh.root+')',
@@ -2117,8 +2118,8 @@ function GuideView({openPreset,level}){
   function ul(...items){return e('ul',{style:{listStyle:'none',margin:'0 0 8px'}},
     ...items.map((it,i)=>e('li',{key:i,style:LI},'• ',it)));}
   function callout(...k){
-    return e('div',{style:{background:'#091a2a',border:'1px solid #1a3a5a',borderRadius:6,
-      padding:'8px 12px',marginBottom:8,fontSize:'0.79rem',lineHeight:1.7,color:'#9ab8d8',fontFamily:UI_FONT}},...k);
+    return e('div',{style:{background:'var(--act-blue)',border:'1px solid var(--brd)',borderRadius:6,
+      padding:'8px 12px',marginBottom:8,fontSize:'0.79rem',lineHeight:1.7,color:'var(--txt)',fontFamily:UI_FONT}},...k);
   }
   function gloss(id,term,short,playQuality,...detail){
     const open=expanded['g_'+id];
@@ -2197,22 +2198,22 @@ function GuideView({openPreset,level}){
     const isDone=!!done[st.id];
     const theoryOpen=!!expanded['st_'+st.id];
     return e('div',{key:st.id,style:{display:'flex',gap:12,padding:'12px 14px',marginBottom:10,
-      background:BG,border:'1px solid '+(isDone?'#4ECDC440':BORDER),borderRadius:8,opacity:isDone?0.72:1}},
+      background:BG,border:'1px solid '+(isDone?GOLD+'40':BORDER),borderRadius:8,opacity:isDone?0.72:1}},
       e('div',{style:{flexShrink:0,width:26,height:26,borderRadius:'50%',
-        border:'2px solid '+(isDone?'#4ECDC4':GOLD),color:isDone?'#4ECDC4':GOLD,
+        border:'2px solid '+GOLD,color:isDone?GOLD:LBL,
         display:'flex',alignItems:'center',justifyContent:'center',
-        fontSize:'0.8rem',fontWeight:700,fontFamily:UI_FONT}},isDone?'✓':String(n)),
+        fontSize:'0.8rem',fontWeight:700,fontFamily:UI_FONT,background:isDone?ACT_GOLD:'transparent'}},isDone?'✓':String(n)),
       e('div',{style:{flex:1}},
         e('div',{style:{fontFamily:SERIF,fontSize:'0.98rem',fontWeight:700,color:'var(--scale-name)',marginBottom:6}},st.title),
         st.body.length>0?e('p',{style:{...P,marginBottom:8}},st.body[0]):null,
         e('div',{style:{display:'flex',gap:8,marginBottom:8,flexWrap:'wrap'}},
           e('button',{onClick:()=>openPreset(st.preset),style:{
             padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',
-            border:'1px solid #4ECDC4',background:ACT_TEAL,color:'#4ECDC4',fontWeight:700,minHeight:40}},'▶ Open in app'),
+            border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,fontWeight:700,minHeight:44}},'▶ Open in app'),
           e('button',{onClick:()=>togDone(st.id),style:{
             padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',
-            border:'1px solid '+(isDone?'#4ECDC4':BTN_BRD),background:isDone?ACT_TEAL:'transparent',
-            color:isDone?'#4ECDC4':BTN_OFF,minHeight:40}},isDone?'✓ Done':'Mark done')
+            border:'1px solid '+(isDone?GOLD:BTN_BRD),background:isDone?ACT_GOLD:'transparent',
+            color:isDone?GOLD:BTN_OFF,minHeight:44}},isDone?'✓ Done':'Mark done')
         ),
         st.items&&st.items.length?ul(...st.items):null,
         st.body.length>1?e('div',{style:{marginTop:6}},
@@ -2293,7 +2294,7 @@ function GuideView({openPreset,level}){
     e('div',{style:S},
       e('div',{style:{...H,display:'flex',justifyContent:'space-between',alignItems:'baseline',flexWrap:'wrap',gap:8}},
         e('span',null,'The Learning Path — from first chords to jazz'),
-        e('span',{style:{fontSize:'0.72rem',fontFamily:UI_FONT,fontWeight:400,color:doneCount===stages.length?'#4ECDC4':HINT}},doneCount+' / '+stages.length+' done')
+        e('span',{style:{fontSize:'0.72rem',fontFamily:UI_FONT,fontWeight:400,color:doneCount===stages.length?GOLD:HINT}},doneCount+' / '+stages.length+' done')
       ),
       p('Work top to bottom — each stage is about a week of practice, and slower is fine. Nothing is locked; the Path just says what matters now. Each button opens the right view, already set up.'),
       stages.map((st,i)=>stage(i+1,st))
@@ -2558,7 +2559,7 @@ function App(){
       e('button',{onClick:toggleTheme,'aria-label':'Toggle theme',style:{padding:'4px 10px',
         borderRadius:18,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',
         border:'1px solid '+BTN_BRD,background:'transparent',
-        color:BTN_OFF,minHeight:34,flexShrink:0}},
+        color:BTN_OFF,minHeight:44,flexShrink:0}},
         theme==='dark'?'☀':'☾')
     ),
 
@@ -2630,7 +2631,7 @@ function App(){
         borderRadius:'0 6px 6px 6px',padding:'7px 12px',marginBottom:10,
         display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',minHeight:36}},
         DROP_TYPES.has(vType)?[
-          e('span',{key:'lbl',style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'STRING SET'),
+          e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
           setsData.map((ss,i)=>e('button',{key:i,onClick:()=>{setSsIdx(i);setInvIdx(0);},style:mkSsBtn(safeSSIdx===i)},ss.lbl)),
           voiceOrder?e('span',{key:'vo',style:{marginLeft:'auto',fontSize:'0.7rem',color:HINT}},'voices: '+voiceOrder):null
         ]:null,
@@ -2651,7 +2652,7 @@ function App(){
       e(ScalePanel,{degree:deg,chordRoot:rootPC,tones,degNames,
         keyIdx:key,scaleIdx:safeScaleIdx,onScaleChange:setScaleIdx,level}),
       // Drop 2 / Drop 3
-      DROP_TYPES.has(vType)?e(DiagSection,{title:DROP_LBL[vType]+' INVERSIONS — CLICK TO SELECT'},
+      DROP_TYPES.has(vType)?e(DiagSection,{title:DROP_LBL[vType]+' inversions — tap to select'},
         allVoicings.every(v=>!v)?e(NoShapes,null):
         invData.map((inv,i)=>
           e(ChordBox,{key:i,voicing:allVoicings[i],strings:setsData[safeSSIdx].s,
@@ -2661,12 +2662,12 @@ function App(){
       ):null,
       // Shell voicings
       vType==='shell'?e('div',null,
-        e(DiagSection,{title:'FORM A — SKIP-STRING (R-7-3)'},
+        e(DiagSection,{title:'Form A — skip-string (R-7-3)'},
           shellsA.map(x=>e(ChordBox,{key:x.i,voicing:x.v,strings:x.sh.s,tones,degNames,
             invLabel:x.sh.lbl,bassLabel:'bass: '+degNames[x.sh.bassIdx]+' ('+x.sh.root+')',
             selected:safeShellIdx===x.i,onClick:()=>setShellIdx(x.i),dotMode,dotKeyIdx:key}))
         ),
-        e(DiagSection,{title:'FORM B — ADJACENT STRINGS (R-3-7)'},
+        e(DiagSection,{title:'Form B — adjacent strings (R-3-7)'},
           shellsB.map(x=>e(ChordBox,{key:x.i,voicing:x.v,strings:x.sh.s,tones,degNames,
             invLabel:x.sh.lbl,bassLabel:'bass: '+degNames[x.sh.bassIdx]+' ('+x.sh.root+')',
             selected:safeShellIdx===x.i,onClick:()=>setShellIdx(x.i),dotMode,dotKeyIdx:key}))
@@ -2674,7 +2675,7 @@ function App(){
       ):null,
       // Rootless voicings
       vType==='rootless'?e('div',null,
-        e(DiagSection,{title:'TYPE A: 3-5-7-9 (3RD ON BOTTOM) — CLICK TO SELECT'},
+        e(DiagSection,{title:'Type A: 3-5-7-9 (3rd on bottom) — tap to select'},
           ROOTLESS.every((c,i)=>c.type!=='A'||!allRootless[i])?e(NoShapes,null):
           ROOTLESS.filter(c=>c.type==='A').map(cfg=>{
             const i=ROOTLESS.indexOf(cfg);
@@ -2684,7 +2685,7 @@ function App(){
               selected:safeRlIdx===i,onClick:()=>setRlIdx(i),tcArr:TC_RL,dotMode,dotKeyIdx:key});
           })
         ),
-        e(DiagSection,{title:'TYPE B: 7-9-3-5 (7TH ON BOTTOM) — CLICK TO SELECT'},
+        e(DiagSection,{title:'Type B: 7-9-3-5 (7th on bottom) — tap to select'},
           ROOTLESS.every((c,i)=>c.type!=='B'||!allRootless[i])?e(NoShapes,null):
           ROOTLESS.filter(c=>c.type==='B').map(cfg=>{
             const i=ROOTLESS.indexOf(cfg);
@@ -2723,7 +2724,7 @@ function App(){
       display:'flex',background:BG2,borderTop:'1px solid '+BORDER,
       paddingBottom:'env(safe-area-inset-bottom)',
       boxShadow:'0 -4px 16px rgba(0,0,0,0.35)'}},
-      [['guide','⚑','Guide'],['diatonic','♬','In a Key'],['custom','♪','Chords'],['iivi','▶','Play'],['quiz','🎧','Ear']].map(([id,icon,lbl])=>{
+      [['guide','⚑','Guide'],['diatonic','♬','In a Key'],['custom','♪','Chords'],['iivi','▶','Play'],['quiz','♫','Ear']].map(([id,icon,lbl])=>{
         const act=viewMode===id;
         return e('button',{key:id,onClick:()=>{setViewMode(id);window.scrollTo(0,0);},style:{
           flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:1,
