@@ -169,7 +169,7 @@ const getRootlessTones=(root,q)=>{const t=getChordTones(root,q);return[(root+2)%
 const noteForDot=(mode,degName,pc,keyIdx)=>{
   const note=nn(pc,keyIdx);
   if(mode==='note') return note;
-  if(mode==='interval') return degName;
+  if(mode==='interval'||mode==='finger') return degName;
   return note+(degName?'/'+degName:'');
 };
 // A 4-fret span only works from the 5th fret up, where the frets are narrow enough.
@@ -418,7 +418,7 @@ function playChordPreview(voicing,strings){
 
 // ── DotModeToggle ─────────────────────────────────────────────────────
 function DotModeToggle({dotMode,setDotMode}){
-  const opts=[{id:'interval',lbl:'Interval'},{id:'note',lbl:'Note'},{id:'both',lbl:'Both'}];
+  const opts=[{id:'interval',lbl:'Interval'},{id:'note',lbl:'Note'},{id:'both',lbl:'Both'},{id:'finger',lbl:'Finger'}];
   return e('div',{style:{display:'flex',alignItems:'center',gap:6,marginBottom:6}},
     e('span',{style:{fontSize:'0.69rem',color:'var(--hint)',letterSpacing:'1px',flexShrink:0}},'DOTS'),
     e('div',{style:{display:'flex',border:'1px solid var(--btn-brd)',borderRadius:14,overflow:'hidden'}},
@@ -923,6 +923,20 @@ function ScrollNeck({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,d
 }
 
 // ── ChordBox ──────────────────────────────────────────────────────────
+// Assigns fingers 1-4 to fretted strings by fret order; same-fret strings share a finger.
+function calcFingering(allF){
+  const played=[];
+  allF.forEach((f,s)=>{if(f!==null&&f>0) played.push({s,f});});
+  played.sort((a,b)=>a.f-b.f);
+  const groups=[];
+  played.forEach(({s,f})=>{
+    if(!groups.length||groups[groups.length-1].f!==f) groups.push({f,strings:[s]});
+    else groups[groups.length-1].strings.push(s);
+  });
+  const map={};
+  groups.forEach((g,gi)=>{if(gi<4) g.strings.forEach(s=>{map[s]=gi+1;});});
+  return map;
+}
 function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,onClick,tcArr,dotMode,dotKeyIdx}){
   const tc=tcArr||TC;
   dotMode=dotMode||'interval';
@@ -931,6 +945,7 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
   const frets=voicing.frets;
   const allF=[null,null,null,null,null,null];
   frets.forEach((f,i)=>{allF[strings[i]]=f;});
+  const fingerMap=dotMode==='finger'?calcFingering(allF):{};
   const nonZ=frets.filter(f=>f>0);
   const mn=nonZ.length?Math.min(...nonZ):1;
   const mx=nonZ.length?Math.max(...nonZ):4;
@@ -961,10 +976,12 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
         if(f===null||f===0) return null;
         if(f<SF||f>SF+NF-1) return null;
         const pc=(OPEN_PC[i]+f)%12,ti2=tones.indexOf(pc);
+        const dotLabel=dotMode==='finger'
+          ?(fingerMap[i]!=null?String(fingerMap[i]):'')
+          :(ti2>=0?noteForDot(dotMode,degNames[ti2],pc,dotKeyIdx):'');
         return e('g',{key:'dt'+i},
           e('circle',{cx:sx(i),cy:fy(f),r:9,fill:ti2>=0?tc[ti2]:'#556',stroke:'var(--hi-dot-str)',strokeWidth:1}),
-          e('text',{x:sx(i),y:fy(f),textAnchor:'middle',dominantBaseline:'middle',fill:'var(--dot-lbl)',fontSize:7,fontWeight:'bold',fontFamily:UI_FONT},
-            ti2>=0?noteForDot(dotMode,degNames[ti2],(OPEN_PC[i]+f)%12,dotKeyIdx):'')
+          e('text',{x:sx(i),y:fy(f),textAnchor:'middle',dominantBaseline:'middle',fill:'var(--dot-lbl)',fontSize:dotMode==='finger'?9:7,fontWeight:'bold',fontFamily:UI_FONT},dotLabel)
         );
       })
     )
