@@ -1419,7 +1419,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       src.buffer=samples[nearest];
       src.detune.value=(midiNote-nearest)*100;
       const lowShelf=ctx.createBiquadFilter();
-      lowShelf.type='lowshelf';lowShelf.frequency.value=90;lowShelf.gain.value=6;
+      lowShelf.type='lowshelf';lowShelf.frequency.value=80;lowShelf.gain.value=11;
       const midCut=ctx.createBiquadFilter();
       midCut.type='peaking';midCut.frequency.value=650;midCut.Q.value=1.2;midCut.gain.value=-7;
       const hiShelf=ctx.createBiquadFilter();
@@ -1427,8 +1427,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       const gain=ctx.createGain();
       gain.gain.setValueAtTime(0.001,startTime);
       gain.gain.exponentialRampToValueAtTime(vol,startTime+0.004);
-      gain.gain.exponentialRampToValueAtTime(vol*0.75,startTime+0.055);
-      gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*1.05);
+      gain.gain.exponentialRampToValueAtTime(vol*0.85,startTime+0.055);
+      gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*1.35);
       src.connect(lowShelf);lowShelf.connect(midCut);midCut.connect(hiShelf);hiShelf.connect(gain);gain.connect(ctx.destination);
       src.start(startTime);src.stop(startTime+beatDur+0.1);
       return;
