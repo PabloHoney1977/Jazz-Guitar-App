@@ -1639,39 +1639,44 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   };
 
   return e('div',null,
-    // Voicing type + string set selector
-    e('div',{style:{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap',alignItems:'center'}},
-      e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'VOICING'),
-      (level==='essentials'
-        ?[{id:'drop2',lbl:'Drop 2'},{id:'shell',lbl:'Shell'}]
-        :[{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},{id:'shell',lbl:'Shell'}]
-      ).map(({id,lbl})=>e('button',{key:id,onClick:()=>setVType(id),style:mkSsBtn(vType===id)},lbl)),
-      vType!=='shell'?e('span',{key:'ssl',style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginLeft:8}},'STRING SET'):null,
-      vType!=='shell'?dropD.sets.map((set,i)=>
-        e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
+    // Voicing type + string set selector — grouped so labels don't detach from their buttons on wrap
+    e('div',{style:{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap',alignItems:'center'}},
+      e('div',{style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
+        e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'VOICING'),
+        (level==='essentials'
+          ?[{id:'drop2',lbl:'Drop 2'},{id:'shell',lbl:'Shell'}]
+          :[{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},{id:'shell',lbl:'Shell'}]
+        ).map(({id,lbl})=>e('button',{key:id,onClick:()=>setVType(id),style:mkSsBtn(vType===id)},lbl))
+      ),
+      vType!=='shell'?e('div',{key:'ssg',style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
+        e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'SET'),
+        dropD.sets.map((set,i)=>
+          e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
+        )
       ):null,
-      e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginLeft:8}},'FORM'),
-      (level==='essentials'?['major']:Object.keys(FORM_DEFS)).map(f=>
-        e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
+      e('div',{style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
+        e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'FORM'),
+        (level==='essentials'?['major']:Object.keys(FORM_DEFS)).map(f=>
+          e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
+        )
       )
     ),
     // Play-along controls
-    e('div',{style:{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginBottom:10,
+    e('div',{style:{display:'flex',alignItems:'center',flexWrap:'wrap',gap:10,marginBottom:10,
       padding:'10px 14px',background:BG2,border:'1px solid '+BORDER,borderRadius:8}},
-      // Play/Stop + count-in display
-      e('div',{style:{display:'flex',alignItems:'center',gap:8}},
+      // Left: play button + BPM grouped so they stay together
+      e('div',{style:{display:'flex',alignItems:'center',gap:8,flexShrink:0}},
         countIn>0
           ?e('div',{style:{minWidth:80,textAlign:'center',fontSize:'1.6rem',fontWeight:700,
               color:'#ffffff',fontFamily:SERIF,letterSpacing:4}},countIn)
           :e('button',{onClick:isPlaying?stopPlayback:startPlayback,style:playBtn},
               isPlaying?'■ STOP':'▶ PLAY'),
         isPlaying&&loopCount>0?e('span',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,minWidth:52}},
-          'Loop '+loopCount):null
+          'Loop '+loopCount):null,
+        e(BpmKnob,{bpm,setBpm,onTap:handleTap})
       ),
-      // BPM knob
-      e(BpmKnob,{bpm,setBpm,onTap:handleTap}),
-      // Toggles
-      e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
+      // Right: toggles pushed to right edge
+      e('div',{style:{display:'flex',gap:6,marginLeft:'auto'}},
         e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:'#74C0FC'}),
         e(LedToggle,{label:'CLICK',enabled:metronomeEnabled,onToggle:()=>setMetronomeEnabled(v=>!v),color:'#aaaacc'}),
         e(LedToggle,{label:'RIDE',enabled:rideEnabled,onToggle:()=>setRideEnabled(v=>!v),color:GOLD})
