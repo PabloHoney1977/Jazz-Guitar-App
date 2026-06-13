@@ -2136,7 +2136,7 @@ function GuideView({openPreset,level}){
       )
     );
   }
-  return e('div',{style:{maxWidth:780}},
+  return e('div',null,
     sec('Start Here',
       p('This guide assumes you can finger and strum chords from a chart, and that\'s all. No music theory background is needed — every concept is introduced from scratch, with an explanation of why it works, not just what it is. The goal is to understand jazz harmony well enough to use it, not just play through it.'),
       p('Jazz uses ',e('b',{style:HL},'four-note chords (7th chords)'),' as its basic unit. A standard triad (three notes) tells you major or minor. The 7th chord adds one more note — the 7th interval — and that extra note is what gives jazz its characteristic richness, tension, and color. Learning to hear, name, and voice these four chord types is the foundation of everything that follows.'),
@@ -2289,6 +2289,12 @@ function GuideView({openPreset,level}){
 // ── App ───────────────────────────────────────────────────────────────
 function App(){
   const [theme,setTheme]=useState(()=>localStorage.getItem('jg-theme')||'dark');
+  const [winW,setWinW]=useState(window.innerWidth);
+  useEffect(()=>{
+    const onResize=()=>setWinW(window.innerWidth);
+    window.addEventListener('resize',onResize);
+    return ()=>window.removeEventListener('resize',onResize);
+  },[]);
   function toggleTheme(){
     const next=theme==='dark'?'light':'dark';
     setTheme(next);
@@ -2446,7 +2452,7 @@ function App(){
   const shellsB=SHELLS.map((sh,i)=>({sh,i,v:allVoicings[i]})).filter(x=>x.sh.form==='B');
 
   return e('div',{style:{background:BG,minHeight:'100vh',color:'var(--txt)',fontFamily:UI_FONT}},
-  e('div',{style:{maxWidth:720,margin:'0 auto',padding:'14px 14px 84px'}},
+  e('div',{style:{maxWidth:Math.min(960,winW-28),margin:'0 auto',padding:'14px 14px 84px'}},
 
     // Header — title left, legend + level + theme right
     e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8,flexWrap:'wrap'}},
