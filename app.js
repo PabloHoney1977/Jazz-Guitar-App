@@ -317,11 +317,11 @@ async function makeRideBufAsync(sr,vol,accent){
   s4.connect(f4);f4.connect(g4);g4.connect(offCtx.destination);s4.start(0);
   return offCtx.startRendering();
 }
-function playRide(ctx,buf,startTime,eqGains){
+function playRide(ctx,buf,startTime,eqGains,vol){
   if(!buf) return;
   const src=ctx.createBufferSource();
   src.buffer=buf;
-  const g=ctx.createGain();g.gain.value=0.42;
+  const g=ctx.createGain();g.gain.value=0.42*(vol||1);
   src.connect(g);
   if(eqGains&&eqGains.some(v=>v!==0)){
     const eq=EQ_FREQS.map((fr,i)=>{const f=ctx.createBiquadFilter();f.type=EQ_TYPES[i];f.frequency.value=fr;f.Q.value=1.2;f.gain.value=eqGains[i]||0;return f;});
@@ -435,7 +435,7 @@ function playChordPreview(voicing,strings){
 
 // ── DotModeToggle ─────────────────────────────────────────────────────
 function DotModeToggle({dotMode,setDotMode}){
-  const opts=[{id:'interval',lbl:'Interval'},{id:'note',lbl:'Note'},{id:'finger',lbl:'Finger'}];
+  const opts=[{id:'interval',lbl:'Interval'},{id:'note',lbl:'Note'}];
   return e('div',{style:{display:'flex',alignItems:'center',gap:6,marginBottom:6}},
     e('span',{style:{fontSize:'0.68rem',color:'var(--lbl)',letterSpacing:'0.5px',flexShrink:0}},'● Dots'),
     e('div',{style:{display:'flex',border:'1px solid var(--btn-brd)',borderRadius:14,overflow:'hidden'}},
@@ -556,44 +556,52 @@ function ColorLegend(){
   );
 }
 
-// ── BpmStrip ──────────────────────────────────────────────────────────
-function BpmStrip({bpm,setBpm,onTap}){
+// ── BpmKnob ───────────────────────────────────────────────────────────
+function BpmKnob({bpm,setBpm,onTap}){
+  const dragRef=useRef(null);
   const min=35,max=150;
-  const holdRef=useRef(null);
-  function startHold(dir){
-    setBpm(b=>Math.max(min,Math.min(max,b+dir)));
-    holdRef.current=setInterval(()=>setBpm(b=>Math.max(min,Math.min(max,b+dir))),110);
+  const pct=(bpm-min)/(max-min);
+  const angle=-135+pct*270;
+  const cx=30,cy=30,r=24;
+  const rad=(angle-90)*Math.PI/180;
+  const mx=cx+r*0.55*Math.cos(rad),my=cy+r*0.55*Math.sin(rad);
+  const mx2=cx+r*0.82*Math.cos(rad),my2=cy+r*0.82*Math.sin(rad);
+  function arcPath(startDeg,endDeg,radius){
+    const s=(startDeg-90)*Math.PI/180,en=(endDeg-90)*Math.PI/180;
+    const x1=cx+radius*Math.cos(s),y1=cy+radius*Math.sin(s);
+    const x2=cx+radius*Math.cos(en),y2=cy+radius*Math.sin(en);
+    const large=endDeg-startDeg>180?1:0;
+    return 'M '+x1+' '+y1+' A '+radius+' '+radius+' 0 '+large+' 1 '+x2+' '+y2;
   }
-  function stopHold(){clearInterval(holdRef.current);holdRef.current=null;}
-  const adjBtn=(label,dir)=>e('button',{
-    onPointerDown:()=>startHold(dir),onPointerUp:stopHold,onPointerLeave:stopHold,
-    style:{
-      width:36,minHeight:44,border:'1px solid '+BTN_BRD,
-      borderRadius:dir<0?'8px 0 0 8px':'0 8px 8px 0',
-      borderRight:dir<0?'none':undefined,borderLeft:dir>0?'none':undefined,
-      background:'transparent',color:GOLD,fontSize:'1.2rem',
-      cursor:'pointer',fontFamily:UI_FONT,fontWeight:700,
-      display:'flex',alignItems:'center',justifyContent:'center',
-    }
-  },label);
-  return e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flexShrink:0}},
-    e('div',{style:{display:'flex',alignItems:'stretch'}},
-      adjBtn('−',-1),
-      e('div',{style:{
-        display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
-        padding:'0 10px',border:'1px solid '+BTN_BRD,minWidth:60,
-        background:'transparent',
-      }},
-        e('div',{style:{fontSize:'1.4rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT,lineHeight:1}},bpm),
-        e('div',{style:{fontSize:'0.55rem',color:LBL,letterSpacing:'1.5px',fontFamily:UI_FONT,marginTop:1}},'BPM')
-      ),
-      adjBtn('+',1)
+  function handleWheel(ev){ev.preventDefault();setBpm(b=>Math.max(min,Math.min(max,b-(ev.deltaY>0?1:-1)*5)));}
+  function handleKey(ev){
+    if(ev.key==='ArrowUp'||ev.key==='ArrowRight') setBpm(b=>Math.min(max,b+5));
+    if(ev.key==='ArrowDown'||ev.key==='ArrowLeft') setBpm(b=>Math.max(min,b-5));
+  }
+  function handlePointerDown(ev){
+    ev.currentTarget.setPointerCapture(ev.pointerId);
+    dragRef.current={startY:ev.clientY,startBpm:bpm};
+  }
+  function handlePointerMove(ev){
+    if(!dragRef.current) return;
+    const delta=Math.round((dragRef.current.startY-ev.clientY)/1.5);
+    setBpm(Math.max(min,Math.min(max,dragRef.current.startBpm+delta)));
+  }
+  function handlePointerUp(){dragRef.current=null;}
+  return e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:1,cursor:'pointer',flexShrink:0},
+    onWheel:handleWheel,onKeyDown:handleKey,tabIndex:0,'aria-label':'BPM '+bpm},
+    e('svg',{width:60,height:60,viewBox:'0 0 60 60',style:{display:'block',userSelect:'none',touchAction:'none'},
+      onPointerDown:handlePointerDown,onPointerMove:handlePointerMove,onPointerUp:handlePointerUp},
+      e('path',{d:arcPath(-135,135,20),fill:'none',stroke:'var(--brd)',strokeWidth:3,strokeLinecap:'round'}),
+      e('path',{d:arcPath(-135,angle,20),fill:'none',stroke:GOLD,strokeWidth:3,strokeLinecap:'round'}),
+      e('circle',{cx,cy,r:16,fill:'var(--bg2)',stroke:'var(--brd)',strokeWidth:1.5}),
+      e('line',{x1:mx,y1:my,x2:mx2,y2:my2,stroke:GOLD,strokeWidth:2.5,strokeLinecap:'round'})
     ),
-    e('button',{onClick:onTap,style:{
-      fontSize:'0.68rem',color:BTN_OFF,background:'transparent',
-      border:'1px solid '+BTN_BRD,borderRadius:4,padding:'3px 14px',
-      cursor:'pointer',fontFamily:UI_FONT,minHeight:0,letterSpacing:'0.5px',
-    }},'TAP')
+    e('div',{style:{fontSize:'1.0rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT,lineHeight:1}},bpm),
+    e('div',{style:{fontSize:'0.6rem',color:'var(--lbl)',letterSpacing:'1px',lineHeight:1}},'BPM'),
+    e('button',{onClick:onTap,style:{fontSize:'0.7rem',color:'var(--btn-off)',background:'transparent',
+      border:'1px solid var(--btn-brd)',borderRadius:4,padding:'4px 12px',cursor:'pointer',
+      fontFamily:UI_FONT,minHeight:44,marginTop:2}},'TAP')
   );
 }
 
@@ -1332,6 +1340,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     catch{return [0,0,0,0,0];}
   });
   const [showRideEq,setShowRideEq]=useState(false);
+  const [bassVolume,setBassVolume]=useState(()=>parseInt(localStorage.getItem('jg-bvol')||'80',10));
+  const [guitarVolume,setGuitarVolume]=useState(()=>parseInt(localStorage.getItem('jg-cvol')||'80',10));
+  const [rideVolume,setRideVolume]=useState(()=>parseInt(localStorage.getItem('jg-rvol')||'80',10));
   const [pinnedChords,setPinnedChords]=useState(()=>new Set());
   const [barVTypes,setBarVTypes]=useState(()=>[]);
   const [vType,setVType]=useState(()=>localStorage.getItem('jg-vtype')||'drop2');
@@ -1366,6 +1377,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const guitarEnabledRef=useRef(guitarEnabled); guitarEnabledRef.current=guitarEnabled;
   const guitarEqRef=useRef([0,0,0,0,0]); guitarEqRef.current=guitarEqGains;
   const rideEqRef=useRef([0,0,0,0,0]); rideEqRef.current=rideEqGains;
+  const bassVolRef=useRef(80); bassVolRef.current=bassVolume;
+  const guitarVolRef=useRef(80); guitarVolRef.current=guitarVolume;
+  const rideVolRef=useRef(80); rideVolRef.current=rideVolume;
   const guitarRawRef=useRef(null);
   const guitarSamplesRef=useRef(null);
   const compMidiRef=useRef([]);
@@ -1383,6 +1397,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   useEffect(()=>{localStorage.setItem('jg-guitar',guitarEnabled);},[guitarEnabled]);
   useEffect(()=>{localStorage.setItem('jg-geq',JSON.stringify(guitarEqGains));},[guitarEqGains]);
   useEffect(()=>{localStorage.setItem('jg-req',JSON.stringify(rideEqGains));},[rideEqGains]);
+  useEffect(()=>{localStorage.setItem('jg-bvol',bassVolume);},[bassVolume]);
+  useEffect(()=>{localStorage.setItem('jg-cvol',guitarVolume);},[guitarVolume]);
+  useEffect(()=>{localStorage.setItem('jg-rvol',rideVolume);},[rideVolume]);
   useEffect(()=>{localStorage.setItem('jg-form',form);},[form]);
   useEffect(()=>{localStorage.setItem('jg-cprog',JSON.stringify(customProg));},[customProg]);
   useEffect(()=>{localStorage.setItem('jg-vtype',vType);},[vType]);
@@ -1563,9 +1580,10 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     const eqG=guitarEqRef.current;
     const eq=EQ_FREQS.map((fr,i)=>{const f=ctx.createBiquadFilter();f.type=EQ_TYPES[i];f.frequency.value=fr;f.Q.value=1.2;f.gain.value=eqG[i]||0;return f;});
     const gain=ctx.createGain();
+    const v=vol*(guitarVolRef.current/100);
     gain.gain.setValueAtTime(0.001,startTime);
-    gain.gain.linearRampToValueAtTime(vol,startTime+0.01);
-    gain.gain.exponentialRampToValueAtTime(vol*0.45,startTime+0.35);
+    gain.gain.linearRampToValueAtTime(v,startTime+0.01);
+    gain.gain.exponentialRampToValueAtTime(v*0.45,startTime+0.35);
     gain.gain.exponentialRampToValueAtTime(0.001,startTime+sustainSecs);
     src.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);gain.connect(ctx.destination);
     src.start(startTime);src.stop(startTime+sustainSecs+0.05);
@@ -1580,7 +1598,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
 
   function playBassNote(ctx,pc,startTime,beatDur,accent){
     const midiNote=36+((pc%12+12)%12); // C2–B2
-    const vol=accent?0.88:0.56;
+    const vol=(accent?0.88:0.56)*(bassVolRef.current/100);
     const samples=bassSamplesRef.current;
     if(samples&&Object.keys(samples).length>0){
       const notes=Object.keys(samples).map(Number);
@@ -1660,7 +1678,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         if(midi.length>0){
           const b=beat%4;
           const sustLong=Math.min(beatDur*1.7,1.5);
-          const sustStab=Math.min(beatDur*0.28,0.22);
+          const sustStab=Math.min(beatDur*0.65,0.6);
           const top3=midi.slice(-Math.min(3,midi.length));
           if(barPat.comp===0){
             // Standard bop: 1, 2-stab, 3, 4-and anticipation
@@ -1695,17 +1713,18 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         const rideEq=rideEqRef.current;
         const b=beat%4;
         const onBeat1=b===0;
+        const rVol=rideVolRef.current/100;
         if(barPat.ride===0){
           // Standard swing 8ths: every beat + every and
-          playRide(ctx,onBeat1?clickBufsRef.current.rideAccent:clickBufsRef.current.rideNorm,nextTimeRef.current,rideEq);
-          playRide(ctx,clickBufsRef.current.rideNorm,nextTimeRef.current+beatDur*(2/3),rideEq);
+          playRide(ctx,onBeat1?clickBufsRef.current.rideAccent:clickBufsRef.current.rideNorm,nextTimeRef.current,rideEq,rVol);
+          playRide(ctx,clickBufsRef.current.rideNorm,nextTimeRef.current+beatDur*(2/3),rideEq,rVol);
         } else if(barPat.ride===1){
           // Half-time feel: beats 1 and 3 only (no ands)
-          if(b===0||b===2) playRide(ctx,b===0?clickBufsRef.current.rideAccent:clickBufsRef.current.rideNorm,nextTimeRef.current,rideEq);
+          if(b===0||b===2) playRide(ctx,b===0?clickBufsRef.current.rideAccent:clickBufsRef.current.rideNorm,nextTimeRef.current,rideEq,rVol);
         } else {
           // Lazy: beat 1 accent + ands only
-          if(b===0) playRide(ctx,clickBufsRef.current.rideAccent,nextTimeRef.current,rideEq);
-          playRide(ctx,clickBufsRef.current.rideNorm,nextTimeRef.current+beatDur*(2/3),rideEq);
+          if(b===0) playRide(ctx,clickBufsRef.current.rideAccent,nextTimeRef.current,rideEq,rVol);
+          playRide(ctx,clickBufsRef.current.rideNorm,nextTimeRef.current+beatDur*(2/3),rideEq,rVol);
         }
       }
       nextTimeRef.current+=beatDur;
@@ -1833,11 +1852,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     fontFamily:UI_FONT,fontSize:'0.78rem',border:'1px solid '+(act?col:BTN_BRD),
     background:act?actBg:'transparent',color:act?col:BTN_OFF,fontWeight:act?700:400,minHeight:44});
   const playBtn={
-    width:64,height:64,borderRadius:'50%',
+    width:64,height:52,borderRadius:10,
     cursor:'pointer',border:'none',flexShrink:0,
     background:isPlaying?'#c41a1a':'#1a9944',
     color:'#ffffff',fontFamily:UI_FONT,
-    fontSize:'0.7rem',fontWeight:700,letterSpacing:'1.5px',
+    fontWeight:700,
     boxShadow:isPlaying
       ?'0 4px 0 #801010,0 0 20px #ff333344'
       :'0 4px 0 #0e6628,0 0 20px #22dd5544',
@@ -1892,10 +1911,12 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           ?e('div',{style:{minWidth:80,textAlign:'center',fontSize:'1.6rem',fontWeight:700,
               color:'#ffffff',fontFamily:SERIF,letterSpacing:4}},countIn)
           :e('button',{onClick:isPlaying?stopPlayback:startPlayback,style:playBtn},
-              isPlaying?'■ STOP':'▶ PLAY'),
+              isPlaying
+                ?e('svg',{width:18,height:18,viewBox:'0 0 18 18'},e('rect',{x:2,y:2,width:14,height:14,rx:2,fill:'white'}))
+                :e('svg',{width:18,height:18,viewBox:'0 0 18 18'},e('polygon',{points:'3,1 17,9 3,17',fill:'white'}))),
         isPlaying&&loopCount>0?e('span',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,minWidth:52}},
           'Loop '+loopCount):null,
-        e(BpmStrip,{bpm,setBpm,onTap:handleTap})
+        e(BpmKnob,{bpm,setBpm,onTap:handleTap})
       ),
       // Right: instruments (with Mix sub-buttons), separator, click
       e('div',{style:{display:'flex',gap:4,marginLeft:'auto',alignItems:'flex-end'}},
@@ -1959,13 +1980,20 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       marginBottom:10,padding:'10px 14px',background:BG2,
       border:'1px solid #74C0FC44',borderRadius:8,
     }},
-      e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
+      e('div',{style:{display:'flex',alignItems:'center',marginBottom:8}},
         e('span',{style:{fontSize:'0.72rem',color:'#74C0FC',letterSpacing:'0.3px',fontFamily:UI_FONT}},'Bass Mix'),
         e('button',{onClick:()=>setEqGains([0,0,0,0,0]),style:{
           marginLeft:'auto',padding:'2px 10px',borderRadius:4,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,
           background:'transparent',color:BTN_OFF,minHeight:44,
         }},'Flat')
+      ),
+      e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:10}},
+        e('span',{style:{fontSize:'0.65rem',color:LBL,fontFamily:UI_FONT,flexShrink:0}},'Vol'),
+        e('input',{type:'range',min:0,max:100,step:1,value:bassVolume,
+          onChange:ev=>setBassVolume(+ev.target.value),
+          style:{flex:1,accentColor:'#74C0FC',cursor:'pointer'}}),
+        e('span',{style:{fontSize:'0.65rem',color:'#74C0FC',fontFamily:UI_FONT,minWidth:28,textAlign:'right'}},bassVolume+'%')
       ),
       e('div',{style:{display:'flex',justifyContent:'space-around'}},
         EQ_FREQS.map((freq,i)=>
@@ -2002,6 +2030,13 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           background:'transparent',color:BTN_OFF,minHeight:44,
         }},'Flat')
       ),
+      e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:10}},
+        e('span',{style:{fontSize:'0.65rem',color:LBL,fontFamily:UI_FONT,flexShrink:0}},'Vol'),
+        e('input',{type:'range',min:0,max:100,step:1,value:guitarVolume,
+          onChange:ev=>setGuitarVolume(+ev.target.value),
+          style:{flex:1,accentColor:'#86EFAC',cursor:'pointer'}}),
+        e('span',{style:{fontSize:'0.65rem',color:'#86EFAC',fontFamily:UI_FONT,minWidth:28,textAlign:'right'}},guitarVolume+'%')
+      ),
       e('div',{style:{display:'flex',justifyContent:'space-around'}},
         EQ_FREQS.map((freq,i)=>
           e('div',{key:i,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4}},
@@ -2029,13 +2064,20 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       marginBottom:10,padding:'10px 14px',background:BG2,
       border:'1px solid '+GOLD+'44',borderRadius:8,
     }},
-      e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
+      e('div',{style:{display:'flex',alignItems:'center',marginBottom:8}},
         e('span',{style:{fontSize:'0.72rem',color:GOLD,letterSpacing:'0.3px',fontFamily:UI_FONT}},'Ride Mix'),
         e('button',{onClick:()=>setRideEqGains([0,0,0,0,0]),style:{
           marginLeft:'auto',padding:'2px 10px',borderRadius:4,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,
           background:'transparent',color:BTN_OFF,minHeight:44,
         }},'Flat')
+      ),
+      e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:10}},
+        e('span',{style:{fontSize:'0.65rem',color:LBL,fontFamily:UI_FONT,flexShrink:0}},'Vol'),
+        e('input',{type:'range',min:0,max:100,step:1,value:rideVolume,
+          onChange:ev=>setRideVolume(+ev.target.value),
+          style:{flex:1,accentColor:GOLD,cursor:'pointer'}}),
+        e('span',{style:{fontSize:'0.65rem',color:GOLD,fontFamily:UI_FONT,minWidth:28,textAlign:'right'}},rideVolume+'%')
       ),
       e('div',{style:{display:'flex',justifyContent:'space-around'}},
         EQ_FREQS.map((freq,i)=>
@@ -2773,7 +2815,7 @@ function App(){
   const [key,setKey]=useState(()=>parseInt(localStorage.getItem('jg-key')||'0',10));
   const [viewMode,setViewMode]=useState(()=>localStorage.getItem('jg-viewMode')||'guide'); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
   const [keyOpen,setKeyOpen]=useState(false);
-  const [dotMode,setDotMode]=useState(()=>{const m=localStorage.getItem('jg-dotMode')||'interval';return m==='both'?'interval':m;});
+  const [dotMode,setDotMode]=useState(()=>{const m=localStorage.getItem('jg-dotMode')||'interval';return (m==='both'||m==='finger')?'interval':m;});
   const [tourStep,setTourStep]=useState(null);
   useEffect(()=>{localStorage.setItem('jg-dotMode',dotMode);},[dotMode]);
   function tourNext(){
