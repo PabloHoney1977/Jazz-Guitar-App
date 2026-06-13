@@ -1656,23 +1656,40 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       }
       const delay=Math.max(0,(nextTimeRef.current-audioCtxRef.current.currentTime)*1000);
       setTimeout(()=>{if(genRef.current===gen){setPlayingChordIdx(ci);setPlayingBar(bar);setActiveChordIdx(bar);}},delay);
-      // Determine which bass tone to play — chromatic approach on beat 4 into a new chord
-      const nextChordRoot=chordsRef.current[bars[(bar+1)%bars.length]].tones[0];
-      const isLastBeat=beat%4===3;
-      const isDifferentChord=bars[(bar+1)%bars.length]!==ci;
-      let bassPC;
-      if(isLastBeat&&isDifferentChord){
-        bassPC=(nextChordRoot-1+12)%12;
-      }else{
-        const lastSame=bar===bars.length-1&&bars[bar-1]===ci;
-        const ti=(lastSame?[0,2,1,0]:[0,1,2,3])[beat%4];
-        bassPC=chordsRef.current[ci].tones[ti];
-      }
       // Assign rhythm pattern per bar (chosen once, persists per loop iteration)
       if(beat%4===0&&!barPatternRef.current[bar]){
-        barPatternRef.current[bar]={comp:Math.floor(Math.random()*4),ride:Math.floor(Math.random()*3)};
+        barPatternRef.current[bar]={comp:Math.floor(Math.random()*4),ride:Math.floor(Math.random()*3),bass:Math.floor(Math.random()*5)};
       }
-      const barPat=barPatternRef.current[bar]||{comp:0,ride:0};
+      const barPat=barPatternRef.current[bar]||{comp:0,ride:0,bass:0};
+      // Bass line — 5 patterns, each 4 beats, with approach note into chord changes
+      const ct=chordsRef.current[ci].tones; // [root,3rd,5th,7th]
+      const nextChordRoot=chordsRef.current[bars[(bar+1)%bars.length]].tones[0];
+      const isDifferentChord=bars[(bar+1)%bars.length]!==ci;
+      const b=beat%4;
+      const chrBelow=(nextChordRoot-1+12)%12;
+      const chrAbove=(nextChordRoot+1)%12;
+      let bassPC;
+      if(barPat.bass===1){
+        // Two-feel: root–5th repeating, chromatic approach on beat 4
+        bassPC=[ct[0],ct[2],ct[0],isDifferentChord?chrBelow:ct[2]][b];
+      } else if(barPat.bass===2){
+        // Scale walk-up: root–2nd–3rd–5th (approach if chord change)
+        bassPC=[ct[0],(ct[0]+2)%12,ct[1],isDifferentChord?chrBelow:ct[2]][b];
+      } else if(barPat.bass===3){
+        // Encircle next root on beats 3–4 (above then below)
+        if(b===0) bassPC=ct[0];
+        else if(b===1) bassPC=ct[1];
+        else if(b===2) bassPC=isDifferentChord?chrAbove:ct[2];
+        else bassPC=isDifferentChord?chrBelow:ct[3];
+      } else if(barPat.bass===4){
+        // 5th prominence: root–5th–passing(5th−2)–root
+        bassPC=[ct[0],ct[2],(ct[2]-2+12)%12,isDifferentChord?chrBelow:ct[0]][b];
+      } else {
+        // Pattern 0: walking chord tones (root–3rd–5th–7th), turnaround on repeated last bar
+        const lastSame=bar===bars.length-1&&bars[bar-1]===ci;
+        const idxs=isDifferentChord&&b===3?null:(lastSame?[0,2,1,0]:[0,1,2,3]);
+        bassPC=idxs?ct[idxs[b]]:chrBelow;
+      }
       if(guitarEnabledRef.current){
         const midi=compMidiRef.current[bar]||[];
         if(midi.length>0){
