@@ -317,12 +317,18 @@ async function makeRideBufAsync(sr,vol,accent){
   s4.connect(f4);f4.connect(g4);g4.connect(offCtx.destination);s4.start(0);
   return offCtx.startRendering();
 }
-function playRide(ctx,buf,startTime){
+function playRide(ctx,buf,startTime,eqGains){
   if(!buf) return;
   const src=ctx.createBufferSource();
   src.buffer=buf;
   const g=ctx.createGain();g.gain.value=0.42;
-  src.connect(g);g.connect(ctx.destination);
+  src.connect(g);
+  if(eqGains&&eqGains.some(v=>v!==0)){
+    const eq=EQ_FREQS.map((fr,i)=>{const f=ctx.createBiquadFilter();f.type=EQ_TYPES[i];f.frequency.value=fr;f.Q.value=1.2;f.gain.value=eqGains[i]||0;return f;});
+    g.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(ctx.destination);
+  } else {
+    g.connect(ctx.destination);
+  }
   src.start(startTime);
 }
 
@@ -1234,9 +1240,9 @@ const FORM_DEFS={
     tip:'Jazz blues = the 12-bar you know plus three moves: bar 8 picks up a VI7, bars 9–10 swap the old V–IV for a IIm7–V7, and bar 12 turns around on V7. Spot the II–V–I hiding in bars 9–11.'},
   autumn:{lbl:'AUTUMN LEAVES',col:'#F4A261',bg:ACT_GOLD,
     chords:[[2,'m7','m7','IIm7'],[7,'dom7','7','V7'],[0,'maj7','maj7','Imaj7'],[5,'maj7','maj7','IVmaj7'],
-            [11,'m7b5','ø7','VIIø7'],[4,'dom7','7','III7'],[9,'m7','m7','VIm7'],[9,'m7','m7','VIm7']],
-    bars:[0,1,2,3,4,5,6,7],
-    tip:'Autumn Leaves contains two II–V–I cycles: IIm7→V7→Imaj7 in the major key, then VIIø7→III7→VIm7 in the relative minor. Root motion descends in 4ths throughout.'},
+            [11,'m7b5','ø7','VIIø7'],[4,'dom7','7','III7'],[9,'m7','m7','VIm7']],
+    bars:[0,1,2,3,4,5,6,6,0,1,2,3,4,5,6,6,4,5,6,6,0,1,2,2,0,1,2,3,4,5,6,6],
+    tip:'Autumn Leaves — AABA, 32 bars (key of G major / E minor). A: IIm7→V7→Imaj7→IVmaj7→VIIø7→III7→VIm7. B: minor II–V–I then major II–V–I. Root motion descends in 4ths. Set key to G.'},
   minblues:{lbl:'MINOR BLUES',col:'#FF6B6B',bg:ACT_RED,
     chords:[[0,'m7','m7','Im7'],[5,'m7','m7','IVm7'],[2,'m7b5','ø7','IIø7'],[7,'dom7','7','V7']],
     bars:[0,0,0,0, 1,1,0,0, 2,3,0,3],
@@ -1329,6 +1335,13 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     catch{return [0,0,0,0,0];}
   });
   const [showGuitarEq,setShowGuitarEq]=useState(false);
+  const [rideEqGains,setRideEqGains]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem('jg-req')||'null')||[0,0,0,0,0];}
+    catch{return [0,0,0,0,0];}
+  });
+  const [showRideEq,setShowRideEq]=useState(false);
+  const [pinnedChords,setPinnedChords]=useState(()=>new Set());
+  const [showVoicingPopup,setShowVoicingPopup]=useState(false);
   const [vType,setVType]=useState(()=>localStorage.getItem('jg-vtype')||'drop2');
   const [customProg,setCustomProg]=useState(()=>{
     try{return JSON.parse(localStorage.getItem('jg-cprog')||'null')||DFLT_CPROG;}
@@ -1360,6 +1373,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const eqRef=useRef([0,0,0,0,0]); eqRef.current=eqGains;
   const guitarEnabledRef=useRef(guitarEnabled); guitarEnabledRef.current=guitarEnabled;
   const guitarEqRef=useRef([0,0,0,0,0]); guitarEqRef.current=guitarEqGains;
+  const rideEqRef=useRef([0,0,0,0,0]); rideEqRef.current=rideEqGains;
   const guitarRawRef=useRef(null);
   const guitarSamplesRef=useRef(null);
   const compMidiRef=useRef([]);
@@ -1375,6 +1389,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   useEffect(()=>{localStorage.setItem('jg-eq',JSON.stringify(eqGains));},[eqGains]);
   useEffect(()=>{localStorage.setItem('jg-guitar',guitarEnabled);},[guitarEnabled]);
   useEffect(()=>{localStorage.setItem('jg-geq',JSON.stringify(guitarEqGains));},[guitarEqGains]);
+  useEffect(()=>{localStorage.setItem('jg-req',JSON.stringify(rideEqGains));},[rideEqGains]);
   useEffect(()=>{localStorage.setItem('jg-form',form);},[form]);
   useEffect(()=>{localStorage.setItem('jg-cprog',JSON.stringify(customProg));},[customProg]);
   useEffect(()=>{localStorage.setItem('jg-vtype',vType);},[vType]);
@@ -1657,10 +1672,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       }
       // Ride cymbal — swing 8ths (2:1 ratio)
       if(rideRef.current&&clickBufsRef.current){
+        const rideEq=rideEqRef.current;
         const onBeat=beat%4===0;
-        playRide(ctx,onBeat?clickBufsRef.current.rideAccent:clickBufsRef.current.rideNorm,nextTimeRef.current);
+        playRide(ctx,onBeat?clickBufsRef.current.rideAccent:clickBufsRef.current.rideNorm,nextTimeRef.current,rideEq);
         const andTime=nextTimeRef.current+beatDur*(2/3);
-        playRide(ctx,clickBufsRef.current.rideNorm,andTime);
+        playRide(ctx,clickBufsRef.current.rideNorm,andTime,rideEq);
       }
       nextTimeRef.current+=beatDur;
       beatRef.current++;
@@ -1739,26 +1755,35 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     setActiveChordIdx(0);
   },[keyIdx,form]);
 
-  // Auto voice-lead: recompute optimal inversions whenever the progression,
-  // voicing type, or string set changes. This means the user always sees good
-  // voice leading without having to hit Play first.
-  useEffect(()=>{
-    const cs=chordsRef.current;
-    if(!cs||cs.length<2) return;
+  function computeAllVoicings(cs){
     const dD=DROP_DATA[vType]||DROP_DATA.drop2;
     const sIdx=Math.min(strSetIdx,dD.sets.length-1);
     const strSet=vType==='shell'?null:dD.sets[sIdx].s;
-    const allVoicings=cs.map(chord=>{
+    return cs.map(chord=>{
       if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1));
       return dD.inv.map(inv=>calcVoicing(strSet,inv.a,chord.tones));
     });
-    const idxs=allVoicings.map(()=>0);
-    for(let i=1;i<cs.length;i++)
-      idxs[i]=findBestInvIdx(allVoicings[i-1][idxs[i-1]],allVoicings[i]);
-    idxs[0]=findBestInvIdx(allVoicings[cs.length-1][idxs[cs.length-1]],allVoicings[0]);
-    for(let i=1;i<cs.length;i++)
-      idxs[i]=findBestInvIdx(allVoicings[i-1][idxs[i-1]],allVoicings[i]);
-    setInvIdxs(idxs);
+  }
+  function runVL(allVoicings,startIdxs,pinned){
+    const n=allVoicings.length;
+    const idxs=[...startIdxs];
+    for(let pass=0;pass<2;pass++){
+      for(let i=0;i<n;i++){
+        if(pinned&&pinned.has(i)) continue;
+        const prevI=(i-1+n)%n;
+        idxs[i]=findBestInvIdx(allVoicings[prevI][idxs[prevI]],allVoicings[i]);
+      }
+    }
+    return idxs;
+  }
+  // Auto voice-lead: recompute optimal inversions whenever the progression,
+  // voicing type, or string set changes. Clears any user pins.
+  useEffect(()=>{
+    const cs=chordsRef.current;
+    if(!cs||cs.length<2) return;
+    const av=computeAllVoicings(cs);
+    setInvIdxs(runVL(av,av.map(()=>0),null));
+    setPinnedChords(new Set());
   },[form,keyIdx,vType,strSetIdx,customProg]);
 
   const modeBtn=(act,col,actBg)=>({padding:'6px 13px',borderRadius:5,cursor:'pointer',
@@ -1828,28 +1853,39 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           'Loop '+loopCount):null,
         e(BpmKnob,{bpm,setBpm,onTap:handleTap})
       ),
-      // Right: toggles pushed to right edge
-      e('div',{style:{display:'flex',gap:6,marginLeft:'auto',alignItems:'stretch'}},
-        e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:'#74C0FC'}),
-        e('button',{onClick:()=>{setShowEq(v=>!v);setShowGuitarEq(false);},'aria-label':'Bass EQ',title:'Bass EQ',style:{
-          display:'flex',alignItems:'center',justifyContent:'center',
-          width:28,borderRadius:6,cursor:'pointer',flexShrink:0,border:'none',
-          background:showEq?'#74C0FC28':'transparent',
-          color:showEq?'#74C0FC':BTN_OFF,
-          fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
-          minHeight:44,padding:0,
-        }},'EQ'),
-        e(LedToggle,{label:'COMP',enabled:guitarEnabled,onToggle:()=>setGuitarEnabled(v=>!v),color:'#86EFAC'}),
-        e('button',{onClick:()=>{setShowGuitarEq(v=>!v);setShowEq(false);},'aria-label':'Comp EQ',title:'Comp guitar EQ',style:{
-          display:'flex',alignItems:'center',justifyContent:'center',
-          width:28,borderRadius:6,cursor:'pointer',flexShrink:0,border:'none',
-          background:showGuitarEq?'#86EFAC28':'transparent',
-          color:showGuitarEq?'#86EFAC':BTN_OFF,
-          fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
-          minHeight:44,padding:0,
-        }},'EQ'),
-        e(LedToggle,{label:'CLICK',enabled:metronomeEnabled,onToggle:()=>setMetronomeEnabled(v=>!v),color:'#aaaacc'}),
-        e(LedToggle,{label:'RIDE',enabled:rideEnabled,onToggle:()=>setRideEnabled(v=>!v),color:GOLD})
+      // Right: instruments (with EQ sub-buttons), separator, click
+      e('div',{style:{display:'flex',gap:6,marginLeft:'auto',alignItems:'flex-end'}},
+        // BASS + EQ
+        e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2}},
+          e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:'#74C0FC'}),
+          e('button',{onClick:()=>{setShowEq(v=>!v);setShowGuitarEq(false);setShowRideEq(false);},'aria-label':'Bass EQ',title:'Bass EQ',style:{
+            width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
+            background:showEq?'#74C0FC22':'transparent',color:showEq?'#74C0FC':BTN_OFF,
+            fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
+          }},'EQ')
+        ),
+        // COMP + EQ
+        e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2}},
+          e(LedToggle,{label:'COMP',enabled:guitarEnabled,onToggle:()=>setGuitarEnabled(v=>!v),color:'#86EFAC'}),
+          e('button',{onClick:()=>{setShowGuitarEq(v=>!v);setShowEq(false);setShowRideEq(false);},'aria-label':'Comp EQ',title:'Comp EQ',style:{
+            width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
+            background:showGuitarEq?'#86EFAC22':'transparent',color:showGuitarEq?'#86EFAC':BTN_OFF,
+            fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
+          }},'EQ')
+        ),
+        // RIDE + EQ
+        e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2}},
+          e(LedToggle,{label:'RIDE',enabled:rideEnabled,onToggle:()=>setRideEnabled(v=>!v),color:GOLD}),
+          e('button',{onClick:()=>{setShowRideEq(v=>!v);setShowEq(false);setShowGuitarEq(false);},'aria-label':'Ride EQ',title:'Ride EQ',style:{
+            width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
+            background:showRideEq?GOLD+'22':'transparent',color:showRideEq?GOLD:BTN_OFF,
+            fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
+          }},'EQ')
+        ),
+        // Separator before click-only control
+        e('div',{style:{width:1,alignSelf:'stretch',background:BORDER,margin:'0 2px'}}),
+        // CLICK — metronome only, no EQ
+        e(LedToggle,{label:'CLICK',enabled:metronomeEnabled,onToggle:()=>setMetronomeEnabled(v=>!v),color:'#aaaacc'})
       )
     ),
     // Bass EQ panel
@@ -1922,6 +1958,35 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         )
       )
     ):null,
+    // Ride EQ panel
+    showRideEq?e('div',{style:{
+      marginBottom:10,padding:'10px 14px',background:BG2,
+      border:'1px solid '+GOLD+'44',borderRadius:8,
+    }},
+      e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
+        e('span',{style:{fontSize:'0.72rem',color:GOLD,letterSpacing:'0.3px',fontFamily:UI_FONT}},'Ride EQ'),
+        e('button',{onClick:()=>setRideEqGains([0,0,0,0,0]),style:{
+          marginLeft:'auto',padding:'2px 10px',borderRadius:4,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,
+          background:'transparent',color:BTN_OFF,minHeight:44,
+        }},'Flat')
+      ),
+      e('div',{style:{display:'flex',justifyContent:'space-around'}},
+        EQ_FREQS.map((freq,i)=>
+          e('div',{key:i,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4}},
+            e('span',{style:{fontSize:'0.65rem',fontFamily:UI_FONT,minWidth:28,textAlign:'center',
+              color:rideEqGains[i]>0?GOLD:rideEqGains[i]<0?'#FF6B6B':HINT,
+            }},(rideEqGains[i]>0?'+':'')+rideEqGains[i]),
+            e('input',{type:'range',min:-12,max:12,step:1,value:rideEqGains[i],
+              onChange:ev=>{const g=[...rideEqGains];g[i]=+ev.target.value;setRideEqGains(g);},
+              style:{WebkitAppearance:'slider-vertical',writingMode:'vertical-lr',direction:'rtl',
+                width:28,height:96,cursor:'pointer',accentColor:GOLD,touchAction:'none'}
+            }),
+            e('span',{style:{fontSize:'0.65rem',color:LBL,fontFamily:UI_FONT}},EQ_LABELS[i])
+          )
+        )
+      )
+    ):null,
     // Custom progression controls
     form==='custom'?e('div',{style:{marginBottom:8}},
       e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:editingBar>=0?6:0,alignItems:'center'}},
@@ -1966,15 +2031,21 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         )
       ):null
     ):null,
-    // Bar tracker — tap any bar to select its chord and see voicing options below
+    // Bar tracker — tap any bar to open voicing picker popup
     e('div',{style:{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}},
       bars.map((ci,i)=>{
         const lit=isPlaying&&playingBar===i;
         const isEditing=form==='custom'&&editingBar===i;
         const isSel=!isPlaying&&ci===activeChordIdx;
+        const isPinned=pinnedChords.has(ci);
         return e('div',{key:i,
-          onClick:()=>{setActiveChordIdx(ci);if(form==='custom')setEditingBar(e=>e===i?-1:i);},
+          onClick:()=>{
+            setActiveChordIdx(ci);
+            if(form==='custom') setEditingBar(e=>e===i?-1:i);
+            else setShowVoicingPopup(true);
+          },
           style:{
+            position:'relative',
             flex:'1 1 calc(25% - 4px)',minWidth:0,textAlign:'center',padding:'3px 2px',borderRadius:5,
             fontFamily:UI_FONT,cursor:'pointer',
             border:'1px solid '+(lit?'#FFD43B':isEditing?GOLD:isSel?GOLD+'88':BORDER),
@@ -1982,6 +2053,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
             color:lit?'#FFD43B':isEditing||isSel?GOLD:BTN_OFF,
             transition:'background 0.08s,border-color 0.08s,color 0.08s'
           }},
+          isPinned&&!lit?e('div',{style:{position:'absolute',top:2,right:3,width:5,height:5,
+            borderRadius:'50%',background:GOLD,opacity:0.85}}):null,
           e('div',{style:{fontSize:'0.58rem',opacity:0.7,marginBottom:1}},chords[ci].roman),
           e('div',{style:{fontSize:'0.74rem',fontWeight:lit||isSel?700:400}},chords[ci].name)
         );
@@ -2017,22 +2090,22 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           color:showGTLine?GOLD:BTN_OFF,minHeight:44}},'Guide tones ♦')
       )
     ),
-    // Active-chord voicing picker — bar tracker above serves as navigation
-    e('div',null,
-      // Chord header with prev/next navigation
-      e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:6}},
-        e('button',{
-          onClick:()=>setActiveChordIdx(Math.max(0,activeChordIdx-1)),
-          disabled:activeChordIdx===0,
-          style:{padding:'2px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
-            fontSize:'0.8rem',border:'1px solid '+BTN_BRD,background:'transparent',
-            color:activeChordIdx===0?BTN_BRD:BTN_OFF,minHeight:36}
-        },'◀'),
-        e('div',{style:{flex:1,padding:'6px 10px',background:BG2,border:'1px solid '+GOLD+'66',
-          borderRadius:6,display:'flex',alignItems:'center',gap:10}},
+    // Voicing picker — opens as a bottom sheet when a chord cell is tapped
+    showVoicingPopup?e('div',{
+      onClick:()=>setShowVoicingPopup(false),
+      style:{position:'fixed',inset:0,zIndex:300,display:'flex',flexDirection:'column',justifyContent:'flex-end'}
+    },
+      e('div',{style:{position:'absolute',inset:0,background:'rgba(0,0,0,0.55)'}}),
+      e('div',{
+        onClick:ev=>ev.stopPropagation(),
+        style:{position:'relative',background:BG2,borderTop:'2px solid '+GOLD+'55',
+          borderRadius:'12px 12px 0 0',padding:'14px 14px 32px',maxHeight:'82vh',overflowY:'auto'}
+      },
+        // Header
+        e('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:8}},
           e('div',{style:{display:'flex',flexDirection:'column'}},
             e('div',{style:{fontSize:'0.7rem',color:GOLD,fontWeight:600}},ac.roman),
-            e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:GOLD,lineHeight:1.1}},ac.name)
+            e('div',{style:{fontFamily:SERIF,fontSize:'1.1rem',fontWeight:700,color:GOLD}},ac.name)
           ),
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginLeft:8}},
             ac.tones.map((t,ti)=>
@@ -2040,54 +2113,58 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
                 ac.dnames[ti]+'='+nn(t,form==='custom'?0:keyIdx))
             )
           ),
-          def?e('button',{onClick:()=>setShowTip(v=>!v),style:{
-            marginLeft:'auto',flexShrink:0,padding:'2px 7px',borderRadius:4,cursor:'pointer',
-            fontFamily:UI_FONT,fontSize:'0.7rem',border:'1px solid '+(showTip?GOLD:BTN_BRD),
-            background:'transparent',color:showTip?GOLD:BTN_OFF,minHeight:28
-          }},'?'):null
+          pinnedChords.has(activeChordIdx)?e('div',{style:{
+            flexShrink:0,padding:'2px 8px',borderRadius:10,
+            background:GOLD+'22',border:'1px solid '+GOLD+'55',
+            fontSize:'0.65rem',color:GOLD,fontFamily:UI_FONT
+          }},'pinned'):null,
+          e('button',{onClick:()=>setShowVoicingPopup(false),style:{
+            marginLeft:'auto',flexShrink:0,padding:'4px 10px',borderRadius:6,cursor:'pointer',
+            fontFamily:UI_FONT,fontSize:'1rem',border:'none',background:'transparent',
+            color:BTN_OFF,minHeight:0
+          }},'✕')
         ),
-        e('button',{
-          onClick:()=>setActiveChordIdx(Math.min(chords.length-1,activeChordIdx+1)),
-          disabled:activeChordIdx===chords.length-1,
-          style:{padding:'2px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
-            fontSize:'0.8rem',border:'1px solid '+BTN_BRD,background:'transparent',
-            color:activeChordIdx===chords.length-1?BTN_BRD:BTN_OFF,minHeight:36}
-        },'▶')
-      ),
-      // Voice-leading tip (collapsible)
-      showTip&&def?e('div',{style:{marginBottom:8,padding:'7px 10px',background:BG2,
-        border:'1px solid '+BORDER,borderRadius:6,fontSize:'0.76rem',color:HINT,lineHeight:1.55}},
-        e('span',{style:{color:GOLD,fontWeight:700}},'Voice leading: '),def.tip
-      ):null,
-      // Voicing diagrams for the active chord
-      e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
-        (()=>{
-          const voicings=vType==='shell'
-            ?SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ac.tones,1))
-            :dropD.inv.map(inv=>calcVoicing(ss,inv.a,ac.tones));
-          const ci=activeChordIdx;
-          return vType==='shell'
-            ?SHELLS.map((sh,ii)=>
-                e(ChordBox,{key:ii,voicing:voicings[ii],strings:sh.s,tones:ac.tones,
-                  degNames:ac.dnames,invLabel:sh.lbl+' ('+sh.root+')',bassLabel:'bass: R',
-                  selected:invIdxs[ci]===ii,dotMode,
-                  dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,
-                  onClick:()=>{const n=[...invIdxs];n[ci]=ii;setInvIdxs(n);}
-                })
-              )
-            :dropD.inv.map((inv,ii)=>
-                e(ChordBox,{key:ii,voicing:voicings[ii],strings:ss,tones:ac.tones,
-                  degNames:ac.dnames,
-                  invLabel:ii===0?'Root pos.':ac.dnames[inv.bassIdx]+' bass',
-                  bassLabel:ii===0?'bass: '+ac.dnames[inv.bassIdx]:null,
-                  selected:invIdxs[ci]===ii,dotMode,
-                  dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,
-                  onClick:()=>{const n=[...invIdxs];n[ci]=ii;setInvIdxs(n);}
-                })
-              );
-        })()
+        // Voice-leading tip
+        def&&def.tip?e('div',{style:{marginBottom:10,padding:'6px 10px',background:BG,
+          border:'1px solid '+BORDER,borderRadius:6,fontSize:'0.74rem',color:HINT,lineHeight:1.5}},
+          e('span',{style:{color:GOLD,fontWeight:700}},'Voice leading: '),def.tip
+        ):null,
+        // Voicing diagrams
+        e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
+          (()=>{
+            const voicings=vType==='shell'
+              ?SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ac.tones,1))
+              :dropD.inv.map(inv=>calcVoicing(ss,inv.a,ac.tones));
+            const pick=(ii)=>{
+              const n=[...invIdxs];n[activeChordIdx]=ii;
+              const newPinned=new Set(pinnedChords);newPinned.add(activeChordIdx);
+              setPinnedChords(newPinned);
+              const cs=chordsRef.current;
+              if(cs&&cs.length>=2) setInvIdxs(runVL(computeAllVoicings(cs),n,newPinned));
+              else setInvIdxs(n);
+              setShowVoicingPopup(false);
+            };
+            return vType==='shell'
+              ?SHELLS.map((sh,ii)=>
+                  e(ChordBox,{key:ii,voicing:voicings[ii],strings:sh.s,tones:ac.tones,
+                    degNames:ac.dnames,invLabel:sh.lbl+' ('+sh.root+')',bassLabel:'bass: R',
+                    selected:invIdxs[activeChordIdx]===ii,dotMode,
+                    dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,onClick:()=>pick(ii)
+                  })
+                )
+              :dropD.inv.map((inv,ii)=>
+                  e(ChordBox,{key:ii,voicing:voicings[ii],strings:ss,tones:ac.tones,
+                    degNames:ac.dnames,
+                    invLabel:ii===0?'Root pos.':ac.dnames[inv.bassIdx]+' bass',
+                    bassLabel:ii===0?'bass: '+ac.dnames[inv.bassIdx]:null,
+                    selected:invIdxs[activeChordIdx]===ii,dotMode,
+                    dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,onClick:()=>pick(ii)
+                  })
+                );
+          })()
+        )
       )
-    )
+    ):null
   );
 }
 
