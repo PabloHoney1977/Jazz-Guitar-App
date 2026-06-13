@@ -594,8 +594,8 @@ function BpmKnob({bpm,setBpm,onTap}){
     e('div',{style:{fontSize:'1.0rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT,lineHeight:1}},bpm),
     e('div',{style:{fontSize:'0.6rem',color:'var(--lbl)',letterSpacing:'1px',lineHeight:1}},'BPM'),
     e('button',{onClick:onTap,style:{fontSize:'0.7rem',color:'var(--btn-off)',background:'transparent',
-      border:'1px solid var(--btn-brd)',borderRadius:4,padding:'2px 8px',cursor:'pointer',
-      fontFamily:UI_FONT,minHeight:28,marginTop:2}},'TAP')
+      border:'1px solid var(--btn-brd)',borderRadius:4,padding:'4px 12px',cursor:'pointer',
+      fontFamily:UI_FONT,minHeight:36,marginTop:2}},'TAP')
   );
 }
 
@@ -916,11 +916,11 @@ function TourOverlay({step,onNext,onSkip}){
       e('div',{style:{fontSize:'0.81rem',color:'#9ab8d8',lineHeight:1.65,marginBottom:14}},s.text),
       e('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
         e('button',{onClick:onSkip,style:{padding:'6px 14px',borderRadius:8,border:'1px solid #1a4a6a',
-          background:'transparent',color:'#4a7a9a',fontFamily:UI_FONT,fontSize:'0.79rem',cursor:'pointer',minHeight:36}},
+          background:'transparent',color:'#4a7a9a',fontFamily:UI_FONT,fontSize:'0.79rem',cursor:'pointer',minHeight:44}},
           'Skip tour'),
         e('button',{onClick:onNext,style:{padding:'6px 20px',borderRadius:8,border:'none',
-          background:'#4ECDC4',color:'#07070f',fontFamily:UI_FONT,fontSize:'0.82rem',
-          fontWeight:700,cursor:'pointer',minHeight:36}},
+          background:'#d4a855',color:'#07070f',fontFamily:UI_FONT,fontSize:'0.82rem',
+          fontWeight:700,cursor:'pointer',minHeight:44}},
           isLast?'Done':'Next →')
       )
     )
@@ -1104,7 +1104,7 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
     e('svg',{width:W,height:H,viewBox:`0 0 ${W} ${H}`},
       e('rect',{width:W,height:H,rx:9,fill:selected?'var(--cb-sel)':'var(--cb-bg)',stroke:selected?'var(--txt)':BORDER,strokeWidth:selected?2.5:1.5}),
       e('text',{x:W/2,y:20,textAnchor:'middle',fill:selected?'var(--txt)':BTN_OFF,fontSize:13,fontWeight:selected?'bold':'normal',fontFamily:UI_FONT},invLabel),
-      bassLabel?e('text',{x:W/2,y:38,textAnchor:'middle',fill:selected?'#4ECDC488':HINT,fontSize:11,fontFamily:UI_FONT},bassLabel):null,
+      bassLabel?e('text',{x:W/2,y:38,textAnchor:'middle',fill:HINT,fontSize:11,fontFamily:UI_FONT},bassLabel):null,
       !showNut?e('text',{x:3,y:PT+FS/2,dominantBaseline:'middle',fill:HINT,fontSize:10,fontFamily:UI_FONT},SF+'fr'):null,
       showNut?e('rect',{x:sx(0)-2,y:PT-5,width:5*SS+4,height:5,fill:'#c8a855',rx:1.5}):null,
       Array.from({length:NF+1},(_,k)=>
@@ -2554,7 +2554,7 @@ function App(){
       e('button',{onClick:()=>setTourStep(0),'aria-label':'Start tour',style:{padding:'4px 10px',
         borderRadius:18,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',
         border:'1px solid '+BTN_BRD,background:'transparent',
-        color:BTN_OFF,minHeight:34,flexShrink:0}},'? Tour'),
+        color:BTN_OFF,minHeight:44,flexShrink:0}},'? Tour'),
       e('button',{onClick:toggleTheme,'aria-label':'Toggle theme',style:{padding:'4px 10px',
         borderRadius:18,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',
         border:'1px solid '+BTN_BRD,background:'transparent',
@@ -2567,7 +2567,7 @@ function App(){
       e('button',{onClick:()=>setKeyOpen(o=>!o),style:{
         display:'inline-flex',alignItems:'center',gap:7,padding:'5px 14px',borderRadius:18,
         cursor:'pointer',fontFamily:UI_FONT,border:'1px solid '+(keyOpen?GOLD:BTN_BRD),
-        background:keyOpen?ACT_GOLD:BG2,minHeight:38}},
+        background:keyOpen?ACT_GOLD:BG2,minHeight:44}},
         e('span',{style:{fontSize:'0.7rem',color:LBL,letterSpacing:'1px'}},'KEY'),
         e('span',{style:{fontSize:'1rem',color:GOLD,fontWeight:700}},KEYS[key].name),
         e('span',{style:{fontSize:'0.7rem',color:LBL}},keyOpen?'▲':'▼')
