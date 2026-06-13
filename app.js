@@ -1370,7 +1370,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const activeScale=scaleHint?(SCALE_HINTS[ac.quality]||[]).find(s=>s.name===scaleHint):null;
   const scalePos=useMemo(()=>activeScale?getScalePos(ac.rootPC,activeScale.iv,ac.tones):[],[scaleHint,activeChordIdx,keyIdx,form,customProg]);
   const highlight=useMemo(()=>{
-    const selIdx=invIdxs[activeChordIdx];
+    const maxIdx=vType==='shell'?SHELLS.length-1:dropD.inv.length-1;
+    const selIdx=Math.min(invIdxs[activeChordIdx]||0,maxIdx);
     const v=activeVoicings[selIdx];
     if(!v) return null;
     const strSet=vType==='shell'?SHELLS[selIdx].s:ss;
@@ -1644,7 +1645,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
             border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:36}},
           '+ Bar'),
-        customProg.length>1?e('button',{onClick:()=>{setCustomProg(p=>p.slice(0,-1));setEditingBar(-1);},
+        customProg.length>1?e('button',{onClick:()=>{setCustomProg(p=>{const n=p.slice(0,-1);setActiveChordIdx(a=>Math.min(a,n.length-1));return n;});setEditingBar(-1);},
           style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
             border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:36}},
           '− Bar'):null,
