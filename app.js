@@ -1672,8 +1672,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   };
 
   return e('div',null,
-    // Voicing type + string set selector — grouped so labels don't detach from their buttons on wrap
-    e('div',{style:{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap',alignItems:'center'}},
+    // Voicing + String Set row
+    e('div',{style:{display:'flex',gap:8,marginBottom:8,flexWrap:'wrap',alignItems:'center'}},
       e('div',{style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
         e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Voicing'),
         (level==='essentials'
@@ -1686,14 +1686,28 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         dropD.sets.map((set,i)=>
           e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
         )
-      ):null,
-      e('div',{style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
-        e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Form'),
-        (level==='essentials'?['major']:Object.keys(FORM_DEFS)).map(f=>
-          e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
-        )
-      )
+      ):null
     ),
+    // Form selector — own row so buttons can wrap freely; standards visually separated
+    level==='essentials'
+      ?e('div',{style:{display:'flex',gap:6,alignItems:'center',marginBottom:10}},
+          e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Form'),
+          e('button',{onClick:()=>setForm('major'),style:modeBtn(form==='major',FORM_DEFS.major.col,FORM_DEFS.major.bg)},FORM_DEFS.major.lbl)
+        )
+      :e('div',{style:{marginBottom:10}},
+          e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',marginBottom:5}},
+            e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Progressions'),
+            ['major','minor','turn','blues','minblues','custom'].map(f=>
+              e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
+            )
+          ),
+          e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}},
+            e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Standards'),
+            ['autumn','attya','twnbay'].map(f=>
+              e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
+            )
+          )
+        ),
     // Play-along controls
     e('div',{style:{display:'flex',alignItems:'center',flexWrap:'wrap',gap:10,marginBottom:10,
       padding:'10px 14px',background:BG2,border:'1px solid '+BORDER,borderRadius:8}},
