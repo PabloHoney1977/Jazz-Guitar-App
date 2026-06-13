@@ -991,7 +991,7 @@ function NeckSVG({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotK
         stroke:`rgba(220,195,130,${0.30+si*0.09})`,strokeWidth:0.4+si*0.26})
     ),
     [1,3,5,7,9,12,15].map(f=>
-      e('text',{key:'fn'+f,x:nx(f),y:H-8,textAnchor:'middle',style:{fill:'var(--neck-lbl)'},fontSize:9,fontFamily:UI_FONT},f)
+      e('text',{key:'fn'+f,x:nx(f),y:H-6,textAnchor:'middle',style:{fill:'var(--neck-lbl)'},fontSize:13,fontFamily:UI_FONT},f)
     ),
     STR_NAMES.map((n,si)=>
       e('text',{key:'sl'+si,x:PL-26,y:sy(si),textAnchor:'end',dominantBaseline:'middle',
@@ -1310,7 +1310,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const [isPlaying,setIsPlaying]=useState(false);
   const [bpm,setBpm]=useState(()=>Math.max(35,Math.min(150,parseInt(localStorage.getItem('jg-bpm')||'80',10))));
   const [bassEnabled,setBassEnabled]=useState(()=>localStorage.getItem('jg-bass')!=='false');
-  const [metronomeEnabled,setMetronomeEnabled]=useState(()=>localStorage.getItem('jg-met')!=='false');
+  const [metronomeEnabled,setMetronomeEnabled]=useState(()=>localStorage.getItem('jg-met')==='true');
   const [form,setForm]=useState(()=>{
     const f=localStorage.getItem('jg-form');
     if(f&&FORM_DEFS[f]) return f;
@@ -1376,6 +1376,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const guitarRawRef=useRef(null);
   const guitarSamplesRef=useRef(null);
   const compMidiRef=useRef([]);
+  const barPatternRef=useRef({});
   bpmRef.current=bpm;
   bassRef.current=bassEnabled;
   metronomeRef.current=metronomeEnabled;
@@ -1645,24 +1646,36 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         const ti=(lastSame?[0,2,1,0]:[0,1,2,3])[beat%4];
         bassPC=chordsRef.current[ci].tones[ti];
       }
+      // Assign rhythm pattern per bar (chosen once, persists per loop iteration)
+      if(beat%4===0&&!barPatternRef.current[bar]){
+        barPatternRef.current[bar]={comp:Math.floor(Math.random()*4),ride:Math.floor(Math.random()*3)};
+      }
+      const barPat=barPatternRef.current[bar]||{comp:0,ride:0};
       if(guitarEnabledRef.current){
         const midi=compMidiRef.current[bar]||[];
         if(midi.length>0){
           const b=beat%4;
           const sustLong=Math.min(beatDur*1.7,1.5);
           const sustStab=Math.min(beatDur*0.28,0.22);
-          if(b===0){
-            // Beat 1: full chord strum
-            playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.30);
-          } else if(b===1){
-            // Beat 2: short stab, top 3 notes only
-            playGuitarChord(ctx,midi.slice(-Math.min(3,midi.length)),nextTimeRef.current,sustStab,0.17);
-          } else if(b===2){
-            // Beat 3: full chord, slightly softer
-            playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.24);
+          const top3=midi.slice(-Math.min(3,midi.length));
+          if(barPat.comp===0){
+            // Standard bop: 1, 2-stab, 3, 4-and anticipation
+            if(b===0) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.30);
+            else if(b===1) playGuitarChord(ctx,top3,nextTimeRef.current,sustStab,0.17);
+            else if(b===2) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.24);
+            else playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*(2/3),sustStab,0.21);
+          } else if(barPat.comp===1){
+            // Freddie Green 4-to-bar: all 4 beats, short punchy
+            playGuitarChord(ctx,top3,nextTimeRef.current,sustStab,b===0?0.28:0.20);
+          } else if(barPat.comp===2){
+            // Sparse: beat 2 stab + 4-and anticipation only
+            if(b===1) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.26);
+            else if(b===3) playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*(2/3),sustStab,0.22);
           } else {
-            // "And" of beat 4: anticipation stab into next bar
-            playGuitarChord(ctx,midi.slice(-Math.min(3,midi.length)),nextTimeRef.current+beatDur*(2/3),sustStab,0.21);
+            // Two-beat: beats 1 and 3 full, beat 2-and stab
+            if(b===0) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.28);
+            else if(b===1) playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*(2/3),sustStab,0.16);
+            else if(b===2) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.22);
           }
         }
       }
@@ -1673,13 +1686,23 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         const buf=beat%4===0?clickBufsRef.current.accent:clickBufsRef.current.normal;
         playClick(ctx,buf,nextTimeRef.current);
       }
-      // Ride cymbal — swing 8ths (2:1 ratio)
+      // Ride cymbal — swing 8ths with pattern variation
       if(rideRef.current&&clickBufsRef.current){
         const rideEq=rideEqRef.current;
-        const onBeat=beat%4===0;
-        playRide(ctx,onBeat?clickBufsRef.current.rideAccent:clickBufsRef.current.rideNorm,nextTimeRef.current,rideEq);
-        const andTime=nextTimeRef.current+beatDur*(2/3);
-        playRide(ctx,clickBufsRef.current.rideNorm,andTime,rideEq);
+        const b=beat%4;
+        const onBeat1=b===0;
+        if(barPat.ride===0){
+          // Standard swing 8ths: every beat + every and
+          playRide(ctx,onBeat1?clickBufsRef.current.rideAccent:clickBufsRef.current.rideNorm,nextTimeRef.current,rideEq);
+          playRide(ctx,clickBufsRef.current.rideNorm,nextTimeRef.current+beatDur*(2/3),rideEq);
+        } else if(barPat.ride===1){
+          // Half-time feel: beats 1 and 3 only (no ands)
+          if(b===0||b===2) playRide(ctx,b===0?clickBufsRef.current.rideAccent:clickBufsRef.current.rideNorm,nextTimeRef.current,rideEq);
+        } else {
+          // Lazy: beat 1 accent + ands only
+          if(b===0) playRide(ctx,clickBufsRef.current.rideAccent,nextTimeRef.current,rideEq);
+          playRide(ctx,clickBufsRef.current.rideNorm,nextTimeRef.current+beatDur*(2/3),rideEq);
+        }
       }
       nextTimeRef.current+=beatDur;
       beatRef.current++;
@@ -1715,6 +1738,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       nextTimeRef.current=ctx.currentTime+0.05;
       beatRef.current=0;
       loopCountRef.current=0;
+      barPatternRef.current={};
       setLoopCount(0);
       const gen=++genRef.current;
       setIsPlaying(true);
@@ -1858,39 +1882,61 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           'Loop '+loopCount):null,
         e(BpmKnob,{bpm,setBpm,onTap:handleTap})
       ),
-      // Right: instruments (with EQ sub-buttons), separator, click
-      e('div',{style:{display:'flex',gap:6,marginLeft:'auto',alignItems:'flex-end'}},
-        // BASS + EQ
-        e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2}},
+      // Right: instruments (with Mix sub-buttons), separator, click
+      e('div',{style:{display:'flex',gap:4,marginLeft:'auto',alignItems:'flex-end'}},
+        // BASS + Mix
+        e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
+          padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
           e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:'#74C0FC'}),
-          e('button',{onClick:()=>{setShowEq(v=>!v);setShowGuitarEq(false);setShowRideEq(false);},'aria-label':'Bass EQ',title:'Bass EQ',style:{
+          e('button',{onClick:()=>{setShowEq(v=>!v);setShowGuitarEq(false);setShowRideEq(false);},'aria-label':'Bass Mix',title:'Bass Mix',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
             background:showEq?'#74C0FC22':'transparent',color:showEq?'#74C0FC':BTN_OFF,
             fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
-          }},'EQ')
+          }},'MIX')
         ),
-        // COMP + EQ
-        e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2}},
+        // COMP + Mix
+        e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
+          padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
           e(LedToggle,{label:'COMP',enabled:guitarEnabled,onToggle:()=>setGuitarEnabled(v=>!v),color:'#86EFAC'}),
-          e('button',{onClick:()=>{setShowGuitarEq(v=>!v);setShowEq(false);setShowRideEq(false);},'aria-label':'Comp EQ',title:'Comp EQ',style:{
+          e('button',{onClick:()=>{setShowGuitarEq(v=>!v);setShowEq(false);setShowRideEq(false);},'aria-label':'Comp Mix',title:'Comp Mix',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
             background:showGuitarEq?'#86EFAC22':'transparent',color:showGuitarEq?'#86EFAC':BTN_OFF,
             fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
-          }},'EQ')
+          }},'MIX')
         ),
-        // RIDE + EQ
-        e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2}},
+        // RIDE + Mix
+        e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
+          padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
           e(LedToggle,{label:'RIDE',enabled:rideEnabled,onToggle:()=>setRideEnabled(v=>!v),color:GOLD}),
-          e('button',{onClick:()=>{setShowRideEq(v=>!v);setShowEq(false);setShowGuitarEq(false);},'aria-label':'Ride EQ',title:'Ride EQ',style:{
+          e('button',{onClick:()=>{setShowRideEq(v=>!v);setShowEq(false);setShowGuitarEq(false);},'aria-label':'Ride Mix',title:'Ride Mix',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
             background:showRideEq?GOLD+'22':'transparent',color:showRideEq?GOLD:BTN_OFF,
             fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
-          }},'EQ')
+          }},'MIX')
         ),
         // Separator before click-only control
         e('div',{style:{width:1,alignSelf:'stretch',background:BORDER,margin:'0 2px'}}),
-        // CLICK — metronome only, no EQ
-        e(LedToggle,{label:'CLICK',enabled:metronomeEnabled,onToggle:()=>setMetronomeEnabled(v=>!v),color:'#aaaacc'})
+        // CLICK — metronome icon button
+        e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
+          padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
+          e('button',{
+            onClick:()=>setMetronomeEnabled(v=>!v),
+            title:'Click track',
+            style:{
+              background:'none',border:'none',cursor:'pointer',padding:'3px 4px',minHeight:0,
+              display:'flex',flexDirection:'column',alignItems:'center',gap:1,
+            }
+          },
+            e('svg',{width:22,height:22,viewBox:'0 0 24 24',fill:'none',xmlns:'http://www.w3.org/2000/svg'},
+              e('polygon',{points:'5,22 19,22 15,4 9,4',stroke:metronomeEnabled?'#aaaacc':BTN_OFF,strokeWidth:1.5,fill:metronomeEnabled?'#aaaacc18':'none',strokeLinejoin:'round'}),
+              e('line',{x1:12,y1:22,x2:12,y2:4,stroke:metronomeEnabled?'#aaaacc':BTN_OFF,strokeWidth:1,opacity:0.4}),
+              e('line',{x1:12,y1:13,x2:17,y2:8,stroke:metronomeEnabled?'#FFD43B':'#FFD43B66',strokeWidth:2,strokeLinecap:'round'}),
+              e('circle',{cx:12,cy:22,r:1.5,fill:metronomeEnabled?'#aaaacc':BTN_OFF})
+            ),
+            e('span',{style:{fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
+              color:metronomeEnabled?'#aaaacc':BTN_OFF}},'CLICK')
+          )
+        )
       )
     ),
     // Bass EQ panel
@@ -1899,7 +1945,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       border:'1px solid #74C0FC44',borderRadius:8,
     }},
       e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
-        e('span',{style:{fontSize:'0.72rem',color:'#74C0FC',letterSpacing:'0.3px',fontFamily:UI_FONT}},'Bass EQ'),
+        e('span',{style:{fontSize:'0.72rem',color:'#74C0FC',letterSpacing:'0.3px',fontFamily:UI_FONT}},'Bass Mix'),
         e('button',{onClick:()=>setEqGains([0,0,0,0,0]),style:{
           marginLeft:'auto',padding:'2px 10px',borderRadius:4,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,
@@ -1934,7 +1980,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       border:'1px solid #86EFAC44',borderRadius:8,
     }},
       e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
-        e('span',{style:{fontSize:'0.72rem',color:'#86EFAC',letterSpacing:'0.3px',fontFamily:UI_FONT}},'Comp EQ'),
+        e('span',{style:{fontSize:'0.72rem',color:'#86EFAC',letterSpacing:'0.3px',fontFamily:UI_FONT}},'Comp Mix'),
         e('button',{onClick:()=>setGuitarEqGains([0,0,0,0,0]),style:{
           marginLeft:'auto',padding:'2px 10px',borderRadius:4,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,
@@ -1969,7 +2015,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       border:'1px solid '+GOLD+'44',borderRadius:8,
     }},
       e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
-        e('span',{style:{fontSize:'0.72rem',color:GOLD,letterSpacing:'0.3px',fontFamily:UI_FONT}},'Ride EQ'),
+        e('span',{style:{fontSize:'0.72rem',color:GOLD,letterSpacing:'0.3px',fontFamily:UI_FONT}},'Ride Mix'),
         e('button',{onClick:()=>setRideEqGains([0,0,0,0,0]),style:{
           marginLeft:'auto',padding:'2px 10px',borderRadius:4,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,
@@ -2058,17 +2104,18 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
                 if(form==='custom') setEditingBar(prev=>prev===barIdx?-1:barIdx);
               },
               style:{
-                flex:1,position:'relative',padding:'5px 7px 7px',cursor:'pointer',
+                flex:1,position:'relative',padding:'5px 7px 10px',cursor:'pointer',
                 borderRight:col<rowBars.length-1?'1px solid '+BORDER:'none',
                 background:lit?ACT_YEL:isSel?ACT_GOLD+'44':isEditing?ACT_GOLD:'transparent',
                 transition:'background 0.1s',
+                display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:54,
               }
             },
-              e('div',{style:{fontSize:'0.5rem',lineHeight:1,marginBottom:1,
+              e('div',{style:{position:'absolute',top:4,left:6,fontSize:'0.5rem',lineHeight:1,
                 color:lit?'#FFD43Baa':HINT,fontFamily:UI_FONT}},barIdx+1),
-              e('div',{style:{fontSize:'0.62rem',fontWeight:600,lineHeight:1,marginBottom:2,
+              e('div',{style:{fontSize:'0.62rem',fontWeight:600,lineHeight:1,marginBottom:2,textAlign:'center',
                 color:lit?'#FFD43B':isSel||isEditing?GOLD:HINT,fontFamily:UI_FONT}},chords[ci].roman),
-              e('div',{style:{fontSize:'0.82rem',fontWeight:lit||isSel?700:400,lineHeight:1.1,
+              e('div',{style:{fontSize:'0.82rem',fontWeight:lit||isSel?700:400,lineHeight:1.1,textAlign:'center',
                 color:lit?'#FFD43B':isSel||isEditing?GOLD:BTN_OFF,fontFamily:SERIF}},chords[ci].name),
               isPinned&&!lit?e('div',{style:{position:'absolute',top:4,right:4,
                 width:5,height:5,borderRadius:'50%',background:GOLD,opacity:0.9}}):null
