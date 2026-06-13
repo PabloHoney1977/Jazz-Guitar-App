@@ -1418,14 +1418,19 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       const src=ctx.createBufferSource();
       src.buffer=samples[nearest];
       src.detune.value=(midiNote-nearest)*100;
-      // Lowpass filter warms the tone — removes brittle upper harmonics
-      const lpf=ctx.createBiquadFilter();
-      lpf.type='lowpass';lpf.frequency.value=1200;lpf.Q.value=0.6;
+      // Cut the plucked-string twang zone (~650Hz), then gentle high-shelf rolloff.
+      // 1200Hz LPF was too aggressive — killed definition and made it sound muffled.
+      const midCut=ctx.createBiquadFilter();
+      midCut.type='peaking';midCut.frequency.value=650;midCut.Q.value=1.2;midCut.gain.value=-7;
+      const hiShelf=ctx.createBiquadFilter();
+      hiShelf.type='highshelf';hiShelf.frequency.value=3000;hiShelf.gain.value=-9;
       const gain=ctx.createGain();
-      gain.gain.setValueAtTime(0,startTime);
-      gain.gain.linearRampToValueAtTime(vol,startTime+0.012);
-      gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.9);
-      src.connect(lpf);lpf.connect(gain);gain.connect(ctx.destination);
+      // Near-instant attack (electric bass pluck is ~2-4ms), then pluck-compression dip, then sustain
+      gain.gain.setValueAtTime(0.001,startTime);
+      gain.gain.exponentialRampToValueAtTime(vol,startTime+0.004);
+      gain.gain.exponentialRampToValueAtTime(vol*0.68,startTime+0.055);
+      gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.88);
+      src.connect(midCut);midCut.connect(hiShelf);hiShelf.connect(gain);gain.connect(ctx.destination);
       src.start(startTime);src.stop(startTime+beatDur+0.1);
       return;
     }
