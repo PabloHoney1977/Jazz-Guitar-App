@@ -1238,6 +1238,17 @@ const FORM_DEFS={
     chords:[[0,'m7','m7','Im7'],[5,'m7','m7','IVm7'],[2,'m7b5','ø7','IIø7'],[7,'dom7','7','V7']],
     bars:[0,0,0,0, 1,1,0,0, 2,3,0,3],
     tip:'Minor blues: Im7 replaces I7 throughout; bars 9–10 become IIø7–V7 — the minor II–V you already know. The V7 creates stronger pull back to Im7 than in major blues.'},
+  attya:{lbl:'ALL THINGS',col:'#7BC8A4',bg:'#081a10',
+    chords:[[9,'m7','m7','VIm7'],[2,'m7','m7','IIm7'],[7,'dom7','7','V7'],[0,'maj7','maj7','Imaj7'],
+            [5,'maj7','maj7','IVmaj7'],[11,'dom7','7','VII7'],[4,'maj7','maj7','IIImaj7']],
+    bars:[0,1,2,3,4,5,6,6],
+    tip:'"All The Things You Are" A section: two II–V–I cycles descending by 4ths — Bbm7–Eb7–Abmaj7 (in Ab), then Dbmaj7–G7–Cmaj7 (in C). This root motion descending in 4ths is the fundamental bass motion of jazz harmony. Set key to Ab.'},
+  twnbay:{lbl:'ANOTHER YOU',col:'#F472B6',bg:'#1a0812',
+    chords:[[0,'maj7','maj7','Imaj7'],[7,'m7','m7','Vm7'],[0,'dom7','7','I7'],[5,'maj7','maj7','IVmaj7'],
+            [5,'m7','m7','IVm7'],[10,'dom7','7','bVII7'],[9,'m7','m7','VIm7'],[2,'dom7','7','II7'],
+            [2,'m7','m7','IIm7'],[7,'dom7','7','V7']],
+    bars:[0,1,2,3,4,5,0,6,7,8,9,0],
+    tip:'"There Will Never Be Another You" A section (Eb): cadence to IVmaj7 via Vm7–I7 (Bbm7–Eb7–Abmaj7), then backdoor II–V home (IVm7–bVII7–I). Closes with I–VIm7–II7–IIm7–V7. Set key to Eb.'},
   custom:{lbl:'CUSTOM',col:'#9CA3AF',bg:'transparent',chords:[],bars:[],tip:''},
 };
 
