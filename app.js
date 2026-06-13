@@ -1120,6 +1120,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const [loopCount,setLoopCount]=useState(0);
   const [rideEnabled,setRideEnabled]=useState(()=>localStorage.getItem('jg-ride')!=='false');
   const [showGTLine,setShowGTLine]=useState(false);
+  const [vType,setVType]=useState(()=>localStorage.getItem('jg-vtype')||'drop2');
   const [customProg,setCustomProg]=useState(()=>{
     try{return JSON.parse(localStorage.getItem('jg-cprog')||'null')||DFLT_CPROG;}
     catch(ex){return DFLT_CPROG;}
@@ -1158,6 +1159,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   useEffect(()=>{localStorage.setItem('jg-ride',rideEnabled);},[rideEnabled]);
   useEffect(()=>{localStorage.setItem('jg-form',form);},[form]);
   useEffect(()=>{localStorage.setItem('jg-cprog',JSON.stringify(customProg));},[customProg]);
+  useEffect(()=>{localStorage.setItem('jg-vtype',vType);},[vType]);
+  useEffect(()=>{setInvIdxs([0,0,0,0,0,0,0,0]);},[vType]);
   useEffect(()=>{setScaleHint(null);},[activeChordIdx,form]);
 
   // Pre-fetch real bass guitar samples (recorded bass-electric) on mount so
@@ -1204,22 +1207,28 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   chordsRef.current=chords;
   barsRef.current=bars;
 
-  const ssIdx=Math.min(strSetIdx,D2_SETS.length-1);
-  const ss=D2_SETS[ssIdx].s;
+  const dropD=DROP_DATA[vType]||DROP_DATA.drop2;
+  const ssIdx=Math.min(strSetIdx,dropD.sets.length-1);
+  const ss=vType==='shell'?null:dropD.sets[ssIdx].s;
   const ac=chords[activeChordIdx];
 
   const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx,form,customProg]);
-  const activeVoicings=useMemo(()=>D2_INV.map(inv=>calcVoicing(ss,inv.a,ac.tones)),[activeChordIdx,strSetIdx,keyIdx,form,customProg]);
+  const activeVoicings=useMemo(()=>{
+    if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ac.tones,1));
+    return dropD.inv.map(inv=>calcVoicing(ss,inv.a,ac.tones));
+  },[activeChordIdx,strSetIdx,keyIdx,form,customProg,vType]);
   const activeScale=scaleHint?(SCALE_HINTS[ac.quality]||[]).find(s=>s.name===scaleHint):null;
   const scalePos=useMemo(()=>activeScale?getScalePos(ac.rootPC,activeScale.iv,ac.tones):[],[scaleHint,activeChordIdx,keyIdx,form,customProg]);
   const highlight=useMemo(()=>{
-    const v=activeVoicings[invIdxs[activeChordIdx]];
+    const selIdx=invIdxs[activeChordIdx];
+    const v=activeVoicings[selIdx];
     if(!v) return null;
+    const strSet=vType==='shell'?SHELLS[selIdx].s:ss;
     return v.frets.map((f,i)=>{
-      const si=ss[i],ti=ac.tones.indexOf((OPEN_PC[si]+f)%12);
+      const si=strSet[i],ti=ac.tones.indexOf((OPEN_PC[si]+f)%12);
       return{s:si,f,ti,dl:ti>=0?ac.dnames[ti]:''};
     });
-  },[activeVoicings,invIdxs,activeChordIdx,strSetIdx,form]);
+  },[activeVoicings,invIdxs,activeChordIdx,strSetIdx,form,vType]);
 
   // Guide-tone dots: show 3rd and 7th of each chord at low neck positions
   const gtDots=useMemo(()=>{
@@ -1441,12 +1450,17 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     fontSize:'0.82rem',minHeight:44};
 
   return e('div',null,
-    // String set selector
+    // Voicing type + string set selector
     e('div',{style:{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap',alignItems:'center'}},
-      e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'STRING SET'),
-      D2_SETS.map((set,i)=>
+      e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px'}},'VOICING'),
+      (level==='essentials'
+        ?[{id:'drop2',lbl:'Drop 2'},{id:'shell',lbl:'Shell'}]
+        :[{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},{id:'shell',lbl:'Shell'}]
+      ).map(({id,lbl})=>e('button',{key:id,onClick:()=>setVType(id),style:mkSsBtn(vType===id)},lbl)),
+      vType!=='shell'?e('span',{key:'ssl',style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginLeft:8}},'STRING SET'):null,
+      vType!=='shell'?dropD.sets.map((set,i)=>
         e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
-      ),
+      ):null,
       e('span',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'2px',marginLeft:8}},'FORM'),
       (level==='essentials'?['major']:Object.keys(FORM_DEFS)).map(f=>
         e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
@@ -1577,7 +1591,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     e('div',{style:{display:'flex',gap:14,flexWrap:'wrap'}},
       (form==='custom'?[{chord:ac,ci:activeChordIdx}]:chords.map((chord,ci)=>({chord,ci})))
       .map(({chord,ci})=>{
-        const voicings=D2_INV.map(inv=>calcVoicing(ss,inv.a,chord.tones));
+        const voicings=vType==='shell'
+          ?SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1))
+          :dropD.inv.map(inv=>calcVoicing(ss,inv.a,chord.tones));
         const isNowPlaying=playingChordIdx===ci;
         const borderColor=isNowPlaying?'#FFD43B':'#4ECDC4';
         const bgColor=isNowPlaying?ACT_YEL:ACT_TEAL;
@@ -1596,17 +1612,27 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
               )
             )
           ),
-          // Inversion diagrams
+          // Voicing diagrams
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
-            D2_INV.map((inv,ii)=>
-              e(ChordBox,{key:ii,voicing:voicings[ii],strings:ss,tones:chord.tones,
-                degNames:chord.dnames,invLabel:ii===0?'Root pos.':chord.dnames[inv.bassIdx]+' bass',
-                bassLabel:ii===0?'bass: '+chord.dnames[inv.bassIdx]:null,
-                selected:invIdxs[ci]===ii,
-                dotMode,dotKeyIdx:form==='custom'?chord.rootPC:keyIdx,
-                onClick:()=>{const n=[...invIdxs];n[ci]=ii;setInvIdxs(n);setActiveChordIdx(ci);}
-              })
-            )
+            vType==='shell'
+              ?SHELLS.map((sh,ii)=>
+                  e(ChordBox,{key:ii,voicing:voicings[ii],strings:sh.s,tones:chord.tones,
+                    degNames:chord.dnames,invLabel:sh.lbl+' ('+sh.root+')',
+                    bassLabel:'bass: R',
+                    selected:invIdxs[ci]===ii,
+                    dotMode,dotKeyIdx:form==='custom'?chord.rootPC:keyIdx,
+                    onClick:()=>{const n=[...invIdxs];n[ci]=ii;setInvIdxs(n);setActiveChordIdx(ci);}
+                  })
+                )
+              :dropD.inv.map((inv,ii)=>
+                  e(ChordBox,{key:ii,voicing:voicings[ii],strings:ss,tones:chord.tones,
+                    degNames:chord.dnames,invLabel:ii===0?'Root pos.':chord.dnames[inv.bassIdx]+' bass',
+                    bassLabel:ii===0?'bass: '+chord.dnames[inv.bassIdx]:null,
+                    selected:invIdxs[ci]===ii,
+                    dotMode,dotKeyIdx:form==='custom'?chord.rootPC:keyIdx,
+                    onClick:()=>{const n=[...invIdxs];n[ci]=ii;setInvIdxs(n);setActiveChordIdx(ci);}
+                  })
+                )
           )
         );
       })
