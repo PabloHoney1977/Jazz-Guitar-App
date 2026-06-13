@@ -1333,6 +1333,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   });
   const [showRideEq,setShowRideEq]=useState(false);
   const [pinnedChords,setPinnedChords]=useState(()=>new Set());
+  const [barVTypes,setBarVTypes]=useState(()=>[]);
   const [vType,setVType]=useState(()=>localStorage.getItem('jg-vtype')||'drop2');
   const [customProg,setCustomProg]=useState(()=>{
     try{return JSON.parse(localStorage.getItem('jg-cprog')||'null')||DFLT_CPROG;}
@@ -1462,32 +1463,43 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   // Keep compMidiRef current (per-bar) so tick() plays the right voicing per bar
   compMidiRef.current=bars.map((ci,barIdx)=>{
     const chord=chords[ci];
-    const vx=vType==='shell'
+    const bvt=barVTypes[barIdx]||null;
+    const bt=bvt?bvt.vType:vType;
+    const bsi=bvt?bvt.strSetIdx:strSetIdx;
+    const bD=DROP_DATA[bt]||DROP_DATA.drop2;
+    const bsIdx=Math.min(bsi,bD.sets.length-1);
+    const vx=bt==='shell'
       ?SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1))
-      :dropD.inv.map(inv=>calcVoicing(ss,inv.a,chord.tones));
+      :bD.inv.map(inv=>calcVoicing(bD.sets[bsIdx].s,inv.a,chord.tones));
     const maxI=vx.length-1;
     const v=vx[Math.min(invIdxs[barIdx]||0,maxI)];
     return v?[...v.midis].sort((a,b)=>a-b):[];
   });
 
   const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx,form,customProg]);
+  // Effective voicing type/strSet for the currently selected bar
+  const barVT=barVTypes[safeBarIdx]||null;
+  const activeVT=barVT?barVT.vType:vType;
+  const activeVTSI=barVT?Math.min(barVT.strSetIdx,(DROP_DATA[barVT.vType]||DROP_DATA.drop2).sets.length-1):ssIdx;
+  const activeDropD=DROP_DATA[activeVT]||DROP_DATA.drop2;
+  const activeSS=activeVT==='shell'?null:activeDropD.sets[activeVTSI].s;
   const activeVoicings=useMemo(()=>{
-    if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ac.tones,1));
-    return dropD.inv.map(inv=>calcVoicing(ss,inv.a,ac.tones));
-  },[activeChordIdx,strSetIdx,keyIdx,form,customProg,vType]);
+    if(activeVT==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ac.tones,1));
+    return activeDropD.inv.map(inv=>calcVoicing(activeSS,inv.a,ac.tones));
+  },[activeChordIdx,strSetIdx,keyIdx,form,customProg,vType,barVTypes]);
   const activeScale=scaleHint?(SCALE_HINTS[ac.quality]||[]).find(s=>s.name===scaleHint):null;
   const scalePos=useMemo(()=>activeScale?getScalePos(ac.rootPC,activeScale.iv,ac.tones):[],[scaleHint,activeChordIdx,keyIdx,form,customProg]);
   const highlight=useMemo(()=>{
-    const maxIdx=vType==='shell'?SHELLS.length-1:dropD.inv.length-1;
-    const selIdx=Math.min(invIdxs[activeChordIdx]||0,maxIdx);
+    const maxIdx=activeVT==='shell'?SHELLS.length-1:activeDropD.inv.length-1;
+    const selIdx=Math.min(invIdxs[safeBarIdx]||0,maxIdx);
     const v=activeVoicings[selIdx];
     if(!v) return null;
-    const strSet=vType==='shell'?SHELLS[selIdx].s:ss;
+    const strSet=activeVT==='shell'?SHELLS[selIdx].s:activeSS;
     return v.frets.map((f,i)=>{
       const si=strSet[i],ti=ac.tones.indexOf((OPEN_PC[si]+f)%12);
       return{s:si,f,ti,dl:ti>=0?ac.dnames[ti]:''};
     });
-  },[activeVoicings,invIdxs,activeChordIdx,strSetIdx,form,vType]);
+  },[activeVoicings,invIdxs,safeBarIdx,strSetIdx,form,vType,barVTypes]);
 
   // Guide-tone dots: show 3rd and 7th of each chord at low neck positions
   const gtDots=useMemo(()=>{
@@ -1774,14 +1786,16 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     setActiveChordIdx(0);
   },[keyIdx,form]);
 
-  function computeAllVoicings(cs,brs){
-    const dD=DROP_DATA[vType]||DROP_DATA.drop2;
-    const sIdx=Math.min(strSetIdx,dD.sets.length-1);
-    const strSet=vType==='shell'?null:dD.sets[sIdx].s;
-    return brs.map(ci=>{
+  function computeAllVoicings(cs,brs,bvts){
+    return brs.map((ci,barIdx)=>{
       const chord=cs[ci];
-      if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1));
-      return dD.inv.map(inv=>calcVoicing(strSet,inv.a,chord.tones));
+      const bvt=(bvts&&bvts[barIdx])||null;
+      const bt=bvt?bvt.vType:vType;
+      const bsi=bvt?bvt.strSetIdx:strSetIdx;
+      if(bt==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1));
+      const dD=DROP_DATA[bt]||DROP_DATA.drop2;
+      const sIdx=Math.min(bsi,dD.sets.length-1);
+      return dD.inv.map(inv=>calcVoicing(dD.sets[sIdx].s,inv.a,chord.tones));
     });
   }
   function runVL(allVoicings,startIdxs,pinned){
@@ -1796,15 +1810,24 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     }
     return idxs;
   }
-  // Auto voice-lead over bars (per-bar inversions). Clears user pins on any param change.
+  // Auto voice-lead over bars. Resets per-bar type overrides on form/key/customProg change.
+  // vType/strSetIdx changes only affect bars without a per-bar override.
   useEffect(()=>{
     const cs=chordsRef.current,brs=barsRef.current;
     if(!cs||!brs||brs.length<2) return;
-    const av=computeAllVoicings(cs,brs);
+    setBarVTypes([]);
+    const av=computeAllVoicings(cs,brs,[]);
     setInvIdxs(runVL(av,av.map(()=>0),null));
     setPinnedChords(new Set());
     setActiveChordIdx(0);
-  },[form,keyIdx,vType,strSetIdx,customProg]);
+  },[form,keyIdx,customProg]);
+  useEffect(()=>{
+    const cs=chordsRef.current,brs=barsRef.current;
+    if(!cs||!brs||brs.length<2) return;
+    // Keep bar-specific overrides; re-VL only unoverridden bars
+    const av=computeAllVoicings(cs,brs,barVTypes);
+    setInvIdxs(runVL(av,av.map(()=>0),pinnedChords));
+  },[vType,strSetIdx]);
 
   const modeBtn=(act,col,actBg)=>({padding:'6px 13px',borderRadius:5,cursor:'pointer',
     fontFamily:UI_FONT,fontSize:'0.78rem',border:'1px solid '+(act?col:BTN_BRD),
@@ -2162,13 +2185,20 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
               ac.dnames[ti]+'='+nn(t,form==='custom'?0:keyIdx))
           )
         ),
-        pinnedChords.has(safeBarIdx)?e('div',{style:{
-          flexShrink:0,marginLeft:'auto',padding:'2px 7px',borderRadius:10,
-          background:GOLD+'22',border:'1px solid '+GOLD+'55',
-          fontSize:'0.65rem',color:GOLD,fontFamily:UI_FONT
-        }},'pinned'):null,
+        (pinnedChords.has(safeBarIdx)||barVT)?e('div',{style:{
+          flexShrink:0,marginLeft:'auto',display:'flex',gap:4,
+        }},
+          barVT?e('div',{style:{padding:'2px 7px',borderRadius:10,
+            background:'#74C0FC22',border:'1px solid #74C0FC44',
+            fontSize:'0.65rem',color:'#74C0FC',fontFamily:UI_FONT
+          }},barVT.vType):null,
+          pinnedChords.has(safeBarIdx)?e('div',{style:{padding:'2px 7px',borderRadius:10,
+            background:GOLD+'22',border:'1px solid '+GOLD+'55',
+            fontSize:'0.65rem',color:GOLD,fontFamily:UI_FONT
+          }},'pinned'):null
+        ):null,
         def?e('button',{onClick:()=>setShowTip(v=>!v),style:{
-          marginLeft:pinnedChords.has(safeBarIdx)?4:'auto',flexShrink:0,
+          marginLeft:(pinnedChords.has(safeBarIdx)||barVT)?4:'auto',flexShrink:0,
           padding:'2px 7px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
           fontSize:'0.7rem',border:'1px solid '+(showTip?GOLD:BTN_BRD),
           background:'transparent',color:showTip?GOLD:BTN_OFF,minHeight:28
@@ -2185,26 +2215,66 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
             const newPinned=new Set(pinnedChords);newPinned.add(safeBarIdx);
             setPinnedChords(newPinned);
             const cs=chordsRef.current,brs=barsRef.current;
-            if(cs&&brs&&brs.length>=2) setInvIdxs(runVL(computeAllVoicings(cs,brs),n,newPinned));
+            if(cs&&brs&&brs.length>=2) setInvIdxs(runVL(computeAllVoicings(cs,brs,barVTypes),n,newPinned));
             else setInvIdxs(n);
           };
-          return vType==='shell'
-            ?SHELLS.map((sh,ii)=>
-                e(ChordBox,{key:ii,voicing:activeVoicings[ii],strings:sh.s,tones:ac.tones,
-                  degNames:ac.dnames,invLabel:sh.lbl+' ('+sh.root+')',bassLabel:'bass: R',
-                  selected:invIdxs[safeBarIdx]===ii,dotMode,
-                  dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,onClick:()=>pick(ii)
-                })
-              )
-            :dropD.inv.map((inv,ii)=>
-                e(ChordBox,{key:ii,voicing:activeVoicings[ii],strings:ss,tones:ac.tones,
-                  degNames:ac.dnames,
-                  invLabel:ii===0?'Root pos.':ac.dnames[inv.bassIdx]+' bass',
-                  bassLabel:ii===0?'bass: '+ac.dnames[inv.bassIdx]:null,
-                  selected:invIdxs[safeBarIdx]===ii,dotMode,
-                  dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,onClick:()=>pick(ii)
-                })
-              );
+          const pickType=(t)=>{
+            const newBVTs=[...barVTypes];
+            newBVTs[safeBarIdx]={vType:t,strSetIdx};
+            setBarVTypes(newBVTs);
+            const newPinned=new Set(pinnedChords);newPinned.delete(safeBarIdx);
+            setPinnedChords(newPinned);
+            const newIdxs=[...invIdxs];newIdxs[safeBarIdx]=0;
+            const cs=chordsRef.current,brs=barsRef.current;
+            if(cs&&brs&&brs.length>=2) setInvIdxs(runVL(computeAllVoicings(cs,brs,newBVTs),newIdxs,newPinned));
+            else setInvIdxs(newIdxs);
+          };
+          const clearBarType=()=>{
+            const newBVTs=[...barVTypes];newBVTs[safeBarIdx]=null;
+            setBarVTypes(newBVTs);
+            const newPinned=new Set(pinnedChords);newPinned.delete(safeBarIdx);
+            setPinnedChords(newPinned);
+            const newIdxs=[...invIdxs];newIdxs[safeBarIdx]=0;
+            const cs=chordsRef.current,brs=barsRef.current;
+            if(cs&&brs&&brs.length>=2) setInvIdxs(runVL(computeAllVoicings(cs,brs,newBVTs),newIdxs,newPinned));
+            else setInvIdxs(newIdxs);
+          };
+          const typeBtn=(t,label)=>e('button',{key:t,onClick:()=>pickType(t),style:{
+            padding:'2px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.7rem',
+            border:'1px solid '+(activeVT===t?GOLD:BTN_BRD),
+            background:activeVT===t?ACT_GOLD:'transparent',
+            color:activeVT===t?GOLD:BTN_OFF,minHeight:0,
+          }},label);
+          return e(React.Fragment,null,
+            e('div',{style:{width:'100%',display:'flex',alignItems:'center',gap:5,marginBottom:6}},
+              e('span',{style:{fontSize:'0.65rem',color:HINT,fontFamily:UI_FONT,letterSpacing:'0.3px'}},'Type'),
+              typeBtn('shell','Shell'),
+              typeBtn('drop2','Drop 2'),
+              typeBtn('drop3','Drop 3'),
+              barVT?e('button',{onClick:clearBarType,style:{
+                marginLeft:4,padding:'2px 7px',borderRadius:4,cursor:'pointer',
+                fontFamily:UI_FONT,fontSize:'0.65rem',
+                border:'1px solid '+BTN_BRD,background:'transparent',color:HINT,minHeight:0,
+              }},'↺ default'):null
+            ),
+            activeVT==='shell'
+              ?SHELLS.map((sh,ii)=>
+                  e(ChordBox,{key:ii,voicing:activeVoicings[ii],strings:sh.s,tones:ac.tones,
+                    degNames:ac.dnames,invLabel:sh.lbl+' ('+sh.root+')',bassLabel:'bass: R',
+                    selected:invIdxs[safeBarIdx]===ii,dotMode,
+                    dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,onClick:()=>pick(ii)
+                  })
+                )
+              :activeDropD.inv.map((inv,ii)=>
+                  e(ChordBox,{key:ii,voicing:activeVoicings[ii],strings:activeSS,tones:ac.tones,
+                    degNames:ac.dnames,
+                    invLabel:ii===0?'Root pos.':ac.dnames[inv.bassIdx]+' bass',
+                    bassLabel:ii===0?'bass: '+ac.dnames[inv.bassIdx]:null,
+                    selected:invIdxs[safeBarIdx]===ii,dotMode,
+                    dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,onClick:()=>pick(ii)
+                  })
+                )
+          );
         })()
       )
     )
