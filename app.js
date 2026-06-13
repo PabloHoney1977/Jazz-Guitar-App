@@ -257,86 +257,161 @@ function playClick(ctx,buf,startTime){
   src.start(startTime);
 }
 
+// Sync fallback ride (used if async render not yet ready)
 function makeRideBuf(ctx,vol,accent){
-  const sr=ctx.sampleRate;
-  const dur=accent?0.35:0.18;
-  const len=Math.round(sr*dur);
-  const buf=ctx.createBuffer(1,len,sr);
+  const sr=ctx.sampleRate,dur=accent?0.35:0.18;
+  const len=Math.round(sr*dur),buf=ctx.createBuffer(1,len,sr);
   const d=buf.getChannelData(0);
-  const decay=accent?12:28;
-  // Metallic noise burst — ride cymbal character
   const freqs=[4200,5600,7800,9100,11200];
   for(let i=0;i<len;i++){
-    const t=i/sr;
-    const env=vol*Math.exp(-t*decay);
-    let s=0;
-    freqs.forEach(f=>s+=Math.sin(2*Math.PI*f*t+Math.random()*0.3));
+    const t=i/sr,env=vol*Math.exp(-t*(accent?12:28));
+    let s=0;freqs.forEach(f=>s+=Math.sin(2*Math.PI*f*t+Math.random()*0.3));
     d[i]=env*(s/freqs.length*0.3+(Math.random()*2-1)*0.7);
   }
   return buf;
+}
+// High-quality ride using OfflineAudioContext + real filter nodes.
+// 4 independent frequency-decay chains approximate how a physical cymbal's
+// inharmonic modes ring at different rates.
+async function makeRideBufAsync(sr,vol,accent){
+  const dur=accent?0.9:0.55;
+  const offCtx=new OfflineAudioContext(1,Math.round(sr*dur),sr);
+  const noiseLen=Math.round(sr*dur);
+  const noiseBuf=offCtx.createBuffer(1,noiseLen,sr);
+  const nd=noiseBuf.getChannelData(0);
+  for(let i=0;i<noiseLen;i++) nd[i]=Math.random()*2-1;
+  function mkNoise(){const s=offCtx.createBufferSource();s.buffer=noiseBuf;return s;}
+  // Chain 1 — attack transient: broadband, very fast decay (~18ms)
+  const s1=mkNoise(),f1=offCtx.createBiquadFilter(),g1=offCtx.createGain();
+  f1.type='highpass';f1.frequency.value=9000;f1.Q.value=0.5;
+  g1.gain.setValueAtTime(vol*0.55,0);g1.gain.exponentialRampToValueAtTime(0.0001,0.018);
+  s1.connect(f1);f1.connect(g1);g1.connect(offCtx.destination);s1.start(0);
+  // Chain 2 — body shimmer: bandpass ~4kHz, medium decay
+  const s2=mkNoise(),f2=offCtx.createBiquadFilter(),g2=offCtx.createGain();
+  f2.type='bandpass';f2.frequency.value=4200;f2.Q.value=2.0;
+  g2.gain.setValueAtTime(vol*0.65,0);
+  g2.gain.exponentialRampToValueAtTime(0.0001,accent?0.42:0.20);
+  s2.connect(f2);f2.connect(g2);g2.connect(offCtx.destination);s2.start(0);
+  // Chain 3 — air / ring: highpass ~6.5kHz, slowest decay
+  const s3=mkNoise(),f3=offCtx.createBiquadFilter(),g3=offCtx.createGain();
+  f3.type='highpass';f3.frequency.value=6500;f3.Q.value=1.0;
+  g3.gain.setValueAtTime(vol*0.38,0);
+  g3.gain.exponentialRampToValueAtTime(0.0001,accent?0.80:0.42);
+  s3.connect(f3);f3.connect(g3);g3.connect(offCtx.destination);s3.start(0);
+  // Chain 4 — low metallic ping: high-Q bandpass at ~750Hz (bell-like resonance)
+  const s4=mkNoise(),f4=offCtx.createBiquadFilter(),g4=offCtx.createGain();
+  f4.type='bandpass';f4.frequency.value=750;f4.Q.value=14;
+  g4.gain.setValueAtTime(vol*0.45,0);
+  g4.gain.exponentialRampToValueAtTime(0.0001,accent?0.24:0.11);
+  s4.connect(f4);f4.connect(g4);g4.connect(offCtx.destination);s4.start(0);
+  return offCtx.startRendering();
 }
 function playRide(ctx,buf,startTime){
   if(!buf) return;
   const src=ctx.createBufferSource();
   src.buffer=buf;
-  const g=ctx.createGain();g.gain.value=0.4;
+  const g=ctx.createGain();g.gain.value=0.42;
   src.connect(g);g.connect(ctx.destination);
   src.start(startTime);
 }
 
+// KS synthesis — kept as fast fallback while guitar samples load
 function precomputeKS(ctx){
   const sr=ctx.sampleRate,bufs={};
   for(let pc=0;pc<12;pc++){
     const freq=440*Math.pow(2,(48+pc-69)/12);
-    const N=Math.round(sr/freq);
-    const len=Math.round(sr*2.5);
+    const N=Math.round(sr/freq),len=Math.round(sr*2.5);
     const buf=ctx.createBuffer(1,len,sr);
     const d=buf.getChannelData(0);
     const ring=new Float32Array(N);
     for(let i=0;i<N;i++) ring[i]=Math.random()*2-1;
     let pos=0;
     for(let i=0;i<len;i++){
-      const next=(pos+1)%N;
-      d[i]=ring[pos];
-      ring[pos]=0.996*0.5*(ring[pos]+ring[next]);
-      pos=(pos+1)%N;
+      const next=(pos+1)%N;d[i]=ring[pos];
+      ring[pos]=0.996*0.5*(ring[pos]+ring[next]);pos=(pos+1)%N;
     }
     bufs[pc]=buf;
   }
   return bufs;
 }
 
-// ── Chord preview audio (module-level, shared across all ChordBoxes) ──
+// ── Guitar sample CDN (chord preview + guide + ear training) ─────────
+// electric guitar samples every ~2-3 semitones; max pitch-shift ≤2 semitones
+const GUITAR_CDN='https://nbrosowsky.github.io/tonejs-instruments/samples/guitar-electric/';
+const GUITAR_NOTES={40:'E2.mp3',42:'Fs2.mp3',45:'A2.mp3',48:'C3.mp3',
+  52:'E3.mp3',54:'Fs3.mp3',57:'A3.mp3',60:'C4.mp3',
+  64:'E4.mp3',66:'Fs4.mp3',69:'A4.mp3',72:'C5.mp3'};
 let _previewCtx=null;
-let _previewBufs=null;
-function getPreviewAudio(){
+let _guitarBufs=null;  // MIDI→AudioBuffer for current ctx
+let _guitarRaw=null;   // MIDI→ArrayBuffer raw — survives AudioContext resets
+let _guitarLoading=false;
+let _ksFallback=null;  // KS bufs for current _previewCtx
+
+function _reDecodeGuitar(ctx){
+  if(!_guitarRaw) return;
+  Promise.all(Object.entries(_guitarRaw).map(async([midi,arr])=>{
+    try{return{midi:+midi,buf:await ctx.decodeAudioData(arr.slice(0))};}
+    catch(e){return null;}
+  })).then(res=>{const m={};res.forEach(r=>{if(r)m[r.midi]=r.buf;});if(Object.keys(m).length)_guitarBufs=m;});
+}
+function _loadGuitar(ctx){
+  if(_guitarLoading) return;
+  _guitarLoading=true;
+  Promise.all(Object.entries(GUITAR_NOTES).map(async([midi,file])=>{
+    try{const r=await fetch(GUITAR_CDN+file);if(!r.ok)return null;return{midi:+midi,data:await r.arrayBuffer()};}
+    catch(e){return null;}
+  })).then(res=>{
+    const raw={};res.forEach(r=>{if(r)raw[r.midi]=r.data;});
+    if(Object.keys(raw).length){_guitarRaw=raw;if(ctx)_reDecodeGuitar(ctx);}
+    _guitarLoading=false;
+  });
+}
+// Pre-fetch ArrayBuffers immediately on page load (no AudioContext needed for fetch)
+_loadGuitar(null);
+
+function _getPreviewCtx(){
   try{
     if(!_previewCtx||_previewCtx.state==='closed'){
-      _previewCtx=new (window.AudioContext||window.webkitAudioContext)();
-      _previewBufs=precomputeKS(_previewCtx);
+      _previewCtx=new(window.AudioContext||window.webkitAudioContext)();
+      _ksFallback=null;_guitarBufs=null;
+      if(_guitarRaw) _reDecodeGuitar(_previewCtx);
     }
     if(_previewCtx.state==='suspended') _previewCtx.resume();
-    return[_previewCtx,_previewBufs];
-  }catch(ex){return[null,null];}
+    return _previewCtx;
+  }catch(ex){return null;}
+}
+function _playSampledNote(ctx,midi,startTime,vol,decaySec){
+  const notes=Object.keys(_guitarBufs).map(Number);
+  const nearest=notes.reduce((a,b)=>Math.abs(b-midi)<Math.abs(a-midi)?b:a);
+  const src=ctx.createBufferSource();
+  src.buffer=_guitarBufs[nearest];
+  src.detune.value=(midi-nearest)*100;
+  const g=ctx.createGain();
+  g.gain.setValueAtTime(vol,startTime);
+  g.gain.exponentialRampToValueAtTime(0.001,startTime+decaySec);
+  src.connect(g);g.connect(ctx.destination);
+  src.start(startTime);src.stop(startTime+decaySec+0.05);
+}
+function _playKSNote(ctx,midi,startTime,vol){
+  if(!_ksFallback) _ksFallback=precomputeKS(ctx);
+  const pc=((midi%12)+12)%12;
+  const src=ctx.createBufferSource();
+  src.buffer=_ksFallback[pc];
+  src.playbackRate.value=Math.pow(2,(midi-(48+pc))/12);
+  const g=ctx.createGain();
+  g.gain.setValueAtTime(vol,startTime);g.gain.exponentialRampToValueAtTime(0.001,startTime+2.0);
+  src.connect(g);g.connect(ctx.destination);
+  src.start(startTime);src.stop(startTime+2.2);
 }
 function playChordPreview(voicing,strings){
   if(!voicing) return;
   try{
-    const [ctx,bufs]=getPreviewAudio();
-    if(!ctx||!bufs) return;
+    const ctx=_getPreviewCtx();if(!ctx) return;
     strings.forEach((si,i)=>{
-      const fret=voicing.frets[i];
-      const midi=OPEN_MIDI[si]+fret;
-      const pc=((midi%12)+12)%12;
-      const startTime=ctx.currentTime+i*0.030;
-      const src=ctx.createBufferSource();
-      src.buffer=bufs[pc];
-      src.playbackRate.value=Math.pow(2,(midi-(48+pc))/12);
-      const gain=ctx.createGain();
-      gain.gain.setValueAtTime(0.55,startTime);
-      gain.gain.exponentialRampToValueAtTime(0.001,startTime+2.0);
-      src.connect(gain);gain.connect(ctx.destination);
-      src.start(startTime);src.stop(startTime+2.2);
+      const midi=OPEN_MIDI[si]+voicing.frets[i];
+      const t=ctx.currentTime+i*0.028;
+      if(_guitarBufs) _playSampledNote(ctx,midi,t,0.65,2.8);
+      else _playKSNote(ctx,midi,t,0.55);
     });
   }catch(ex){}
 }
@@ -504,21 +579,13 @@ function BpmKnob({bpm,setBpm,onTap}){
 // ── Guide audio helper ────────────────────────────────────────────────
 function playGuideChord(quality){
   try{
-    const [ctx,bufs]=getPreviewAudio();
-    if(!ctx||!bufs) return;
+    const ctx=_getPreviewCtx();if(!ctx) return;
     const iv=INTERVALS[quality]||[0,4,7,11];
     iv.forEach((interval,i)=>{
       const midi=48+interval;
-      const pc=((midi%12)+12)%12;
-      const src=ctx.createBufferSource();
-      src.buffer=bufs[pc];
-      src.playbackRate.value=Math.pow(2,(midi-(48+pc))/12);
-      const gain=ctx.createGain();
-      const startTime=ctx.currentTime+i*0.08;
-      gain.gain.setValueAtTime(0.5,startTime);
-      gain.gain.exponentialRampToValueAtTime(0.001,startTime+2.0);
-      src.connect(gain);gain.connect(ctx.destination);
-      src.start(startTime);src.stop(startTime+2.2);
+      const t=ctx.currentTime+i*0.08;
+      if(_guitarBufs) _playSampledNote(ctx,midi,t,0.5,2.8);
+      else _playKSNote(ctx,midi,t,0.5);
     });
   }catch(ex){}
 }
@@ -550,21 +617,14 @@ function EarTrainingView(){
 
   function playQuality(root,quality){
     try{
-      const [ctx,bufs]=getPreviewAudio();
-      if(!ctx||!bufs) return;
+      const ctx=_getPreviewCtx();
+      if(!ctx) return;
       const iv=INTERVALS[quality]||[0,4,7,11];
       iv.forEach((interval,i)=>{
         const midi=48+root+interval;
-        const pc=((midi%12)+12)%12;
-        const src=ctx.createBufferSource();
-        src.buffer=bufs[pc];
-        src.playbackRate.value=Math.pow(2,(midi-(48+pc))/12);
-        const gain=ctx.createGain();
         const startTime=ctx.currentTime+i*0.08;
-        gain.gain.setValueAtTime(0.5,startTime);
-        gain.gain.exponentialRampToValueAtTime(0.001,startTime+2.0);
-        src.connect(gain);gain.connect(ctx.destination);
-        src.start(startTime);src.stop(startTime+2.2);
+        if(_guitarBufs) _playSampledNote(ctx,midi,startTime,0.5,2.8);
+        else _playKSNote(ctx,midi,startTime,0.5);
       });
     }catch(ex){}
   }
@@ -1086,6 +1146,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const tapTimesRef=useRef([]);
   const loopCountRef=useRef(0);
   const rideRef=useRef(rideEnabled); rideRef.current=rideEnabled;
+  const preRideRef=useRef({accent:null,norm:null}); // async-rendered ride buffers
   bpmRef.current=bpm;
   bassRef.current=bassEnabled;
   metronomeRef.current=metronomeEnabled;
@@ -1119,6 +1180,12 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       if(Object.keys(raw).length>0) bassRawRef.current=raw;
     });
     return ()=>{live=false;};
+  },[]);
+
+  // Pre-render high-quality ride buffers asynchronously (before user hits play)
+  useEffect(()=>{
+    makeRideBufAsync(44100,1,true).then(b=>{preRideRef.current.accent=b;}).catch(()=>{});
+    makeRideBufAsync(44100,1,false).then(b=>{preRideRef.current.norm=b;}).catch(()=>{});
   },[]);
 
   const def=form==='custom'?null:FORM_DEFS[form];
@@ -1198,15 +1265,17 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     if(samples&&Object.keys(samples).length>0){
       const notes=Object.keys(samples).map(Number);
       const nearest=notes.reduce((a,b)=>Math.abs(b-midiNote)<Math.abs(a-midiNote)?b:a);
-      const rate=Math.pow(2,(midiNote-nearest)/12);
       const src=ctx.createBufferSource();
       src.buffer=samples[nearest];
-      src.playbackRate.value=rate;
+      src.detune.value=(midiNote-nearest)*100;
+      // Lowpass filter warms the tone — removes brittle upper harmonics
+      const lpf=ctx.createBiquadFilter();
+      lpf.type='lowpass';lpf.frequency.value=1200;lpf.Q.value=0.6;
       const gain=ctx.createGain();
       gain.gain.setValueAtTime(0,startTime);
       gain.gain.linearRampToValueAtTime(vol,startTime+0.012);
       gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.9);
-      src.connect(gain);gain.connect(ctx.destination);
+      src.connect(lpf);lpf.connect(gain);gain.connect(ctx.destination);
       src.start(startTime);src.stop(startTime+beatDur+0.1);
       return;
     }
@@ -1281,8 +1350,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     audioCtxRef.current=ctx;
     ksBufsRef.current=precomputeKS(ctx);
     clickBufsRef.current={accent:makeClickBuf(ctx,1400,1.0),normal:makeClickBuf(ctx,900,0.65)};
-    clickBufsRef.current.rideAccent=makeRideBuf(ctx,1,true);
-    clickBufsRef.current.rideNorm=makeRideBuf(ctx,1,false);
+    clickBufsRef.current.rideAccent=preRideRef.current.accent||makeRideBuf(ctx,1,true);
+    clickBufsRef.current.rideNorm=preRideRef.current.norm||makeRideBuf(ctx,1,false);
     if(bassRef.current) decodeBassRaw(ctx);
     // Schedule 4 count-in clicks, then begin real playback
     for(let i=0;i<4;i++){
