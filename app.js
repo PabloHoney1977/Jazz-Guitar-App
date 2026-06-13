@@ -1263,16 +1263,21 @@ const FORM_DEFS={
 
 // Scale suggestions per chord quality (shown on neck when user picks a scale)
 const SCALE_HINTS={
-  maj7:[{name:'Ionian',   iv:[0,2,4,5,7,9,11],note:'Home — fully inside key'},
-        {name:'Lydian',   iv:[0,2,4,6,7,9,11],note:'#11 — floating, bright'}],
-  m7:  [{name:'Dorian',   iv:[0,2,3,5,7,9,10],note:'Standard — nat.6'},
-        {name:'Aeolian',  iv:[0,2,3,5,7,8,10],note:'Natural minor — b6'}],
-  dom7:[{name:'Mixolydian',iv:[0,2,4,5,7,9,10],note:'Standard'},
-        {name:'Altered',   iv:[0,1,3,4,6,8,10],note:'Max tension — all tensions altered'},
-        {name:'Lyd. Dom.', iv:[0,2,4,6,7,9,10],note:'#11 — bright dominant'}],
-  m7b5:[{name:'Locrian',   iv:[0,1,3,5,6,8,10],note:'Diatonic — b2, b5'},
-        {name:'Loc. nat2', iv:[0,2,3,5,6,8,10],note:'nat.2 — softer than Locrian'}],
+  maj7:[{name:'Ionian',   iv:[0,2,4,5,7,9,11],note:'Home — R 3 5 Δ7 all inside key'},
+        {name:'Lydian',   iv:[0,2,4,6,7,9,11],note:'#11 replaces 4 — bright, lifted feel'}],
+  m7:  [{name:'Dorian',   iv:[0,2,3,5,7,9,10],note:'Standard — b3 b7 match chord; nat.6 adds color'},
+        {name:'Aeolian',  iv:[0,2,3,5,7,8,10],note:'Natural minor — b6 darkens vs Dorian'}],
+  dom7:[{name:'Mixolydian',iv:[0,2,4,5,7,9,10],note:'Standard — R 3 5 b7 all inside; nat. tensions'},
+        {name:'Altered',   iv:[0,1,3,4,6,8,10],note:'b9 #9 b5 #5 all altered — max tension into I'},
+        {name:'Lyd. Dom.', iv:[0,2,4,6,7,9,10],note:'#11 with b7 — bright; no avoid notes'}],
+  m7b5:[{name:'Locrian',   iv:[0,1,3,5,6,8,10],note:'Diatonic — b2 b5 b6 match chord tones'},
+        {name:'Loc. nat2', iv:[0,2,3,5,6,8,10],note:'nat.2 softens b2 harshness'}],
 };
+
+// Rhythm pattern display names (for barPatternRef)
+const COMP_NAMES=['Bop comp','Freddie Green','Sparse','Two-beat'];
+const BASS_NAMES=['Walking','Two-feel','Scale walk','Encircle','5th-down'];
+const RIDE_NAMES=['Swing 8ths','Half-time','Lazy'];
 
 // Default custom progression (C – G7 – C – C)
 const DFLT_CPROG=[{root:0,q:'maj7'},{root:7,q:'dom7'},{root:0,q:'maj7'},{root:0,q:'maj7'}];
@@ -1305,7 +1310,7 @@ function LedToggle({label,enabled,onToggle,color}){
 function IIVIView({keyIdx,dotMode,setDotMode,level}){
   dotMode=dotMode||'interval';
   const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(localStorage.getItem('jg-strSet')||'2',10));
-  const [invIdxs,setInvIdxs]=useState([0,0,0,0,0,0,0,0]);
+  const [invIdxs,setInvIdxs]=useState([]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
   const [isPlaying,setIsPlaying]=useState(false);
   const [bpm,setBpm]=useState(()=>Math.max(35,Math.min(150,parseInt(localStorage.getItem('jg-bpm')||'80',10))));
@@ -1836,6 +1841,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   }
   function runVL(allVoicings,startIdxs,pinned){
     const n=allVoicings.length;
+    if(n<2) return [...startIdxs];
     const idxs=[...startIdxs];
     for(let pass=0;pass<2;pass++){
       for(let i=0;i<n;i++){
@@ -2172,6 +2178,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
             const isSel=!isPlaying&&barIdx===activeChordIdx;
             const isPinned=pinnedChords.has(barIdx);
             const isEditing=form==='custom'&&editingBar===barIdx;
+            const hasBarOverride=!!(barVTypes[barIdx]);
             return e('div',{key:barIdx,
               onClick:()=>{
                 setActiveChordIdx(barIdx);
@@ -2185,7 +2192,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
                 display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:54,
               }
             },
-              e('div',{style:{position:'absolute',top:4,left:6,fontSize:'0.5rem',lineHeight:1,
+              hasBarOverride?e('div',{style:{position:'absolute',left:0,top:0,bottom:0,width:3,
+                background:'#74C0FC',opacity:0.7,borderRadius:'0 0 0 0'}}):null,
+              e('div',{style:{position:'absolute',top:4,left:hasBarOverride?8:6,fontSize:'0.5rem',lineHeight:1,
                 color:lit?'#FFD43Baa':HINT,fontFamily:UI_FONT}},barIdx+1),
               e('div',{style:{fontSize:'0.62rem',fontWeight:600,lineHeight:1,marginBottom:2,textAlign:'center',
                 color:lit?'#FFD43B':isSel||isEditing?GOLD:HINT,fontFamily:UI_FONT}},chords[ci].roman),
@@ -2236,7 +2245,13 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           e('div',{style:{fontSize:'0.68rem',color:GOLD,fontWeight:600}},
             'Bar '+(safeBarIdx+1)+' — '+ac.roman),
           e('div',{style:{fontFamily:SERIF,fontSize:'1rem',fontWeight:700,color:GOLD,lineHeight:1.1}},
-            ac.name)
+            ac.name),
+          (()=>{
+            const bp=barPatternRef.current[isPlaying?playingBar:safeBarIdx];
+            if(!bp) return null;
+            return e('div',{style:{fontSize:'0.58rem',color:HINT,fontFamily:UI_FONT,marginTop:2,letterSpacing:'0.2px'}},
+              BASS_NAMES[bp.bass]+' · '+COMP_NAMES[bp.comp]+' · '+RIDE_NAMES[bp.ride]);
+          })()
         ),
         e('div',{style:{display:'flex',gap:5,flexWrap:'wrap',marginLeft:8}},
           ac.tones.map((t,ti)=>
@@ -2304,8 +2319,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
             background:activeVT===t?ACT_GOLD:'transparent',
             color:activeVT===t?GOLD:BTN_OFF,minHeight:0,
           }},label);
+          const vtHint=activeVT==='shell'?'light — band-friendly; root+3rd+7th only':
+            activeVT==='drop2'?'most common — 4-note; works in any setting':
+            'solo guitar — richer low voicing; 4-note spread';
           return e(React.Fragment,null,
-            e('div',{style:{width:'100%',display:'flex',alignItems:'center',gap:5,marginBottom:6}},
+            e('div',{style:{width:'100%',display:'flex',alignItems:'center',gap:5,marginBottom:2}},
               e('span',{style:{fontSize:'0.65rem',color:HINT,fontFamily:UI_FONT,letterSpacing:'0.3px'}},'Type'),
               typeBtn('shell','Shell'),
               typeBtn('drop2','Drop 2'),
@@ -2316,6 +2334,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
                 border:'1px solid '+BTN_BRD,background:'transparent',color:HINT,minHeight:0,
               }},'↺ default'):null
             ),
+            e('div',{style:{fontSize:'0.6rem',color:HINT,fontFamily:UI_FONT,marginBottom:6,paddingLeft:32,opacity:0.8}},vtHint),
             activeVT==='shell'
               ?SHELLS.map((sh,ii)=>
                   e(ChordBox,{key:ii,voicing:activeVoicings[ii],strings:sh.s,tones:ac.tones,
