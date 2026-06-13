@@ -600,7 +600,44 @@ function GuidePlayBtn({quality}){
 }
 
 // ── EarTrainingView ───────────────────────────────────────────────────
-function EarTrainingView(){
+function EarTrainingView({level}){
+  const isEss=level==='essentials';
+
+  // Modes: intervals always visible; triads + 7th chords are Full only
+  const [mode,setMode]=useState('intervals');
+  // Per-mode scores
+  const [scores,setScores]=useState({intervals:{r:0,w:0},triads:{r:0,w:0},chords:{r:0,w:0}});
+  // Round state
+  const [current,setCurrent]=useState(null);
+  const [revealed,setRevealed]=useState(false);
+  const [lastResult,setLastResult]=useState(null);
+  const [wrongGuess,setWrongGuess]=useState(null);
+  const [choices,setChoices]=useState([]); // random 4-of-12 for intervals mode
+
+  // ── Data ──
+  const IVALS=[
+    {s:1, name:'Minor 2nd', feel:'Half-step — sharp dissonance'},
+    {s:2, name:'Major 2nd', feel:'Whole-step — mild tension'},
+    {s:3, name:'Minor 3rd', feel:'Minor quality — dark, introspective'},
+    {s:4, name:'Major 3rd', feel:'Major quality — bright, open'},
+    {s:5, name:'Perfect 4th',feel:'"Here Comes the Bride" opening'},
+    {s:6, name:'Tritone',   feel:'Maximum tension — splits the octave evenly'},
+    {s:7, name:'Perfect 5th',feel:'Strong, hollow — "Star Wars" theme opening'},
+    {s:8, name:'Minor 6th', feel:'Dark and searching'},
+    {s:9, name:'Major 6th', feel:'Warm, bossa-friendly — "My Bonnie Lies Over the Ocean"'},
+    {s:10,name:'Minor 7th', feel:'Bluesy pull — dominant chord color'},
+    {s:11,name:'Major 7th', feel:'Yearning — pulls toward the octave'},
+    {s:12,name:'Octave',    feel:'Same note, one octave up — complete resolution'},
+  ];
+  const TRIAD_IV={major:[0,4,7],minor:[0,3,7],dim:[0,3,6],aug:[0,4,8]};
+  const TRIAD_LBL={major:'Major',minor:'Minor',dim:'Diminished',aug:'Augmented'};
+  const TRIAD_DESC={
+    major:'bright, stable — I, IV, V of a major key',
+    minor:'dark, smooth — II, III, VI of a major key',
+    dim:'tense, unstable — VII degree; two minor thirds stacked',
+    aug:'eerie, whole-tone color — major third + major third'
+  };
+  const TRIAD_LIST=['major','minor','dim','aug'];
   const QUALITIES=['maj7','m7','dom7','m7b5'];
   const QLABELS={'maj7':'Major 7','m7':'Minor 7','dom7':'Dom 7','m7b5':'Half-Dim'};
   const QDESCS={
@@ -609,96 +646,169 @@ function EarTrainingView(){
     dom7:'tense, pulling — the V chord',
     m7b5:'searching, unstable — the VII and minor II chord'
   };
-  const [score,setScore]=useState({right:0,wrong:0});
-  const [current,setCurrent]=useState(null);
-  const [revealed,setRevealed]=useState(false);
-  const [lastResult,setLastResult]=useState(null);
-  const [wrongGuess,setWrongGuess]=useState(null);
 
-  function playQuality(root,quality){
+  // ── Play functions ──
+  function playInterval(root,sem){
     try{
-      const ctx=_getPreviewCtx();
-      if(!ctx) return;
-      const iv=INTERVALS[quality]||[0,4,7,11];
-      iv.forEach((interval,i)=>{
-        const midi=48+root+interval;
-        const startTime=ctx.currentTime+i*0.08;
-        if(_guitarBufs) _playSampledNote(ctx,midi,startTime,0.5,2.8);
-        else _playKSNote(ctx,midi,startTime,0.5);
+      const ctx=_getPreviewCtx();if(!ctx)return;
+      const m1=52+root,m2=m1+sem;
+      if(_guitarBufs){_playSampledNote(ctx,m1,ctx.currentTime+0.05,0.65,2.5);_playSampledNote(ctx,m2,ctx.currentTime+0.62,0.65,2.5);}
+      else{_playKSNote(ctx,m1,ctx.currentTime+0.05,0.55);_playKSNote(ctx,m2,ctx.currentTime+0.62,0.55);}
+    }catch(ex){}
+  }
+  function playTriad(root,quality){
+    try{
+      const ctx=_getPreviewCtx();if(!ctx)return;
+      TRIAD_IV[quality].forEach((iv,i)=>{
+        const t=ctx.currentTime+i*0.1;
+        if(_guitarBufs) _playSampledNote(ctx,48+root+iv,t,0.55,2.8);
+        else _playKSNote(ctx,48+root+iv,t,0.5);
       });
     }catch(ex){}
   }
+  function playChord(root,quality){
+    try{
+      const ctx=_getPreviewCtx();if(!ctx)return;
+      const iv=INTERVALS[quality]||[0,4,7,11];
+      iv.forEach((interval,i)=>{
+        const t=ctx.currentTime+i*0.08;
+        if(_guitarBufs) _playSampledNote(ctx,48+root+interval,t,0.5,2.8);
+        else _playKSNote(ctx,48+root+interval,t,0.5);
+      });
+    }catch(ex){}
+  }
+  function replayCurrent(){
+    if(!current) return;
+    if(mode==='intervals') playInterval(current.root,current.semitones);
+    else if(mode==='triads') playTriad(current.root,current.quality);
+    else playChord(current.root,current.quality);
+  }
 
+  // ── Round logic ──
   function newRound(){
     const root=Math.floor(Math.random()*12);
-    const quality=QUALITIES[Math.floor(Math.random()*QUALITIES.length)];
-    setCurrent({root,quality});
     setRevealed(false);setLastResult(null);setWrongGuess(null);
-    setTimeout(()=>playQuality(root,quality),100);
+    if(mode==='intervals'){
+      const correct=IVALS[Math.floor(Math.random()*IVALS.length)];
+      const others=IVALS.filter(x=>x.s!==correct.s).sort(()=>Math.random()-0.5).slice(0,3);
+      setChoices([correct,...others].sort(()=>Math.random()-0.5));
+      setCurrent({root,semitones:correct.s});
+      setTimeout(()=>playInterval(root,correct.s),150);
+    } else if(mode==='triads'){
+      const quality=TRIAD_LIST[Math.floor(Math.random()*4)];
+      setCurrent({root,quality});
+      setTimeout(()=>playTriad(root,quality),150);
+    } else {
+      const quality=QUALITIES[Math.floor(Math.random()*4)];
+      setCurrent({root,quality});
+      setTimeout(()=>playChord(root,quality),150);
+    }
   }
-
-  function guess(q){
+  function guess(answer){
     if(revealed||!current) return;
-    const correct=q===current.quality;
+    const correct=mode==='intervals'?(answer===current.semitones):(answer===current.quality);
     setRevealed(true);setLastResult(correct?'right':'wrong');
-    if(!correct) setWrongGuess(q);
-    setScore(s=>({right:s.right+(correct?1:0),wrong:s.wrong+(correct?0:1)}));
+    if(!correct) setWrongGuess(answer);
+    setScores(s=>({...s,[mode]:{r:s[mode].r+(correct?1:0),w:s[mode].w+(correct?0:1)}}));
   }
-
-  useEffect(()=>{newRound();},[]);
+  useEffect(()=>{newRound();},[mode]);
   if(!current) return null;
 
-  const total=score.right+score.wrong;
-  const pct=total>0?Math.round(100*score.right/total):0;
+  const sc=scores[mode];
+  const total=sc.r+sc.w;
+  const pct=total>0?Math.round(100*sc.r/total):0;
+
+  // ── Choices grid ──
+  function renderChoices(){
+    const mkBtn=(key,onClick,label,isAns,isWrong)=>e('button',{key,onClick,disabled:revealed,style:{
+      padding:'12px 8px',borderRadius:8,cursor:revealed?'default':'pointer',
+      fontFamily:SERIF,fontSize:'0.95rem',fontWeight:700,minHeight:52,transition:'opacity 0.2s',
+      border:'2px solid '+(isAns?GOLD:isWrong?'#FF6B6B':BTN_BRD),
+      background:isAns?ACT_YEL:isWrong?ACT_RED:BG2,
+      color:isAns?GOLD:isWrong?'#FF6B6B':BTN_OFF,
+      opacity:revealed&&!isAns&&!isWrong?0.45:1
+    }},label);
+    if(mode==='intervals'){
+      return choices.map(iv=>mkBtn(iv.s,()=>guess(iv.s),iv.name,
+        revealed&&iv.s===current.semitones,revealed&&wrongGuess===iv.s));
+    }
+    const list=mode==='triads'?TRIAD_LIST:QUALITIES;
+    const lbls=mode==='triads'?TRIAD_LBL:QLABELS;
+    return list.map(q=>mkBtn(q,()=>guess(q),lbls[q],
+      revealed&&q===current.quality,revealed&&wrongGuess===q));
+  }
+
+  // ── Reveal feedback ──
+  function renderReveal(){
+    if(!revealed) return null;
+    let answerName,answerDesc;
+    if(mode==='intervals'){
+      const iv=IVALS.find(x=>x.s===current.semitones);
+      answerName=iv?iv.name:'';answerDesc=iv?iv.feel:'';
+    } else if(mode==='triads'){
+      answerName=TRIAD_LBL[current.quality];answerDesc=TRIAD_DESC[current.quality];
+    } else {
+      answerName=QLABELS[current.quality];answerDesc=QDESCS[current.quality];
+    }
+    return e('div',{style:{textAlign:'center',marginBottom:14,padding:'12px 20px',
+      background:lastResult==='right'?ACT_YEL:ACT_RED,
+      border:'1px solid '+(lastResult==='right'?GOLD:'#FF6B6B'),borderRadius:8}},
+      e('div',{style:{fontSize:'1.05rem',fontWeight:700,
+        color:lastResult==='right'?GOLD:'#FF6B6B',marginBottom:4}},
+        lastResult==='right'?'✓ Correct!':'✗ That was…'),
+      e('div',{style:{fontFamily:SERIF,fontSize:'1.1rem',color:GOLD,marginBottom:4}},answerName),
+      e('div',{style:{fontSize:'0.77rem',color:HINT}},answerDesc)
+    );
+  }
+
+  const modeHint={
+    intervals:'Two notes played ascending — name the interval',
+    triads:'Three-note chord — major, minor, diminished, or augmented?',
+    chords:'Four-note chord — identify the 7th chord quality'
+  };
+  const TABS=isEss
+    ?[{id:'intervals',lbl:'Intervals'}]
+    :[{id:'intervals',lbl:'Intervals'},{id:'triads',lbl:'Triads'},{id:'chords',lbl:'7th Chords'}];
 
   return e('div',{style:{padding:'0 0 20px'}},
-    e('div',{style:{textAlign:'center',marginBottom:20}},
+    e('div',{style:{textAlign:'center',marginBottom:12}},
       e('div',{style:{fontFamily:SERIF,fontSize:'1.2rem',fontWeight:700,color:'var(--scale-name)',marginBottom:4}},'Ear Training'),
-      e('div',{style:{fontSize:'0.79rem',color:HINT,marginBottom:6}},'Identify the chord quality by ear'),
-      total>0?e('div',{style:{fontSize:'0.95rem',fontWeight:700,
-        color:pct>=70?'#4ECDC4':'#FF6B6B'}},
-        pct+'% — '+score.right+'/'+total):null
+      total>0?e('div',{style:{fontSize:'0.95rem',fontWeight:700,color:pct>=70?GOLD:'#FF6B6B'}},
+        pct+'% — '+sc.r+'/'+total):null
     ),
-    e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:20}},
-      e('button',{onClick:()=>playQuality(current.root,current.quality),style:{
-        width:80,height:80,borderRadius:'50%',border:'2px solid #4ECDC4',
-        background:ACT_TEAL,color:'#4ECDC4',fontSize:'2rem',cursor:'pointer',
-        display:'flex',alignItems:'center',justifyContent:'center',
-        boxShadow:'0 0 20px #4ECDC444',transition:'box-shadow 0.15s'
-      }},'♪'),
-      e('div',{style:{fontSize:'0.74rem',color:HINT}},'Tap to replay')
-    ),
-    revealed?e('div',{style:{textAlign:'center',marginBottom:14,padding:'12px 20px',
-      background:lastResult==='right'?ACT_TEAL:ACT_RED,
-      border:'1px solid '+(lastResult==='right'?'#4ECDC4':'#FF6B6B'),borderRadius:8}},
-      e('div',{style:{fontSize:'1.05rem',fontWeight:700,
-        color:lastResult==='right'?'#4ECDC4':'#FF6B6B',marginBottom:4}},
-        lastResult==='right'?'✓ Correct!':'✗ That was…'),
-      e('div',{style:{fontFamily:SERIF,fontSize:'1.1rem',color:GOLD,marginBottom:4}},QLABELS[current.quality]),
-      e('div',{style:{fontSize:'0.77rem',color:HINT}},QDESCS[current.quality])
+    TABS.length>1?e('div',{style:{display:'flex',gap:2,marginBottom:0}},
+      TABS.map(({id,lbl})=>e('button',{key:id,onClick:()=>setMode(id),style:{
+        padding:'7px 16px',borderRadius:'6px 6px 0 0',cursor:'pointer',
+        fontFamily:UI_FONT,fontSize:'0.79rem',fontWeight:mode===id?700:400,
+        border:'1px solid '+BTN_BRD,borderBottom:mode===id?'1px solid '+BG2:'1px solid '+BTN_BRD,
+        background:mode===id?BG2:'transparent',color:mode===id?'var(--txt)':BTN_OFF,
+        marginBottom:mode===id?'-1px':0,position:'relative',zIndex:mode===id?1:0,minHeight:34
+      }},lbl))
     ):null,
-    e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}},
-      QUALITIES.map(q=>{
-        const isAnswer=revealed&&q===current.quality;
-        const isWrongPick=revealed&&wrongGuess===q;
-        return e('button',{key:q,onClick:()=>guess(q),disabled:revealed,style:{
-          padding:'14px 8px',borderRadius:8,
-          cursor:revealed?'default':'pointer',
-          fontFamily:SERIF,fontSize:'1.0rem',fontWeight:700,
-          border:'2px solid '+(isAnswer?'#4ECDC4':isWrongPick?'#FF6B6B':BTN_BRD),
-          background:isAnswer?ACT_TEAL:isWrongPick?ACT_RED:BG2,
-          color:isAnswer?'#4ECDC4':isWrongPick?'#FF6B6B':BTN_OFF,
-          opacity:revealed&&!isAnswer&&!isWrongPick?0.45:1,
-          minHeight:56,transition:'opacity 0.2s'
-        }},QLABELS[q]);
-      })
+    e('div',{style:{background:BG2,border:'1px solid '+BTN_BRD,
+      borderRadius:TABS.length>1?'0 6px 6px 6px':8,padding:'16px',marginBottom:12}},
+      e('div',{style:{fontSize:'0.74rem',color:HINT,textAlign:'center',marginBottom:14,letterSpacing:'0.3px'}},
+        modeHint[mode]),
+      e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:16}},
+        e('button',{onClick:replayCurrent,style:{
+          width:72,height:72,borderRadius:'50%',border:'2px solid '+GOLD,
+          background:ACT_YEL,color:GOLD,fontSize:'2rem',cursor:'pointer',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          boxShadow:'0 0 16px '+GOLD+'44',transition:'box-shadow 0.15s'
+        }},'♪'),
+        e('div',{style:{fontSize:'0.72rem',color:HINT}},'Tap to replay')
+      ),
+      renderReveal(),
+      e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:revealed?12:0}},
+        renderChoices()
+      ),
+      revealed?e('button',{onClick:newRound,style:{
+        width:'100%',padding:'12px',background:GOLD,border:'none',borderRadius:8,
+        color:'#07070f',fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:'bold',
+        cursor:'pointer',minHeight:48
+      }},'Next →'):null
     ),
-    revealed?e('button',{onClick:newRound,style:{
-      width:'100%',padding:'12px',background:'#4ECDC4',border:'none',borderRadius:8,
-      color:'#07070f',fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:'bold',
-      cursor:'pointer',minHeight:48,marginBottom:8
-    }},'Next →'):null,
-    e('button',{onClick:()=>setScore({right:0,wrong:0}),style:{
+    e('button',{onClick:()=>setScores(s=>({...s,[mode]:{r:0,w:0}})),style:{
       width:'100%',padding:'6px',background:'transparent',
       border:'1px solid '+BTN_BRD,borderRadius:6,color:BTN_OFF,
       fontFamily:UI_FONT,fontSize:'0.78rem',cursor:'pointer',minHeight:36
@@ -2317,7 +2427,7 @@ function App(){
     viewMode==='guide'?e(GuideView,{openPreset,level}):null,
 
     // ── EAR TRAINING VIEW ────────────────────────────────────────────
-    viewMode==='quiz'?e(EarTrainingView,null):null,
+    viewMode==='quiz'?e(EarTrainingView,{level}):null,
 
     // ── DIATONIC VIEW ────────────────────────────────────────────────
     viewMode==='diatonic'?e('div',null,
