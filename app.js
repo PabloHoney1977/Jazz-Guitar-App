@@ -556,52 +556,44 @@ function ColorLegend(){
   );
 }
 
-// ── BpmKnob ───────────────────────────────────────────────────────────
-function BpmKnob({bpm,setBpm,onTap}){
-  const dragRef=useRef(null);
+// ── BpmStrip ──────────────────────────────────────────────────────────
+function BpmStrip({bpm,setBpm,onTap}){
   const min=35,max=150;
-  const pct=(bpm-min)/(max-min);
-  const angle=-135+pct*270;
-  const cx=30,cy=30,r=24;
-  const rad=(angle-90)*Math.PI/180;
-  const mx=cx+r*0.55*Math.cos(rad),my=cy+r*0.55*Math.sin(rad);
-  const mx2=cx+r*0.82*Math.cos(rad),my2=cy+r*0.82*Math.sin(rad);
-  function arcPath(startDeg,endDeg,radius){
-    const s=(startDeg-90)*Math.PI/180,en=(endDeg-90)*Math.PI/180;
-    const x1=cx+radius*Math.cos(s),y1=cy+radius*Math.sin(s);
-    const x2=cx+radius*Math.cos(en),y2=cy+radius*Math.sin(en);
-    const large=endDeg-startDeg>180?1:0;
-    return 'M '+x1+' '+y1+' A '+radius+' '+radius+' 0 '+large+' 1 '+x2+' '+y2;
+  const holdRef=useRef(null);
+  function startHold(dir){
+    setBpm(b=>Math.max(min,Math.min(max,b+dir)));
+    holdRef.current=setInterval(()=>setBpm(b=>Math.max(min,Math.min(max,b+dir))),110);
   }
-  function handleWheel(ev){ev.preventDefault();setBpm(b=>Math.max(min,Math.min(max,b-(ev.deltaY>0?1:-1)*5)));}
-  function handleKey(ev){
-    if(ev.key==='ArrowUp'||ev.key==='ArrowRight') setBpm(b=>Math.min(max,b+5));
-    if(ev.key==='ArrowDown'||ev.key==='ArrowLeft') setBpm(b=>Math.max(min,b-5));
-  }
-  function handlePointerDown(ev){
-    ev.currentTarget.setPointerCapture(ev.pointerId);
-    dragRef.current={startY:ev.clientY,startBpm:bpm};
-  }
-  function handlePointerMove(ev){
-    if(!dragRef.current) return;
-    const delta=Math.round((dragRef.current.startY-ev.clientY)/1.5);
-    setBpm(Math.max(min,Math.min(max,dragRef.current.startBpm+delta)));
-  }
-  function handlePointerUp(){dragRef.current=null;}
-  return e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:1,cursor:'pointer',flexShrink:0},
-    onWheel:handleWheel,onKeyDown:handleKey,tabIndex:0,'aria-label':'BPM '+bpm},
-    e('svg',{width:60,height:60,viewBox:'0 0 60 60',style:{display:'block',userSelect:'none',touchAction:'none'},
-      onPointerDown:handlePointerDown,onPointerMove:handlePointerMove,onPointerUp:handlePointerUp},
-      e('path',{d:arcPath(-135,135,20),fill:'none',stroke:'var(--brd)',strokeWidth:3,strokeLinecap:'round'}),
-      e('path',{d:arcPath(-135,angle,20),fill:'none',stroke:GOLD,strokeWidth:3,strokeLinecap:'round'}),
-      e('circle',{cx,cy,r:16,fill:'var(--bg2)',stroke:'var(--brd)',strokeWidth:1.5}),
-      e('line',{x1:mx,y1:my,x2:mx2,y2:my2,stroke:GOLD,strokeWidth:2.5,strokeLinecap:'round'})
+  function stopHold(){clearInterval(holdRef.current);holdRef.current=null;}
+  const adjBtn=(label,dir)=>e('button',{
+    onPointerDown:()=>startHold(dir),onPointerUp:stopHold,onPointerLeave:stopHold,
+    style:{
+      width:36,minHeight:44,border:'1px solid '+BTN_BRD,
+      borderRadius:dir<0?'8px 0 0 8px':'0 8px 8px 0',
+      borderRight:dir<0?'none':undefined,borderLeft:dir>0?'none':undefined,
+      background:'transparent',color:GOLD,fontSize:'1.2rem',
+      cursor:'pointer',fontFamily:UI_FONT,fontWeight:700,
+      display:'flex',alignItems:'center',justifyContent:'center',
+    }
+  },label);
+  return e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flexShrink:0}},
+    e('div',{style:{display:'flex',alignItems:'stretch'}},
+      adjBtn('−',-1),
+      e('div',{style:{
+        display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+        padding:'0 10px',border:'1px solid '+BTN_BRD,minWidth:60,
+        background:'transparent',
+      }},
+        e('div',{style:{fontSize:'1.4rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT,lineHeight:1}},bpm),
+        e('div',{style:{fontSize:'0.55rem',color:LBL,letterSpacing:'1.5px',fontFamily:UI_FONT,marginTop:1}},'BPM')
+      ),
+      adjBtn('+',1)
     ),
-    e('div',{style:{fontSize:'1.0rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT,lineHeight:1}},bpm),
-    e('div',{style:{fontSize:'0.6rem',color:'var(--lbl)',letterSpacing:'1px',lineHeight:1}},'BPM'),
-    e('button',{onClick:onTap,style:{fontSize:'0.7rem',color:'var(--btn-off)',background:'transparent',
-      border:'1px solid var(--btn-brd)',borderRadius:4,padding:'4px 12px',cursor:'pointer',
-      fontFamily:UI_FONT,minHeight:44,marginTop:2}},'TAP')
+    e('button',{onClick:onTap,style:{
+      fontSize:'0.68rem',color:BTN_OFF,background:'transparent',
+      border:'1px solid '+BTN_BRD,borderRadius:4,padding:'3px 14px',
+      cursor:'pointer',fontFamily:UI_FONT,minHeight:0,letterSpacing:'0.5px',
+    }},'TAP')
   );
 }
 
@@ -1880,7 +1872,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
               isPlaying?'■ STOP':'▶ PLAY'),
         isPlaying&&loopCount>0?e('span',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,minWidth:52}},
           'Loop '+loopCount):null,
-        e(BpmKnob,{bpm,setBpm,onTap:handleTap})
+        e(BpmStrip,{bpm,setBpm,onTap:handleTap})
       ),
       // Right: instruments (with Mix sub-buttons), separator, click
       e('div',{style:{display:'flex',gap:4,marginLeft:'auto',alignItems:'flex-end'}},
