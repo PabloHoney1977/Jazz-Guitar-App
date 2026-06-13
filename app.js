@@ -906,20 +906,20 @@ function TourOverlay({step,onNext,onSkip}){
       position:'absolute',
       ...(tipTop!==null?{top:tipTop}:{bottom:tipBottom}),
       left:tipLeft,transform:'translateX(-50%)',
-      width:'min(360px,90vw)',background:'#0d1a2a',border:'1px solid #1a4a6a',
+      width:'min(360px,90vw)',background:'var(--bg2)',border:'1px solid var(--brd)',
       borderRadius:12,padding:'16px 18px',pointerEvents:'auto',
-      boxShadow:'0 8px 32px rgba(0,0,0,0.8)',zIndex:201
+      boxShadow:'0 8px 32px rgba(0,0,0,0.5)',zIndex:201
     }},
-      e('div',{style:{fontSize:'0.67rem',color:'#d4a855',letterSpacing:'2px',marginBottom:5}},
+      e('div',{style:{fontSize:'0.67rem',color:GOLD,letterSpacing:'0.5px',marginBottom:5}},
         (step+1)+' / '+TOUR_STEPS.length),
-      e('div',{style:{fontFamily:SERIF,fontSize:'1.0rem',fontWeight:700,color:'#e8d8a0',marginBottom:7}},s.title),
-      e('div',{style:{fontSize:'0.81rem',color:'#9ab8d8',lineHeight:1.65,marginBottom:14}},s.text),
+      e('div',{style:{fontFamily:SERIF,fontSize:'1.0rem',fontWeight:700,color:'var(--scale-name)',marginBottom:7}},s.title),
+      e('div',{style:{fontSize:'0.81rem',color:'var(--txt)',lineHeight:1.65,marginBottom:14,opacity:0.85}},s.text),
       e('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
-        e('button',{onClick:onSkip,style:{padding:'6px 14px',borderRadius:8,border:'1px solid #1a4a6a',
-          background:'transparent',color:'#4a7a9a',fontFamily:UI_FONT,fontSize:'0.79rem',cursor:'pointer',minHeight:44}},
+        e('button',{onClick:onSkip,style:{padding:'6px 14px',borderRadius:8,border:'1px solid var(--brd)',
+          background:'transparent',color:BTN_OFF,fontFamily:UI_FONT,fontSize:'0.79rem',cursor:'pointer',minHeight:44}},
           'Skip tour'),
         e('button',{onClick:onNext,style:{padding:'6px 20px',borderRadius:8,border:'none',
-          background:'#d4a855',color:'#07070f',fontFamily:UI_FONT,fontSize:'0.82rem',
+          background:GOLD,color:'var(--bg)',fontFamily:UI_FONT,fontSize:'0.82rem',
           fontWeight:700,cursor:'pointer',minHeight:44}},
           isLast?'Done':'Next →')
       )
@@ -1290,7 +1290,7 @@ function LedToggle({label,enabled,onToggle,color}){
       transition:'background 0.15s,box-shadow 0.15s'
     }}),
     e('span',{style:{
-      fontSize:'0.6rem',letterSpacing:'1.5px',fontWeight:enabled?700:400,
+      fontSize:'0.62rem',letterSpacing:'0.8px',fontWeight:enabled?700:400,
       color:enabled?color:BTN_OFF,transition:'color 0.15s'
     }},label)
   );
