@@ -2457,7 +2457,7 @@ function App(){
     // Header — title left, legend + level + theme right
     e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8,flexWrap:'wrap'}},
       e('span',{style:{fontFamily:SERIF,fontSize:'1.4rem',fontWeight:700,color:'var(--scale-name)',flexGrow:1}},'Jazz Guitar Lab'),
-      e(ColorLegend,null),
+
       e('div',{'data-tour':'level-switch'},e(GuitarToggle,{level,setLevel})),
       e('button',{onClick:()=>setTourStep(0),'aria-label':'Start tour',style:{padding:'4px 10px',
         borderRadius:18,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',
