@@ -834,7 +834,7 @@ function EarTrainingView({level}){
     e('button',{onClick:()=>setScores(s=>({...s,[mode]:{r:0,w:0}})),style:{
       width:'100%',padding:'6px',background:'transparent',
       border:'1px solid '+BTN_BRD,borderRadius:6,color:BTN_OFF,
-      fontFamily:UI_FONT,fontSize:'0.78rem',cursor:'pointer',minHeight:36
+      fontFamily:UI_FONT,fontSize:'0.78rem',cursor:'pointer',minHeight:44
     }},'Reset score')
   );
 }
@@ -1216,7 +1216,7 @@ const mkSsBtn=(active)=>({
 // chords: [semitones above key root, quality, symbol, roman]
 // bars: chord index per bar
 const FORM_DEFS={
-  major:{lbl:'II–V–I',col:'#4ECDC4',bg:ACT_TEAL,
+  major:{lbl:'II–V–I',col:'var(--gold)',bg:'var(--act-gold)',
     chords:[[2,'m7','m7','II'],[7,'dom7','7','V'],[0,'maj7','maj7','I']],
     bars:[0,1,2,2],
     tip:'Major II–V–I: keep common tones, move others by step. Classic: IIm7 (7 bass) → V7 (5 bass) → Imaj7 root pos, all on the same string set.'},
@@ -1302,7 +1302,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   const [invIdxs,setInvIdxs]=useState([0,0,0,0,0,0,0,0]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
   const [isPlaying,setIsPlaying]=useState(false);
-  const [bpm,setBpm]=useState(()=>Math.max(35,Math.min(150,parseInt(localStorage.getItem('jg-bpm')||'120',10))));
+  const [bpm,setBpm]=useState(()=>Math.max(35,Math.min(150,parseInt(localStorage.getItem('jg-bpm')||'80',10))));
   const [bassEnabled,setBassEnabled]=useState(()=>localStorage.getItem('jg-bass')!=='false');
   const [metronomeEnabled,setMetronomeEnabled]=useState(()=>localStorage.getItem('jg-met')!=='false');
   const [form,setForm]=useState(()=>{
@@ -1765,15 +1765,15 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         e('button',{onClick:()=>setCustomProg(p=>[...p,{root:0,q:'dom7'}]),
           disabled:customProg.length>=12,
           style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
-            border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:36}},
+            border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:44}},
           '+ Bar'),
         customProg.length>1?e('button',{onClick:()=>{setCustomProg(p=>{const n=p.slice(0,-1);setActiveChordIdx(a=>Math.min(a,n.length-1));return n;});setEditingBar(-1);},
           style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
-            border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:36}},
+            border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:44}},
           '− Bar'):null,
         e('button',{onClick:()=>setCustomProg(DFLT_CPROG),
           style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
-            border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:36}},
+            border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:44}},
           'Reset')
       ),
       editingBar>=0?e('div',{style:{padding:'8px 12px',background:BG2,border:'1px solid '+GOLD,
@@ -1782,11 +1782,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           e('span',{style:{fontSize:'0.77rem',color:GOLD,letterSpacing:'0.5px',fontWeight:600}},'Bar '+(editingBar+1)+' — Root'),
           e('button',{onClick:()=>setEditingBar(-1),style:{marginLeft:'auto',padding:'2px 8px',borderRadius:4,
             cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',border:'1px solid '+BTN_BRD,
-            background:'transparent',color:BTN_OFF,minHeight:32}},'✕ Close')
+            background:'transparent',color:BTN_OFF,minHeight:44}},'✕ Close')
         ),
         e('div',{style:{display:'flex',gap:3,flexWrap:'wrap',marginBottom:8}},
           KEYS.map((k,i)=>e('button',{key:i,onClick:()=>setCustomProg(p=>p.map((b,j)=>j===editingBar?{...b,root:k.root}:b)),
-            style:{padding:'3px 8px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',minHeight:36,
+            style:{padding:'3px 8px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',minHeight:44,
               border:'1px solid '+(customProg[editingBar]?.root===k.root?GOLD:BTN_BRD),
               background:customProg[editingBar]?.root===k.root?ACT_GOLD:BG2,
               color:customProg[editingBar]?.root===k.root?GOLD:BTN_OFF}},k.name))
@@ -1795,7 +1795,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',marginRight:4}},'Quality'),
           CPROG_QUALS.map(qid=>{const qt=EXT_TYPES.find(t=>t.id===qid);return e('button',{key:qid,
             onClick:()=>setCustomProg(p=>p.map((b,j)=>j===editingBar?{...b,q:qid}:b)),
-            style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',minHeight:36,
+            style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',minHeight:44,
               border:'1px solid '+(customProg[editingBar]?.q===qid?'#C084FC':BTN_BRD),
               background:customProg[editingBar]?.q===qid?ACT_PUR:BG2,
               color:customProg[editingBar]?.q===qid?'#C084FC':BTN_OFF}},qt.sym);})
@@ -1841,7 +1841,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           padding:'3px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           border:'1px solid '+(scaleHint===sc.name?GOLD:BTN_BRD),
           background:scaleHint===sc.name?ACT_GOLD:BG2,
-          color:scaleHint===sc.name?GOLD:BTN_OFF,minHeight:36}},
+          color:scaleHint===sc.name?GOLD:BTN_OFF,minHeight:44}},
           sc.name+' — '+sc.note)
       ),
       (SCALE_HINTS[ac.quality]||[]).length===0&&e('span',{style:{fontSize:'0.72rem',color:HINT}},'—'),
@@ -1850,7 +1850,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           padding:'3px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           border:'1px solid '+(showGTLine?GOLD:BTN_BRD),
           background:showGTLine?ACT_GOLD:BG2,
-          color:showGTLine?GOLD:BTN_OFF,minHeight:36}},'Guide tones ♦')
+          color:showGTLine?GOLD:BTN_OFF,minHeight:44}},'Guide tones ♦')
       )
     ),
     // Chord columns — for custom form show only the active chord to avoid clutter
@@ -2606,7 +2606,7 @@ function App(){
       e('div',{style:{background:BG2,border:'1px solid '+BORDER,borderRadius:7,
         padding:'8px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}},
         e('span',{style:{fontFamily:SERIF,fontSize:'1.35rem',fontWeight:700,color:GOLD,fontStyle:'italic'}},chordName),
-        e('span',{style:{fontSize:'0.79rem',color:LBL,letterSpacing:'1px'}},KEYS[key].name+' MAJOR — '+ROMAN[deg]),
+        e('span',{style:{fontSize:'0.79rem',color:LBL,letterSpacing:'0.3px'}},KEYS[key].name+' major — '+ROMAN[deg]),
         e('div',{style:{display:'flex',gap:12,flexWrap:'wrap',marginLeft:'auto'}},
           tones.map((t,i)=>
             e('span',{key:i,style:{display:'flex',alignItems:'center',gap:5,fontSize:'0.76rem',color:TC[i]}},
