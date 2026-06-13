@@ -237,7 +237,9 @@ function findBestInvIdx(prevVoicing,candidates){
   let best=0,bestScore=Infinity;
   candidates.forEach((v,i)=>{
     if(!v) return;
-    const score=v.frets.reduce((sum,f,j)=>sum+Math.abs(f-prevVoicing.frets[j]),0);
+    // Compare by MIDI pitch so voice leading works across all voicing types including shells
+    const len=Math.min(v.midis.length,prevVoicing.midis.length);
+    const score=v.midis.slice(0,len).reduce((sum,m,j)=>sum+Math.abs(m-prevVoicing.midis[j]),0);
     if(score<bestScore){bestScore=score;best=i;}
   });
   return best;
@@ -1559,9 +1561,17 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     setTimeout(()=>{
       if(!audioCtxRef.current||audioCtxRef.current!==ctx) return;
       setCountIn(0);
-      // Now begin actual playback
-      const allVoicings=chords.map(chord=>D2_INV.map(inv=>calcVoicing(ss,inv.a,chord.tones)));
+      // Now begin actual playback — voice-lead all chords from chord 0 forward
+      const allVoicings=chords.map(chord=>{
+        if(vType==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1));
+        return dropD.inv.map(inv=>calcVoicing(ss,inv.a,chord.tones));
+      });
       const idxs=[...invIdxs];
+      for(let i=1;i<chords.length;i++)
+        idxs[i]=findBestInvIdx(allVoicings[i-1][idxs[i-1]],allVoicings[i]);
+      // Wrap-around: re-pick chord 0 based on the last chord so loops are smooth
+      idxs[0]=findBestInvIdx(allVoicings[chords.length-1][idxs[chords.length-1]],allVoicings[0]);
+      // Then re-voice 1..n-1 from the updated chord 0
       for(let i=1;i<chords.length;i++)
         idxs[i]=findBestInvIdx(allVoicings[i-1][idxs[i-1]],allVoicings[i]);
       setInvIdxs(idxs);
