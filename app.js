@@ -1556,11 +1556,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     if(!scaleHint||!opts.find(s=>s.name===scaleHint)) setScaleHint(opts[0].name);
   },[ac.quality]); // eslint-disable-line react-hooks/exhaustive-deps
   const activeScale=scaleHint?(SCALE_HINTS[ac.quality]||[]).find(s=>s.name===scaleHint):null;
-  // Hide scale overlay on neck during playback (keeps neck clean for fingering study) and in basic mode
+  // Hide scale overlay in basic mode; otherwise show when a scale is selected
   const scalePos=useMemo(()=>{
-    if(isPlaying||level==='essentials') return [];
+    if(level==='essentials') return [];
     return activeScale?getScalePos(ac.rootPC,activeScale.iv,ac.tones):[];
-  },[scaleHint,activeChordIdx,keyIdx,form,customProg,isPlaying,level]);
+  },[scaleHint,activeChordIdx,keyIdx,form,customProg,level]);
   const highlight=useMemo(()=>{
     const maxIdx=activeVT==='shell'?SHELLS.length-1:activeDropD.inv.length-1;
     const selIdx=Math.min(invIdxs[safeBarIdx]||0,maxIdx);
@@ -2303,8 +2303,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     level==='full'&&e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',
       padding:'6px 10px',background:BG2,border:'1px solid '+BORDER,borderTop:'none',
       borderRadius:'0 0 9px 9px',marginBottom:12}},
-      e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.5px',flexShrink:0}},
-        isPlaying?'Scale (not shown while playing)':'Scale'),
+      e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.5px',flexShrink:0}},'Scale'),
       (SCALE_HINTS[ac.quality]||[]).map(sc=>
         e('button',{key:sc.name,onClick:()=>setScaleHint(h=>h===sc.name?null:sc.name),style:{
           padding:'3px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
