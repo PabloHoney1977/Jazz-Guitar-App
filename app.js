@@ -637,6 +637,8 @@ function EarTrainingView({level}){
   const [mode,setMode]=useState('intervals');
   // Per-mode scores
   const [scores,setScores]=useState({intervals:{r:0,w:0},triads:{r:0,w:0},chords:{r:0,w:0}});
+  // Per-item breakdown: {intervals:{1:{r,w},...}, triads:{major:{r,w},...}, chords:{...}}
+  const [detail,setDetail]=useState({intervals:{},triads:{},chords:{}});
   // Round state
   const [current,setCurrent]=useState(null);
   const [revealed,setRevealed]=useState(false);
@@ -737,9 +739,12 @@ function EarTrainingView({level}){
   function guess(answer){
     if(revealed||!current) return;
     const correct=mode==='intervals'?(answer===current.semitones):(answer===current.quality);
+    const key=mode==='intervals'?current.semitones:current.quality;
     setRevealed(true);setLastResult(correct?'right':'wrong');
     if(!correct) setWrongGuess(answer);
     setScores(s=>({...s,[mode]:{r:s[mode].r+(correct?1:0),w:s[mode].w+(correct?0:1)}}));
+    setDetail(d=>{const m={...d[mode]},e={...m[key]||{r:0,w:0}};
+      e[correct?'r':'w']++;m[key]=e;return{...d,[mode]:m};});
   }
   useEffect(()=>{newRound();},[mode]);
   if(!current) return null;
@@ -747,6 +752,20 @@ function EarTrainingView({level}){
   const sc=scores[mode];
   const total=sc.r+sc.w;
   const pct=total>0?Math.round(100*sc.r/total):0;
+  // Find the weakest item (min r/(r+w) with at least 2 attempts)
+  const weakest=(()=>{
+    const dm=detail[mode];
+    let worst=null,worstRate=1;
+    Object.entries(dm).forEach(([k,v])=>{
+      const t=v.r+v.w;if(t<2) return;
+      const rate=v.r/t;if(rate<worstRate){worstRate=rate;worst={k,r:v.r,w:v.w};}
+    });
+    if(!worst) return null;
+    const label=mode==='intervals'
+      ?(IVALS.find(x=>x.s===+worst.k)||{name:worst.k}).name
+      :mode==='triads'?(TRIAD_LBL[worst.k]||worst.k):(QLABELS[worst.k]||worst.k);
+    return{label,missed:worst.w,total:worst.r+worst.w};
+  })();
 
   // ── Choices grid ──
   function renderChoices(){
@@ -803,8 +822,11 @@ function EarTrainingView({level}){
   return e('div',{style:{padding:'0 0 20px'}},
     e('div',{style:{textAlign:'center',marginBottom:12}},
       e('div',{style:{fontFamily:SERIF,fontSize:'1.2rem',fontWeight:700,color:'var(--scale-name)',marginBottom:4}},'Ear Training'),
-      total>0?e('div',{style:{fontSize:'0.95rem',fontWeight:700,color:pct>=70?GOLD:'#FF6B6B'}},
-        pct+'% — '+sc.r+'/'+total):null
+      total>0?e('div',null,
+        e('div',{style:{fontSize:'0.95rem',fontWeight:700,color:pct>=70?GOLD:'#FF6B6B'}},pct+'% — '+sc.r+'/'+total),
+        weakest?e('div',{style:{fontSize:'0.7rem',color:HINT,marginTop:3}},
+          '⚠ Weakest: '+weakest.label+' ('+weakest.missed+'/'+weakest.total+' missed)'):null
+      ):null
     ),
     TABS.length>1?e('div',{style:{display:'flex',gap:2,marginBottom:0}},
       TABS.map(({id,lbl})=>e('button',{key:id,onClick:()=>setMode(id),style:{
@@ -838,7 +860,7 @@ function EarTrainingView({level}){
         cursor:'pointer',minHeight:48
       }},'Next →'):null
     ),
-    e('button',{onClick:()=>setScores(s=>({...s,[mode]:{r:0,w:0}})),style:{
+    e('button',{onClick:()=>{setScores(s=>({...s,[mode]:{r:0,w:0}}));setDetail(d=>({...d,[mode]:{}}));},style:{
       width:'100%',padding:'6px',background:'transparent',
       border:'1px solid '+BTN_BRD,borderRadius:6,color:BTN_OFF,
       fontFamily:UI_FONT,fontSize:'0.78rem',cursor:'pointer',minHeight:44
