@@ -1549,8 +1549,18 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     if(activeVT==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ac.tones,1));
     return activeDropD.inv.map(inv=>calcVoicing(activeSS,inv.a,ac.tones));
   },[activeChordIdx,strSetIdx,keyIdx,form,customProg,vType,barVTypes]);
+  // Auto-select the most common (first) scale when chord quality changes, unless user has overridden
+  useEffect(()=>{
+    const opts=SCALE_HINTS[ac.quality]||[];
+    if(!opts.length){setScaleHint(null);return;}
+    if(!scaleHint||!opts.find(s=>s.name===scaleHint)) setScaleHint(opts[0].name);
+  },[ac.quality]); // eslint-disable-line react-hooks/exhaustive-deps
   const activeScale=scaleHint?(SCALE_HINTS[ac.quality]||[]).find(s=>s.name===scaleHint):null;
-  const scalePos=useMemo(()=>activeScale?getScalePos(ac.rootPC,activeScale.iv,ac.tones):[],[scaleHint,activeChordIdx,keyIdx,form,customProg]);
+  // Hide scale overlay on neck during playback (keeps neck clean for fingering study) and in basic mode
+  const scalePos=useMemo(()=>{
+    if(isPlaying||level==='essentials') return [];
+    return activeScale?getScalePos(ac.rootPC,activeScale.iv,ac.tones):[];
+  },[scaleHint,activeChordIdx,keyIdx,form,customProg,isPlaying,level]);
   const highlight=useMemo(()=>{
     const maxIdx=activeVT==='shell'?SHELLS.length-1:activeDropD.inv.length-1;
     const selIdx=Math.min(invIdxs[safeBarIdx]||0,maxIdx);
@@ -1565,7 +1575,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
 
   // Guide-tone dots: show 3rd and 7th of each chord at low neck positions
   const gtDots=useMemo(()=>{
-    if(!showGTLine||chords.length<2) return [];
+    if(level==='essentials'||!showGTLine||chords.length<2) return [];
     const dots=[];
     chords.forEach((chord,ci)=>{
       [[1,'3rd',TC[1]],[3,'7th',TC[3]]].forEach(([ti,role,col])=>{
@@ -2288,12 +2298,13 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       setDotMode?e(DotModeToggle,{dotMode,setDotMode}):null
     ),
     // Neck
-    e(ScrollNeck,{arpPos,highlight,scalePos,extraDots:gtDots,degNames:ac.dnames,dotMode,dotKeyIdx:keyIdx,marginBottom:0}),
-    // Scale + guide-tone controls
-    e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',
+    e(ScrollNeck,{arpPos,highlight,scalePos,extraDots:gtDots,degNames:ac.dnames,dotMode,dotKeyIdx:keyIdx,marginBottom:level==='essentials'?12:0}),
+    // Scale + guide-tone controls (full mode only)
+    level==='full'&&e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',
       padding:'6px 10px',background:BG2,border:'1px solid '+BORDER,borderTop:'none',
       borderRadius:'0 0 9px 9px',marginBottom:12}},
-      e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.5px',flexShrink:0}},'Scale'),
+      e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.5px',flexShrink:0}},
+        isPlaying?'Scale (not shown while playing)':'Scale'),
       (SCALE_HINTS[ac.quality]||[]).map(sc=>
         e('button',{key:sc.name,onClick:()=>setScaleHint(h=>h===sc.name?null:sc.name),style:{
           padding:'3px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
