@@ -865,7 +865,7 @@ function EarTrainingView({level}){
           '⚠ Weakest: '+weakest.label+' ('+weakest.missed+'/'+weakest.total+' missed)'):null
       ):null
     ),
-    TABS.length>1?e('div',{style:{display:'flex',gap:2,marginBottom:0}},
+    TABS.length>1?e('div',{'data-tour':'ear-mode-tabs',style:{display:'flex',gap:2,marginBottom:0}},
       TABS.map(({id,lbl})=>e('button',{key:id,onClick:()=>setMode(id),style:{
         padding:'7px 16px',borderRadius:'6px 6px 0 0',cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.79rem',fontWeight:mode===id?700:400,
@@ -894,7 +894,7 @@ function EarTrainingView({level}){
         'Essentials: 5 consonant intervals  →  Full: all 12'
       ):null,
       e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:16}},
-        e('button',{onClick:replayCurrent,style:{
+        e('button',{'data-tour':'ear-play-btn',onClick:replayCurrent,style:{
           width:72,height:72,borderRadius:'50%',border:'2px solid '+GOLD,
           background:ACT_YEL,color:GOLD,fontSize:'2rem',cursor:'pointer',
           display:'flex',alignItems:'center',justifyContent:'center',
@@ -903,7 +903,7 @@ function EarTrainingView({level}){
         e('div',{style:{fontSize:'0.72rem',color:HINT}},'Tap to replay')
       ),
       renderReveal(),
-      e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:revealed?12:0}},
+      e('div',{'data-tour':'ear-choices',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:revealed?12:0}},
         renderChoices()
       ),
       revealed?e('button',{onClick:newRound,style:{
@@ -921,17 +921,74 @@ function EarTrainingView({level}){
 }
 
 // ── Tour ──────────────────────────────────────────────────────────────
-const TOUR_STEPS=[
-  {target:'key-chip',    view:'diatonic', title:'Set your key',            text:'Tap to open the key picker. Every chord and scale in the app updates to match the key you choose.'},
-  {target:'level-switch',view:'diatonic', title:'Essentials or Full',      text:'This toggle controls how much of the app you see. Essentials keeps things simple — the right starting point. Flip to Full later when you\'re ready for more advanced chord types and techniques.'},
-  {target:'chord-row',   view:'diatonic', title:'The chords in a key',     text:'Each button is one of the seven chords that naturally occur in the key. The number (I through VII) is its position in the key — you\'ll learn what that means in the Guide.'},
-  {target:'voicing-tabs',view:'diatonic', title:'How to play each chord',  text:'These tabs show different ways to arrange the same chord on the guitar — different string sets, different note on the bottom. Start with Shell, which uses just three strings.'},
-  {target:'neck-area',   view:'diatonic', title:'The fretboard',           text:'The colored dots show where to put your fingers for the selected chord shape. Dimmer dots show every other place those same notes appear on the neck.'},
-  {target:'bottom-nav',  view:null,       title:'Where to start',          text:'We recommend starting with the ⚑ Guide — it walks you through jazz harmony from the ground up and opens the right tool at each step. Tap it now to begin.'},
+const OVERVIEW_STEPS=[
+  {target:'nav-guide',    view:'guide',
+   title:'The Guide — your learning path',
+   text:'Work through jazz harmony step by step. Each stage explains one concept and opens the right tool already configured. Start here.'},
+  {target:'nav-diatonic', view:'diatonic',
+   title:'Chords — all 7 chords in any key',
+   text:'Tap any chord to hear it and see exactly how to play it. Change the key chip at the top and everything updates instantly.'},
+  {target:'nav-custom',   view:'custom',
+   title:'Any Chord — explore freely',
+   text:'Pick any root and chord quality to see all its voicings. Useful for chords from charts or songs you\'re working on.'},
+  {target:'nav-iivi',     view:'iivi',
+   title:'Play — back-track practice',
+   text:'Play II-V-Is and jazz standards with bass and drums. Set your key, choose a tempo, and practice playing along.'},
+  {target:'nav-quiz',     view:'quiz',
+   title:'Ear Training — recognize what you hear',
+   text:'Identify intervals and chord qualities by ear. Essentials starts with the five most consonant sounds; Full unlocks all twelve.'},
 ];
-function TourOverlay({step,onNext,onSkip}){
+
+const PAGE_TOURS={
+  diatonic:[
+    {target:'key-chip',     title:'Set your key',
+     text:'Tap to pick any key. Every chord and scale in the app updates to match.'},
+    {target:'level-switch', title:'Essentials or Full',
+     text:'Essentials keeps it simple — Shell voicings and the basics. Flip to Full when you\'re ready for Drop 2, Drop 3, and extended chord types.'},
+    {target:'chord-row',    title:'The 7 chords in a key',
+     text:'Each button is one of the chords that naturally occurs in this key. Roman numerals (I–VII) show position — I is home, V is tension.'},
+    {target:'voicing-tabs', title:'How to play each chord',
+     text:'Shell uses just 3 strings — the easiest start. Drop 2 gives the full comping sound. Try each and listen.'},
+    {target:'neck-area',    title:'The fretboard',
+     text:'Bright dots show the selected voicing. Dim dots show every other position of those same notes on the neck.'},
+  ],
+  iivi:[
+    {target:'play-form-row',  title:'Choose a progression',
+     text:'Pick a form — II-V-I is the foundation of jazz harmony. Standards like Autumn Leaves are in Full mode.'},
+    {target:'play-transport', title:'Play controls',
+     text:'Hit the green button for a 4-count-in, then the loop begins. BPM knob sets tempo — start at 60 and build up.'},
+    {target:'bar-grid',       title:'Follow the chord changes',
+     text:'The gold-pulsing bar shows the current chord. Watch it cycle and play along.'},
+    {target:'neck-area',      title:'Comp along',
+     text:'The fretboard shows the voicing for the active chord. Find it, hold it, play the rhythm.'},
+  ],
+  guide:[
+    {target:'guide-stage-0',  title:'Stage cards',
+     text:'Each card explains one concept. "Open in app" switches to the right view already set up for that lesson.'},
+    {target:'guide-progress', title:'Track your progress',
+     text:'Mark stages done as you finish them — one concept a week is a solid pace.'},
+    {target:'guide-glossary', title:'The Glossary',
+     text:'Every term in the app is defined here. Tap any underlined term in the stage text to see its definition instantly.'},
+  ],
+  quiz:[
+    {target:'ear-mode-tabs', title:'Three training modes',
+     text:'Start with Intervals — they\'re the building blocks. Triads and 7th Chords unlock in Full mode.'},
+    {target:'ear-play-btn',  title:'Listen, then answer',
+     text:'Tap the gold circle to hear the sound. Replay as many times as you need before choosing.'},
+    {target:'ear-choices',   title:'Learn from every answer',
+     text:'Wrong answers show you the correct answer immediately. Your score tracks your weakest intervals.'},
+  ],
+  custom:[
+    {target:'chord-type-tabs', title:'Pick any chord type',
+     text:'Choose a quality — major 7, minor 7, dominant, and more in Full mode.'},
+    {target:'neck-area',       title:'See all voicings',
+     text:'Every playable shape appears below. Tap any diagram to hear it.'},
+  ],
+};
+
+function TourOverlay({steps,step,onNext,onSkip}){
   const [rect,setRect]=useState(null);
-  const s=TOUR_STEPS[step];
+  const s=steps[step];
   useEffect(()=>{
     if(!s){setRect(null);return;}
     function measure(){
@@ -946,7 +1003,7 @@ function TourOverlay({step,onNext,onSkip}){
   },[step,s&&s.target]);
 
   if(!s) return null;
-  const isLast=step>=TOUR_STEPS.length-1;
+  const isLast=step>=steps.length-1;
   const PAD=8;
   const DIM='rgba(0,0,0,0.75)';
 
@@ -992,7 +1049,7 @@ function TourOverlay({step,onNext,onSkip}){
       boxShadow:'0 8px 32px rgba(0,0,0,0.5)',zIndex:201
     }},
       e('div',{style:{fontSize:'0.67rem',color:GOLD,letterSpacing:'0.5px',marginBottom:5}},
-        (step+1)+' / '+TOUR_STEPS.length),
+        (step+1)+' / '+steps.length),
       e('div',{style:{fontFamily:SERIF,fontSize:'1.0rem',fontWeight:700,color:'var(--scale-name)',marginBottom:7}},s.title),
       e('div',{style:{fontSize:'0.81rem',color:'var(--txt)',lineHeight:1.65,marginBottom:14,opacity:0.85}},s.text),
       e('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
@@ -2039,12 +2096,12 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
     // Form selector — own row so buttons can wrap freely; standards visually separated
     !isPlaying?(
     level==='essentials'
-      ?e('div',{style:{display:'flex',gap:6,alignItems:'center',marginBottom:10}},
+      ?e('div',{'data-tour':'play-form-row',style:{display:'flex',gap:6,alignItems:'center',marginBottom:10}},
           e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Form'),
           e('button',{onClick:()=>setForm('major'),style:modeBtn(form==='major',FORM_DEFS.major.col,FORM_DEFS.major.bg)},FORM_DEFS.major.lbl),
           e('button',{onClick:()=>setForm('minor'),style:modeBtn(form==='minor',FORM_DEFS.minor.col,FORM_DEFS.minor.bg)},FORM_DEFS.minor.lbl)
         )
-      :e('div',{style:{marginBottom:10}},
+      :e('div',{'data-tour':'play-form-row',style:{marginBottom:10}},
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',marginBottom:5}},
             e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Progressions'),
             ['major','minor','turn','blues','minblues','custom'].map(f=>
@@ -2094,7 +2151,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
         )
     ):null,
     // Play-along controls
-    e('div',{style:{display:'flex',alignItems:'center',flexWrap:'wrap',gap:isPlaying?6:10,marginBottom:10,
+    e('div',{'data-tour':'play-transport',style:{display:'flex',alignItems:'center',flexWrap:'wrap',gap:isPlaying?6:10,marginBottom:10,
       padding:isPlaying?'6px 10px':'10px 14px',background:BG2,border:'1px solid '+BORDER,borderRadius:8}},
       // Left: play button + BPM grouped so they stay together
       e('div',{style:{display:'flex',alignItems:'center',gap:8,flexShrink:0}},
@@ -2350,7 +2407,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
       ):null
     ):null,
     // Lead-sheet chord display — rows of 4 bars with measure lines
-    e('div',{style:{border:'1px solid '+BORDER,borderRadius:8,overflow:'hidden',marginBottom:10}},
+    e('div',{'data-tour':'bar-grid',style:{border:'1px solid '+BORDER,borderRadius:8,overflow:'hidden',marginBottom:10}},
       Array.from({length:Math.ceil(bars.length/4)},(_,rowIdx)=>{
         const rowStart=rowIdx*4;
         const rowBars=bars.slice(rowStart,rowStart+4);
@@ -2618,7 +2675,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       ),
       e('div',null,
         e('div',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',marginBottom:6,fontWeight:600}},'Chord type'),
-        e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginBottom:4}},
+        e('div',{'data-tour':'chord-type-tabs',style:{display:'flex',flexWrap:'wrap',gap:3,marginBottom:4}},
           (isEss?EXT_TYPES.slice(0,4):EXT_TYPES).map((t,i)=>
             e('button',{key:i,onClick:()=>{setCustomTypeIdx(i);setInvIdx(0);},style:{
               padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
@@ -2874,10 +2931,10 @@ function GuideView({openPreset,level}){
      items:['Explore Rootless voicings — the 9th replacing the root creates a richer, more ambiguous sound','In Any Chord, try a 7alt voicing over the V chord and hear the tension','From here: the Glossary below and Next Steps are your map forward']},
   ];
   const doneCount=stages.filter(s=>done[s.id]).length;
-  function stage(n,st,nextSt){
+  function stage(n,st,nextSt,dataTour){
     const isDone=!!done[st.id];
     const theoryOpen=!!expanded['st_'+st.id];
-    return e('div',{key:st.id,style:{display:'flex',gap:12,padding:'12px 14px',marginBottom:10,
+    return e('div',{key:st.id,...(dataTour?{'data-tour':dataTour}:{}),style:{display:'flex',gap:12,padding:'12px 14px',marginBottom:10,
       background:BG,border:'1px solid '+(isDone?GOLD+'40':BORDER),borderRadius:8,opacity:isDone?0.72:1}},
       e('div',{style:{flexShrink:0,width:26,height:26,borderRadius:'50%',
         border:'2px solid '+GOLD,color:isDone?GOLD:LBL,
@@ -2931,12 +2988,12 @@ function GuideView({openPreset,level}){
     e('div',{style:S},
       e('div',{style:{...H,display:'flex',justifyContent:'space-between',alignItems:'baseline',flexWrap:'wrap',gap:8}},
         e('span',null,'The Learning Path — from first chords to jazz'),
-        e('span',{style:{fontSize:'0.72rem',fontFamily:UI_FONT,fontWeight:400,color:doneCount===stages.length?GOLD:HINT}},doneCount+' / '+stages.length+' done')
+        e('span',{'data-tour':'guide-progress',style:{fontSize:'0.72rem',fontFamily:UI_FONT,fontWeight:400,color:doneCount===stages.length?GOLD:HINT}},doneCount+' / '+stages.length+' done')
       ),
       p('Work top to bottom — each stage is about a week of practice, and slower is fine. Nothing is locked; the Path just says what matters now. Each button opens the right view, already set up.'),
-      stages.map((st,i)=>stage(i+1,st,stages[i+1]))
+      stages.map((st,i)=>stage(i+1,st,stages[i+1],i===0?'guide-stage-0':undefined))
     ),
-    e('div',{style:S},
+    e('div',{'data-tour':'guide-glossary',style:S},
       e('div',{style:H},'Glossary — click any term'),
       gloss('7th','7th chord','A chord built from 4 notes instead of 3 — adds a 7th interval.',null,
         'A triad has 3 notes: root–3rd–5th. A 7th chord adds one more third on top: the 7th. This extra note creates the richer, more complex sound characteristic of jazz. The 7th can be major (a half-step below the octave, giving maj7), minor/flat (a whole-step below, giving dominant 7 or minor 7), or diminished.',
@@ -3131,18 +3188,37 @@ function App(){
   const [viewMode,setViewMode]=useState(()=>localStorage.getItem('jg-viewMode')||'guide'); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
   const [keyOpen,setKeyOpen]=useState(false);
   const [dotMode,setDotMode]=useState(()=>{const m=localStorage.getItem('jg-dotMode')||'interval';return (m==='both'||m==='finger')?'interval':m;});
-  const [tourStep,setTourStep]=useState(()=>localStorage.getItem('jg-toured')?null:0);
   useEffect(()=>{localStorage.setItem('jg-dotMode',dotMode);},[dotMode]);
-  function tourNext(){
-    if(tourStep>=TOUR_STEPS.length-1){setTourStep(null);localStorage.setItem('jg-toured','1');setViewMode('guide');window.scrollTo(0,0);}
-    else setTourStep(s=>s+1);
+  const [overviewStep,setOverviewStep]=useState(()=>localStorage.getItem('jg-toured')?null:0);
+  const [pageTourStep,setPageTourStep]=useState(null);
+  const [pageTourId,setPageTourId]=useState(null);
+
+  function overviewNext(){
+    if(overviewStep>=OVERVIEW_STEPS.length-1){
+      setOverviewStep(null);localStorage.setItem('jg-toured','1');
+      setViewMode('guide');window.scrollTo(0,0);
+    } else setOverviewStep(s=>s+1);
   }
-  function tourSkip(){setTourStep(null);localStorage.setItem('jg-toured','1');}
+  function overviewSkip(){setOverviewStep(null);localStorage.setItem('jg-toured','1');}
+
+  function pageTourNext(){
+    const steps=PAGE_TOURS[pageTourId]||[];
+    if(pageTourStep>=steps.length-1){
+      setPageTourStep(null);
+      localStorage.setItem('jg-toured-'+pageTourId,'1');
+      setPageTourId(null);
+    } else setPageTourStep(s=>s+1);
+  }
+  function pageTourSkip(){
+    if(pageTourId) localStorage.setItem('jg-toured-'+pageTourId,'1');
+    setPageTourStep(null);setPageTourId(null);
+  }
+
   useEffect(()=>{
-    if(tourStep===null) return;
-    const v=TOUR_STEPS[tourStep]&&TOUR_STEPS[tourStep].view;
+    if(overviewStep===null) return;
+    const v=OVERVIEW_STEPS[overviewStep]&&OVERVIEW_STEPS[overviewStep].view;
     if(v) setViewMode(v);
-  },[tourStep]);
+  },[overviewStep]);
   // Level: Essentials hides the advanced half of the app. New users start
   // in Essentials; anyone who used the app before the level existed keeps Full.
   const [level,setLevel]=useState(()=>localStorage.getItem('jg-level')||'essentials');
@@ -3332,10 +3408,20 @@ function App(){
         theme==='dark'?'☀':'☾'),
       e('div',{style:{flex:1}}),
       e('div',{'data-tour':'level-switch'},e(GuitarToggle,{level,setLevel})),
-      e('button',{onClick:()=>setTourStep(0),'aria-label':'Start tour',style:{padding:'4px 10px',
-        borderRadius:18,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',
-        border:'1px solid '+GOLD+'88',background:'var(--bg2)',
-        color:BTN_OFF,minHeight:44,flexShrink:0}},'? Tour'),
+      e('div',{style:{display:'flex',gap:4,flexShrink:0}},
+        e('button',{onClick:()=>setOverviewStep(0),
+          style:{padding:'3px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
+            fontSize:'0.72rem',border:'1px solid var(--btn-brd)',background:'var(--bg2)',
+            color:'var(--lbl)',minHeight:0}},
+          'Overview'),
+        PAGE_TOURS[viewMode]
+          ?e('button',{onClick:()=>{setPageTourStep(0);setPageTourId(viewMode);},
+              style:{padding:'3px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
+                fontSize:'0.72rem',border:'1px solid '+GOLD+'88',background:'var(--bg2)',
+                color:GOLD,minHeight:0}},
+              '? Tour')
+          :null
+      ),
     ),
 
     // Key chip (hidden in custom/guide/quiz/playing modes)
@@ -3517,7 +3603,11 @@ function App(){
     ):null,
 
     // ── Tour overlay ─────────────────────────────────────────────────
-    tourStep!==null?e(TourOverlay,{step:tourStep,onNext:tourNext,onSkip:tourSkip}):null,
+    overviewStep!==null
+      ?e(TourOverlay,{steps:OVERVIEW_STEPS,step:overviewStep,onNext:overviewNext,onSkip:overviewSkip})
+      :pageTourStep!==null&&pageTourId&&PAGE_TOURS[pageTourId]
+        ?e(TourOverlay,{steps:PAGE_TOURS[pageTourId],step:pageTourStep,onNext:pageTourNext,onSkip:pageTourSkip})
+        :null,
 
     // ── Bottom tab bar ───────────────────────────────────────────────
     e('nav',{'data-tour':'bottom-nav',style:{position:'fixed',bottom:0,left:0,right:0,zIndex:50,
@@ -3528,7 +3618,7 @@ function App(){
         const act=viewMode===id;
         let tabLbl=lbl;
         if(id==='guide'){try{const d=JSON.parse(localStorage.getItem('jg-path')||'{}');const n=Object.values(d).filter(Boolean).length;if(n>0) tabLbl='Guide·'+n+'✓';}catch(ex){}}
-        return e('button',{key:id,onClick:()=>{setViewMode(id);window.scrollTo(0,0);},style:{
+        return e('button',{key:id,'data-tour':'nav-'+id,onClick:()=>{setViewMode(id);window.scrollTo(0,0);},style:{
           flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:1,
           padding:'7px 0 5px',background:'transparent',border:'none',
           borderTop:'2px solid '+(act?'var(--txt)':'transparent'),
