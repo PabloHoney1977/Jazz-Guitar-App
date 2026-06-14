@@ -598,11 +598,15 @@ function BpmKnob({bpm,setBpm,onTap}){
       e('circle',{cx,cy,r:16,fill:'var(--bg2)',stroke:'var(--brd)',strokeWidth:1.5}),
       e('line',{x1:mx,y1:my,x2:mx2,y2:my2,stroke:GOLD,strokeWidth:2.5,strokeLinecap:'round'})
     ),
-    e('div',{style:{fontSize:'1.0rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT,lineHeight:1}},bpm),
-    e('div',{style:{fontSize:'0.6rem',color:'var(--lbl)',letterSpacing:'1px',lineHeight:1}},'BPM'),
-    e('button',{onClick:onTap,style:{fontSize:'0.7rem',color:'var(--btn-off)',background:'transparent',
-      border:'1px solid var(--btn-brd)',borderRadius:4,padding:'4px 12px',cursor:'pointer',
-      fontFamily:UI_FONT,minHeight:44,marginTop:2}},'TAP')
+    e('div',{style:{display:'flex',alignItems:'center',gap:6}},
+      e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center'}},
+        e('div',{style:{fontSize:'1.0rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT,lineHeight:1}},bpm),
+        e('div',{style:{fontSize:'0.6rem',color:'var(--lbl)',letterSpacing:'1px',lineHeight:1}},'BPM')
+      ),
+      e('button',{onClick:onTap,style:{fontSize:'0.68rem',color:'var(--btn-off)',background:'transparent',
+        border:'1px solid var(--btn-brd)',borderRadius:4,padding:'3px 8px',cursor:'pointer',
+        fontFamily:UI_FONT,minHeight:0}},'TAP')
+    )
   );
 }
 
@@ -1342,7 +1346,7 @@ function LedToggle({label,enabled,onToggle,color}){
   );
 }
 
-function IIVIView({keyIdx,dotMode,setDotMode,level}){
+function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange}){
   dotMode=dotMode||'interval';
   const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(localStorage.getItem('jg-strSet')||'2',10));
   const [invIdxs,setInvIdxs]=useState([]);
@@ -1438,6 +1442,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   useEffect(()=>{localStorage.setItem('jg-met',metronomeEnabled);},[metronomeEnabled]);
   useEffect(()=>{localStorage.setItem('jg-ride',rideEnabled);},[rideEnabled]);
   useEffect(()=>{localStorage.setItem('jg-eq',JSON.stringify(eqGains));},[eqGains]);
+  useEffect(()=>{onPlayStateChange?.(isPlaying);},[isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(()=>{localStorage.setItem('jg-guitar',guitarEnabled);},[guitarEnabled]);
   useEffect(()=>{localStorage.setItem('jg-geq',JSON.stringify(guitarEqGains));},[guitarEqGains]);
   useEffect(()=>{localStorage.setItem('jg-req',JSON.stringify(rideEqGains));},[rideEqGains]);
@@ -3079,6 +3084,9 @@ function App(){
   // in Essentials; anyone who used the app before the level existed keeps Full.
   const [level,setLevel]=useState(()=>localStorage.getItem('jg-level')||'essentials');
   const isEss=level==='essentials';
+  const [iiviPlaying,setIiviPlaying]=useState(false);
+  // Clear playing state when navigating away from the play tab
+  useEffect(()=>{ if(viewMode!=='iivi') setIiviPlaying(false); },[viewMode]);
   // Diatonic state
   const [deg,setDeg]=useState(0);
   const [vType,setVType]=useState('shell');
@@ -3223,8 +3231,8 @@ function App(){
   return e('div',{style:{background:BG,minHeight:'100vh',color:'var(--txt)',fontFamily:UI_FONT}},
   e('div',{style:{maxWidth:Math.min(960,winW-28),margin:'0 auto',padding:'14px 14px 84px'}},
 
-    // Header — title + theme toggle left, level switch + tour right
-    e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
+    // Header — hidden while the play tab is active to maximise neck real-estate
+    !iiviPlaying&&e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
       e('span',{style:{fontFamily:SERIF,fontSize:'1.4rem',fontWeight:700,color:'var(--scale-name)'}},'Jazz Guitar Lab'),
       e('button',{onClick:toggleTheme,'aria-label':'Toggle theme',style:{
         padding:'2px 6px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.9rem',
@@ -3238,8 +3246,8 @@ function App(){
         color:BTN_OFF,minHeight:44,flexShrink:0}},'? Tour'),
     ),
 
-    // Key chip (hidden in custom/guide/quiz mode)
-    viewMode!=='custom'&&viewMode!=='guide'&&viewMode!=='quiz'?e('div',{'data-tour':'key-chip',style:{marginBottom:10}},
+    // Key chip (hidden in custom/guide/quiz/playing modes)
+    viewMode!=='custom'&&viewMode!=='guide'&&viewMode!=='quiz'&&!iiviPlaying?e('div',{'data-tour':'key-chip',style:{marginBottom:10}},
       e('button',{onClick:()=>setKeyOpen(o=>!o),style:{
         display:'inline-flex',alignItems:'center',gap:7,padding:'5px 14px',borderRadius:18,
         cursor:'pointer',fontFamily:UI_FONT,border:'1px solid '+(keyOpen?GOLD:BTN_BRD),
@@ -3254,7 +3262,7 @@ function App(){
     ):null,
 
     // ── IIVI VIEW ────────────────────────────────────────────────────
-    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level}):null,
+    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level,onPlayStateChange:setIiviPlaying}):null,
 
     // ── CUSTOM CHORD VIEW ────────────────────────────────────────────
     viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey:findInKey}):null,
