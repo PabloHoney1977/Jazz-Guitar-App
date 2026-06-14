@@ -48,6 +48,15 @@ const EXT_TYPES=[
   {id:'9sus', sym:'9sus4',label:'9sus4',    iv:[0,5,10,2], dn:['R','4','b7','9'],  ctx:'No 3rd — suspended, floating; resolves when 4 drops to 3'},
 ];
 
+// Guitar tone characters — each shapes the jazz EQ filters in playGuitarNote
+const GUITAR_TONES=[
+  {id:'archtop',  name:'Archtop',     warmth:5,  pressCut:-8,  hiCut:-13, unlock:null},
+  {id:'casino',   name:'Casino',      warmth:3,  pressCut:-4,  hiCut:-9,  unlock:'Complete Stage 1'},
+  {id:'es335',    name:'ES-335',      warmth:8,  pressCut:-10, hiCut:-16, unlock:'7-day streak'},
+  {id:'dangelico',name:"D'Angelico",  warmth:6,  pressCut:-6,  hiCut:-11, unlock:'20 play sessions'},
+  {id:'l5',       name:'L-5',         warmth:10, pressCut:-13, hiCut:-19, unlock:'All stages done'},
+];
+
 // Extension options per EXT_TYPES index — each replaces the 5th (interval slot 2)
 // with a colour tone. Available only for the four base 7th-chord types (idx 0-3).
 const CHORD_EXTS={
@@ -1499,7 +1508,7 @@ function LedToggle({label,enabled,onToggle,color,compact}){
   );
 }
 
-function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
+function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,activeTone,unlockedTones,onToneChange,onPracticed}){
   dotMode=dotMode||'interval';
   const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(localStorage.getItem('jg-strSet')||'2',10));
   const [invIdxs,setInvIdxs]=useState([]);
@@ -1586,6 +1595,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
   const guitarSamplesRef=useRef(null);
   const compMidiRef=useRef([]);
   const barPatternRef=useRef({});
+  const activeToneRef=useRef(activeTone||GUITAR_TONES[0]);
+  useEffect(()=>{activeToneRef.current=activeTone||GUITAR_TONES[0];},[activeTone]);
   bpmRef.current=bpm;
   bassRef.current=bassEnabled;
   metronomeRef.current=metronomeEnabled;
@@ -1798,13 +1809,14 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
     src.detune.value=(midiNote-nearest)*100;
     const eqG=guitarEqRef.current;
     const eq=EQ_FREQS.map((fr,i)=>{const f=ctx.createBiquadFilter();f.type=EQ_TYPES[i];f.frequency.value=fr;f.Q.value=1.2;f.gain.value=eqG[i]||0;return f;});
-    // Jazz guitar tone: neck-pickup warmth, cut harsh highs
+    // Jazz guitar tone: neck-pickup warmth, cut harsh highs (shaped by active tone character)
+    const tone=activeToneRef.current||GUITAR_TONES[0];
     const jWarmth=ctx.createBiquadFilter();
-    jWarmth.type='peaking';jWarmth.frequency.value=180;jWarmth.Q.value=0.8;jWarmth.gain.value=5;
+    jWarmth.type='peaking';jWarmth.frequency.value=180;jWarmth.Q.value=0.8;jWarmth.gain.value=tone.warmth;
     const jPressCut=ctx.createBiquadFilter();
-    jPressCut.type='peaking';jPressCut.frequency.value=2200;jPressCut.Q.value=1.2;jPressCut.gain.value=-8;
+    jPressCut.type='peaking';jPressCut.frequency.value=2200;jPressCut.Q.value=1.2;jPressCut.gain.value=tone.pressCut;
     const jHiCut=ctx.createBiquadFilter();
-    jHiCut.type='highshelf';jHiCut.frequency.value=3500;jHiCut.gain.value=-13;
+    jHiCut.type='highshelf';jHiCut.frequency.value=3500;jHiCut.gain.value=tone.hiCut;
     const gain=ctx.createGain();
     const v=vol*(guitarVolRef.current/100);
     gain.gain.setValueAtTime(0.001,startTime);
@@ -2032,6 +2044,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
       const gen=++genRef.current;
       setIsPlaying(true);
       setStarting(false);
+      onPracticed&&onPracticed();
       tick(gen,ctx);
     },startDelay);
   }
@@ -2446,6 +2459,23 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
         )
       ):null
     ):null,
+    // Tone selector — shown only when not playing
+    !isPlaying&&!starting&&!countIn?e('div',{style:{display:'flex',gap:4,alignItems:'center',marginBottom:8,flexWrap:'wrap'}},
+      e('span',{style:{fontSize:'0.68rem',color:'var(--lbl)',letterSpacing:'0.5px',flexShrink:0}},'TONE'),
+      GUITAR_TONES.map(t=>{
+        const locked=!((unlockedTones||['archtop']).includes(t.id));
+        const act=(activeTone||GUITAR_TONES[0]).id===t.id;
+        return e('button',{key:t.id,
+          onClick:()=>!locked&&onToneChange&&onToneChange(t.id),
+          style:{padding:'3px 8px',borderRadius:10,cursor:locked?'default':'pointer',
+            fontFamily:UI_FONT,fontSize:'0.70rem',
+            border:'1px solid '+(act?GOLD:'var(--btn-brd)'),
+            background:act?ACT_GOLD:'var(--bg2)',
+            color:locked?'var(--hint)':act?GOLD:'var(--lbl)',
+            opacity:locked?0.5:1,minHeight:0}},
+          t.name+(locked?' 🔒':''));
+      })
+    ):null,
     // Lead-sheet chord display — rows of 4 bars with measure lines
     e('div',{'data-tour':'bar-grid',style:{border:'1px solid '+BORDER,borderRadius:8,overflow:'hidden',marginBottom:10}},
       Array.from({length:Math.ceil(bars.length/4)},(_,rowIdx)=>{
@@ -2817,7 +2847,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
 }
 
 // ── GuideView — the Path + glossary ──────────────────────────────────
-function GuideView({openPreset,level}){
+function GuideView({openPreset,level,onProgress}){
   const [expanded,setExpanded]=useState({});
   function tog(id){setExpanded(s=>({...s,[id]:!s[id]?true:undefined}));}
   const [popTerm,setPopTerm]=useState(null);
@@ -2828,7 +2858,7 @@ function GuideView({openPreset,level}){
   function togDone(id){
     setDone(s=>{
       const isNowDone=!s[id];
-      if(isNowDone){setJustDone(id);setTimeout(()=>setJustDone(d=>d===id?null:d),1200);}
+      if(isNowDone){setJustDone(id);setTimeout(()=>setJustDone(d=>d===id?null:d),1200);onProgress&&onProgress();}
       return {...s,[id]:isNowDone?true:undefined};
     });
   }
@@ -3267,6 +3297,54 @@ function App(){
   // Clear playing state when navigating away from the play tab
   useEffect(()=>{ if(viewMode!=='iivi') setIiviPlaying(false); },[viewMode]);
 
+  // Streak & tone unlock state
+  const [streak,setStreak]=useState(()=>parseInt(localStorage.getItem('jg-streak')||'0',10));
+  const [lastPracticeDay,setLastPracticeDay]=useState(()=>localStorage.getItem('jg-last-practice')||'');
+  const [playSessions,setPlaySessions]=useState(()=>parseInt(localStorage.getItem('jg-play-sessions')||'0',10));
+  const [unlockedTones,setUnlockedTones]=useState(()=>{try{return JSON.parse(localStorage.getItem('jg-unlocked-tones')||'null')||['archtop'];}catch(ex){return['archtop'];}});
+  const [activeTone,setActiveToneRaw]=useState(()=>GUITAR_TONES.find(t=>t.id===localStorage.getItem('jg-active-tone'))||GUITAR_TONES[0]);
+  const [toastMsg,setToastMsg]=useState(null);
+
+  function showToast(msg){setToastMsg(msg);setTimeout(()=>setToastMsg(null),3000);}
+
+  function setActiveTone(toneId){
+    const t=GUITAR_TONES.find(x=>x.id===toneId)||GUITAR_TONES[0];
+    setActiveToneRaw(t);
+    localStorage.setItem('jg-active-tone',toneId);
+  }
+
+  function checkUnlocks(newStreak,newSessions){
+    const path=JSON.parse(localStorage.getItem('jg-path')||'{}');
+    const stages=['qualities','shells','iivi','drop2','play','blues','minor','tritone_sub','secdom','keys','rootless','drops','next'];
+    const allDone=stages.every(id=>path[id]);
+    const stage1Done=!!path['qualities'];
+    setUnlockedTones(prev=>{
+      let next=[...prev];
+      let gained=[];
+      if(stage1Done&&!next.includes('casino')){next.push('casino');gained.push('Casino');}
+      if(newStreak>=7&&!next.includes('es335')){next.push('es335');gained.push('ES-335');}
+      if(newSessions>=20&&!next.includes('dangelico')){next.push('dangelico');gained.push("D'Angelico");}
+      if(allDone&&!next.includes('l5')){next.push('l5');gained.push('L-5');}
+      if(gained.length>0){
+        localStorage.setItem('jg-unlocked-tones',JSON.stringify(next));
+        showToast(gained[0]+' tone unlocked');
+      }
+      return next;
+    });
+  }
+
+  function markPracticed(newSessions){
+    const today=new Date().toISOString().slice(0,10);
+    if(lastPracticeDay===today){checkUnlocks(streak,newSessions);return;}
+    const yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);
+    const newStreak=lastPracticeDay===yesterday?streak+1:1;
+    setStreak(newStreak);
+    setLastPracticeDay(today);
+    localStorage.setItem('jg-streak',newStreak);
+    localStorage.setItem('jg-last-practice',today);
+    checkUnlocks(newStreak,newSessions);
+  }
+
   // Bluetooth page-turner pedal support
   // Pedals appear as keyboard events (AirTurn: Space/Backspace or Arrow keys;
   // PageFlip: PageDown/PageUp). The ref lets IIVIView register its own handlers
@@ -3448,6 +3526,11 @@ function App(){
         theme==='dark'?'☀':'☾'),
       e('div',{style:{flex:1}}),
       e('div',{'data-tour':'level-switch'},e(GuitarToggle,{level,setLevel})),
+      streak>0?e('div',{style:{display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:10,
+        border:'1px solid var(--btn-brd)',background:'var(--bg2)',flexShrink:0}},
+        e('span',{style:{fontSize:'0.72rem'}},'🔥'),
+        e('span',{style:{fontSize:'0.72rem',color:'var(--lbl)',fontFamily:UI_FONT}},streak+'d')
+      ):null,
       e('div',{style:{display:'flex',gap:4,flexShrink:0}},
         e('button',{onClick:()=>setOverviewStep(0),
           style:{padding:'3px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
@@ -3480,13 +3563,20 @@ function App(){
     ):null,
 
     // ── IIVI VIEW ────────────────────────────────────────────────────
-    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level,onPlayStateChange:setIiviPlaying,pedalRef:iiviPedalRef}):null,
+    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level,onPlayStateChange:setIiviPlaying,pedalRef:iiviPedalRef,
+      activeTone,unlockedTones,onToneChange:setActiveTone,
+      onPracticed:()=>{
+        const ns=playSessions+1;
+        setPlaySessions(ns);
+        localStorage.setItem('jg-play-sessions',ns);
+        markPracticed(ns);
+      }}):null,
 
     // ── CUSTOM CHORD VIEW ────────────────────────────────────────────
     viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey:findInKey}):null,
 
     // ── GUIDE / PATH VIEW ────────────────────────────────────────────
-    viewMode==='guide'?e(GuideView,{openPreset,level}):null,
+    viewMode==='guide'?e(GuideView,{openPreset,level,onProgress:()=>checkUnlocks(streak,playSessions)}):null,
 
     // ── EAR TRAINING VIEW ────────────────────────────────────────────
     viewMode==='quiz'?e(EarTrainingView,{level}):null,
@@ -3667,7 +3757,15 @@ function App(){
           e('span',{style:{fontSize:'0.64rem',letterSpacing:'0.5px',fontWeight:act?700:400}},tabLbl)
         );
       })
-    )
+    ),
+    // Toast notification for unlocks
+    toastMsg?e('div',{style:{
+      position:'fixed',bottom:80,left:'50%',transform:'translateX(-50%)',
+      background:ACT_GOLD,border:'1px solid '+GOLD,borderRadius:12,
+      padding:'8px 16px',fontSize:'0.78rem',fontFamily:UI_FONT,color:GOLD,
+      pointerEvents:'none',zIndex:9999,whiteSpace:'nowrap',
+      boxShadow:'0 2px 12px rgba(0,0,0,0.3)'
+    }},toastMsg):null
   ));
 }
 
