@@ -1645,13 +1645,21 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
     src.detune.value=(midiNote-nearest)*100;
     const eqG=guitarEqRef.current;
     const eq=EQ_FREQS.map((fr,i)=>{const f=ctx.createBiquadFilter();f.type=EQ_TYPES[i];f.frequency.value=fr;f.Q.value=1.2;f.gain.value=eqG[i]||0;return f;});
+    // Jazz guitar tone: neck-pickup warmth, cut harsh highs
+    const jWarmth=ctx.createBiquadFilter();
+    jWarmth.type='peaking';jWarmth.frequency.value=180;jWarmth.Q.value=0.8;jWarmth.gain.value=5;
+    const jPressCut=ctx.createBiquadFilter();
+    jPressCut.type='peaking';jPressCut.frequency.value=2200;jPressCut.Q.value=1.2;jPressCut.gain.value=-8;
+    const jHiCut=ctx.createBiquadFilter();
+    jHiCut.type='highshelf';jHiCut.frequency.value=3500;jHiCut.gain.value=-13;
     const gain=ctx.createGain();
     const v=vol*(guitarVolRef.current/100);
     gain.gain.setValueAtTime(0.001,startTime);
     gain.gain.linearRampToValueAtTime(v,startTime+0.01);
     gain.gain.exponentialRampToValueAtTime(v*0.45,startTime+0.35);
     gain.gain.exponentialRampToValueAtTime(0.001,startTime+sustainSecs);
-    src.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);gain.connect(ctx.destination);
+    src.connect(jWarmth);jWarmth.connect(jPressCut);jPressCut.connect(jHiCut);
+    jHiCut.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);gain.connect(ctx.destination);
     src.start(startTime);src.stop(startTime+sustainSecs+0.05);
   }
 
@@ -1688,12 +1696,15 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
       const src=ctx.createBufferSource();
       src.buffer=samples[nearest];
       src.detune.value=(midiNote-nearest)*100;
-      const lowShelf=ctx.createBiquadFilter();
-      lowShelf.type='lowshelf';lowShelf.frequency.value=80;lowShelf.gain.value=11;
-      const midCut=ctx.createBiquadFilter();
-      midCut.type='peaking';midCut.frequency.value=650;midCut.Q.value=0.9;midCut.gain.value=-11;
-      const hiShelf=ctx.createBiquadFilter();
-      hiShelf.type='highshelf';hiShelf.frequency.value=3000;hiShelf.gain.value=-9;
+      // Jazz bass tone: warm lows, punchy thump, dark top end
+      const bLowBoost=ctx.createBiquadFilter();
+      bLowBoost.type='lowshelf';bLowBoost.frequency.value=120;bLowBoost.gain.value=10;
+      const bThump=ctx.createBiquadFilter();
+      bThump.type='peaking';bThump.frequency.value=260;bThump.Q.value=0.9;bThump.gain.value=5;
+      const bMidCut=ctx.createBiquadFilter();
+      bMidCut.type='peaking';bMidCut.frequency.value=700;bMidCut.Q.value=0.9;bMidCut.gain.value=-9;
+      const bHiCut=ctx.createBiquadFilter();
+      bHiCut.type='highshelf';bHiCut.frequency.value=2000;bHiCut.gain.value=-16;
       const eqG=eqRef.current;
       const eq=EQ_FREQS.map((fr,i)=>{const f=ctx.createBiquadFilter();f.type=EQ_TYPES[i];f.frequency.value=fr;f.Q.value=1.2;f.gain.value=eqG[i]||0;return f;});
       const gain=ctx.createGain();
@@ -1701,8 +1712,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
       gain.gain.exponentialRampToValueAtTime(vol,startTime+0.004);
       gain.gain.exponentialRampToValueAtTime(vol*0.85,startTime+0.055);
       gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*1.65);
-      src.connect(lowShelf);lowShelf.connect(midCut);midCut.connect(hiShelf);
-      hiShelf.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);
+      src.connect(bLowBoost);bLowBoost.connect(bThump);bThump.connect(bMidCut);bMidCut.connect(bHiCut);
+      bHiCut.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);
       gain.connect(ctx.destination);
       src.start(startTime);src.stop(startTime+beatDur+0.1);
       return;
@@ -1740,7 +1751,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
       setTimeout(()=>{if(genRef.current===gen){setPlayingChordIdx(ci);setPlayingBar(bar);setActiveChordIdx(bar);}},delay);
       // Assign rhythm pattern per bar (chosen once, persists per loop iteration)
       if(beat%4===0&&!barPatternRef.current[bar]){
-        barPatternRef.current[bar]={comp:Math.floor(Math.random()*4),ride:Math.floor(Math.random()*3),bass:Math.floor(Math.random()*5)};
+        const compRange=bpmRef.current<70?2:4; // slow tempo: only dense patterns (0=bop, 1=4-to-bar)
+        barPatternRef.current[bar]={comp:Math.floor(Math.random()*compRange),ride:Math.floor(Math.random()*3),bass:Math.floor(Math.random()*5)};
       }
       const barPat=barPatternRef.current[bar]||{comp:0,ride:0,bass:0};
       // Bass line — 5 patterns, each 4 beats, with approach note into chord changes
@@ -1776,8 +1788,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
         const midi=compMidiRef.current[bar]||[];
         if(midi.length>0){
           const b=beat%4;
-          const sustLong=Math.min(beatDur*1.7,1.5);
-          const sustStab=Math.min(beatDur*0.65,0.6);
+          const sustLong=Math.min(beatDur*1.9,bpmRef.current<70?2.4:1.8);
+          const sustStab=Math.min(beatDur*0.75,bpmRef.current<70?0.9:0.65);
           const top3=midi.slice(-Math.min(3,midi.length));
           if(barPat.comp===0){
             // Standard bop: 1, 2-stab, 3, 4-and anticipation
