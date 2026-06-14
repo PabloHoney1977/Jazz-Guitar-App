@@ -1807,6 +1807,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
 
   function startPlayback(){
     if(countIn>0) return; // prevent double-start
+    setEditingBar(-1);
     const beatDur=60/bpmRef.current;
     setCountIn(4);
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -1938,23 +1939,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   };
 
   return e('div',null,
-    // Voicing + String Set row
-    e('div',{style:{display:'flex',gap:8,marginBottom:8,flexWrap:'wrap',alignItems:'center'}},
-      e('div',{style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
-        e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Voicing'),
-        (level==='essentials'
-          ?[{id:'drop2',lbl:'Drop 2'},{id:'shell',lbl:'Shell'}]
-          :[{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},{id:'shell',lbl:'Shell'}]
-        ).map(({id,lbl})=>e('button',{key:id,onClick:()=>setVType(id),style:mkSsBtn(vType===id)},lbl))
-      ),
-      vType!=='shell'?e('div',{key:'ssg',style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
-        e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Set'),
-        dropD.sets.map((set,i)=>
-          e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
-        )
-      ):null
-    ),
     // Form selector — own row so buttons can wrap freely; standards visually separated
+    !isPlaying?(
     level==='essentials'
       ?e('div',{style:{display:'flex',gap:6,alignItems:'center',marginBottom:10}},
           e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Form'),
@@ -2008,7 +1994,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
               )
             )
           ):null
-        ),
+        )
+    ):null,
     // Play-along controls
     e('div',{style:{display:'flex',alignItems:'center',flexWrap:'wrap',gap:10,marginBottom:10,
       padding:'10px 14px',background:BG2,border:'1px solid '+BORDER,borderRadius:8}},
@@ -2021,8 +2008,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
               isPlaying
                 ?e('svg',{width:18,height:18,viewBox:'0 0 18 18'},e('rect',{x:2,y:2,width:14,height:14,rx:2,fill:'white'}))
                 :e('svg',{width:18,height:18,viewBox:'0 0 18 18'},e('polygon',{points:'3,1 17,9 3,17',fill:'white'}))),
-        isPlaying&&loopCount>0?e('span',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,minWidth:52}},
-          'Loop '+loopCount):null,
+        e('span',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,minWidth:52,
+          visibility:isPlaying&&loopCount>0?'visible':'hidden'}},
+          'Loop '+loopCount),
         e(BpmKnob,{bpm,setBpm,onTap:handleTap})
       ),
       // Right: instruments (with Mix sub-buttons), separator, click
@@ -2084,8 +2072,14 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     ),
     // Bass EQ panel
     showEq?e('div',{style:{
-      marginBottom:10,padding:'10px 14px',background:BG2,
-      border:'1px solid #74C0FC44',borderRadius:8,
+      marginBottom:isPlaying?0:10,padding:'10px 14px',background:BG2,
+      border:'1px solid #74C0FC44',
+      ...(isPlaying
+        ?{position:'fixed',bottom:0,left:0,right:0,zIndex:150,
+           borderRadius:'12px 12px 0 0',boxShadow:'0 -4px 20px rgba(0,0,0,0.5)',
+           paddingBottom:'calc(10px + env(safe-area-inset-bottom))'}
+        :{borderRadius:8}
+      ),
     }},
       e('div',{style:{display:'flex',alignItems:'center',marginBottom:8}},
         e('span',{style:{fontSize:'0.72rem',color:'#74C0FC',letterSpacing:'0.3px',fontFamily:UI_FONT}},'Bass Mix'),
@@ -2126,8 +2120,14 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     ):null,
     // Comp guitar EQ panel
     showGuitarEq?e('div',{style:{
-      marginBottom:10,padding:'10px 14px',background:BG2,
-      border:'1px solid #86EFAC44',borderRadius:8,
+      marginBottom:isPlaying?0:10,padding:'10px 14px',background:BG2,
+      border:'1px solid #86EFAC44',
+      ...(isPlaying
+        ?{position:'fixed',bottom:0,left:0,right:0,zIndex:150,
+           borderRadius:'12px 12px 0 0',boxShadow:'0 -4px 20px rgba(0,0,0,0.5)',
+           paddingBottom:'calc(10px + env(safe-area-inset-bottom))'}
+        :{borderRadius:8}
+      ),
     }},
       e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
         e('span',{style:{fontSize:'0.72rem',color:'#86EFAC',letterSpacing:'0.3px',fontFamily:UI_FONT}},'Comp Mix'),
@@ -2168,8 +2168,14 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     ):null,
     // Ride EQ panel
     showRideEq?e('div',{style:{
-      marginBottom:10,padding:'10px 14px',background:BG2,
-      border:'1px solid '+GOLD+'44',borderRadius:8,
+      marginBottom:isPlaying?0:10,padding:'10px 14px',background:BG2,
+      border:'1px solid '+GOLD+'44',
+      ...(isPlaying
+        ?{position:'fixed',bottom:0,left:0,right:0,zIndex:150,
+           borderRadius:'12px 12px 0 0',boxShadow:'0 -4px 20px rgba(0,0,0,0.5)',
+           paddingBottom:'calc(10px + env(safe-area-inset-bottom))'}
+        :{borderRadius:8}
+      ),
     }},
       e('div',{style:{display:'flex',alignItems:'center',marginBottom:8}},
         e('span',{style:{fontSize:'0.72rem',color:GOLD,letterSpacing:'0.3px',fontFamily:UI_FONT}},'Ride Mix'),
@@ -2203,7 +2209,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
       )
     ):null,
     // Custom progression controls
-    form==='custom'?e('div',{style:{marginBottom:8}},
+    form==='custom'&&!isPlaying?e('div',{style:{marginBottom:8}},
       e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:editingBar>=0?6:0,alignItems:'center'}},
         e('span',{style:{fontSize:'0.72rem',color:'#9CA3AF',letterSpacing:'0.3px'}},'Custom progression'),
         e('button',{onClick:()=>setCustomProg(p=>[...p,{root:0,q:'dom7'}]),
@@ -2302,7 +2308,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     // Scale + guide-tone controls (full mode only)
     level==='full'&&e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',
       padding:'6px 10px',background:BG2,border:'1px solid '+BORDER,borderTop:'none',
-      borderRadius:'0 0 9px 9px',marginBottom:12}},
+      borderRadius:'0 0 9px 9px',marginBottom:12,minHeight:52}},
       e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.5px',flexShrink:0}},'Scale'),
       (SCALE_HINTS[ac.quality]||[]).map(sc=>
         e('button',{key:sc.name,onClick:()=>setScaleHint(h=>h===sc.name?null:sc.name),style:{
@@ -2319,6 +2325,24 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           border:'1px solid '+(showGTLine?GOLD:BTN_BRD),
           background:showGTLine?ACT_GOLD:BG2,
           color:showGTLine?GOLD:BTN_OFF,minHeight:44}},'Guide tones ♦')
+      )
+    ),
+    // Voicing + String Set row
+    e('div',{style:{marginBottom:8}},
+      e('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},
+        e('div',{style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
+          e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Voicing'),
+          (level==='essentials'
+            ?[{id:'drop2',lbl:'Drop 2'},{id:'shell',lbl:'Shell'}]
+            :[{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},{id:'shell',lbl:'Shell'}]
+          ).map(({id,lbl})=>e('button',{key:id,onClick:()=>setVType(id),style:mkSsBtn(vType===id)},lbl))
+        ),
+        vType!=='shell'?e('div',{key:'ssg',style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
+          e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Set'),
+          dropD.sets.map((set,i)=>
+            e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
+          )
+        ):null
       )
     ),
     // Persistent voicing picker — always visible below the neck
