@@ -1258,6 +1258,10 @@ const FORM_DEFS={
             [2,'m7','m7','IIm7'],[7,'dom7','7','V7']],
     bars:[0,1,2,3,4,5,0,6,7,8,9,0],
     tip:'"There Will Never Be Another You" A section (Eb): cadence to IVmaj7 via Vm7–I7 (Bbm7–Eb7–Abmaj7), then backdoor II–V home (IVm7–bVII7–I). Closes with I–VIm7–II7–IIm7–V7. Set key to Eb.'},
+  tritone:{lbl:'TRITONE SUB',col:'#FF6B6B',bg:ACT_RED,
+    chords:[[2,'m7','m7','IIm7'],[7,'dom7','7','V7'],[0,'maj7','maj7','Imaj7'],[1,'dom7','7','♭II7']],
+    bars:[0,1,2,2,0,3,2,2],
+    tip:'Bars 1–4: standard IIm7–V7–Imaj7. Bars 5–8: the V7 is replaced by ♭II7 — a dominant 7 a tritone away. G7 and D♭7 share the same tritone (B/C♭ and F), so both resolve identically to Cmaj7. Listen for the chromatic bass motion D♭→C vs. the 4th-down G→C. Set key to C.'},
   custom:{lbl:'CUSTOM',col:'#9CA3AF',bg:'transparent',chords:[],bars:[],tip:''},
 };
 
@@ -1920,7 +1924,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           ),
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}},
             e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Standards'),
-            ['autumn','attya','twnbay'].map(f=>
+            ['autumn','attya','twnbay','tritone'].map(f=>
               e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
             )
           )
@@ -2585,6 +2589,8 @@ function GuideView({openPreset,level}){
     'modes':{term:'Modes',short:'Scales starting on different degrees of a parent scale (Dorian, Mixolydian, etc.).'},
     'roman':{term:'Roman numerals',short:'I, II, V etc. — chord position relative to the key, independent of key signature.'},
     'tritone':{term:'Tritone',short:'6 semitones apart — the most tense interval, wants to resolve by half-step in both directions.'},
+    'tritone_sub':{term:'Tritone substitution',short:'Replacing the V7 chord with a dominant 7 a tritone away (♭II7). Both chords share the same tritone interval and resolve identically, but ♭II7 moves to I by a smooth half-step in the bass.'},
+    'sec_dom':{term:'Secondary dominant',short:'A V7 chord that temporarily points to a chord other than I — e.g., V7/ii is the dominant of the ii chord. Creates chromatic motion and temporary key shifts.'},
   };
   function term(id,text){
     return e('span',{key:id,
@@ -2618,6 +2624,7 @@ function GuideView({openPreset,level}){
      items:['In the Chords tab, tap through a few chords and listen — can you hear which ones feel settled vs. tense?','Set the dot mode to "Interval" to see the chord tones labeled (R, 3, 5, 7) — these colors appear everywhere in the app','Don\'t worry about memorizing names yet. You\'re training your ear to hear the difference first']},
     {id:'shells',title:'Shell voicings — your first jazz grips',
      preset:{view:'diatonic',key:0,deg:0,vType:'shell'},
+     playPreset:{view:'iivi',key:0,form:'major',bpm:56,vType:'shell'},
      body:[[term('shell','A shell voicing'),' is a 3-note chord: root, 3rd, and 7th. The middle note (the 5th) is left out. This sounds like a sacrifice but it isn\'t — the 3rd and 7th already tell a listener everything about the chord quality. Leaving the 5th out makes the voicing lighter and easier to move around the neck.'],
            ['The 3rd is the note that defines major vs. minor — it\'s the brightest or darkest note in the chord. The 7th is what makes it jazz — it determines the exact flavor (major 7, dominant 7, minor 7). These two notes are called ',term('guide','"guide tones"'),' because they guide the ear through a chord progression. Form A and Form B are just two different fingering shapes — same notes, different string groupings.']],
      items:['In the Chords tab with Shell selected, play through the chords in C major one by one','Notice that each chord uses the same 3-string shape — only the fret position and one or two notes change','Listen for the 3rd: it\'s the note that makes it sound major (bright) or minor (darker). Try to pick it out by ear']},
@@ -2629,6 +2636,7 @@ function GuideView({openPreset,level}){
      items:['In the Play tab, click each chord and watch which notes move and which stay',['Pick a different II ',term('inv','inversion'),' — the app voice-leads the V and I to follow'],'Slow it down to 60 BPM and listen to how the V7 "wants" to go somewhere']},
     {id:'drop2',title:'Drop 2 — the comping workhorse',
      preset:{view:'diatonic',key:0,deg:0,vType:'drop2',ssIdx:2},
+     playPreset:{view:'iivi',key:0,form:'major',bpm:66,vType:'drop2'},
      body:[[term('drop2','Drop 2'),' takes a "closed" chord (all four notes within one octave) and drops the second-highest note down an octave. This spreads the chord across four adjacent strings in a span that fits the human hand naturally.'],
            ['Every chord has four ',term('drop2','Drop 2'),' ',term('inv','inversions'),' — same four notes, a different note on the bottom each time. Root position, 1st inversion, 2nd inversion, 3rd inversion. They sit at different positions on the neck, which is what makes smooth ',term('vl','voice leading'),' possible: instead of jumping shapes, you find the inversion of the next chord closest to where you already are.']],
      items:['On the 4-3-2-1 string set: play one Drop 2 shape for each of the 7 chords in C','Then play all four inversions of Cmaj7 in order, low to high, slow and even','Notice how each inversion is a rotation of the same four notes']},
@@ -2647,13 +2655,22 @@ function GuideView({openPreset,level}){
      body:['The minor II–V–I uses the same structural logic as the major version but with a different harmonic color: IIm7♭5 (half-diminished) – V7 – Im7. The half-diminished chord has a flattened 5th, which adds instability beyond a regular minor 7 — it urgently wants to move.',
            'The V7 in a minor II–V–I often uses an altered dominant (♭9 or ♯9) because the raised 7th of the melodic minor scale clashes interestingly with the chord. This creates a more intense pull toward the Im7. "Autumn Leaves" alternates major and minor II–V–Is back to back — it\'s the most-studied standard for learning this.'],
      items:['Loop major then minor II–V–I in the same key back to back — hear the contrast','Listen for how the ♭5 of the IIø pulls downward into the V7','Try switching to minor in the Play tab and notice which voicings change']},
+    {id:'tritone_sub',title:'Tritone substitution — same destination, different road',
+     preset:{view:'iivi',key:0,form:'tritone',bpm:60},
+     body:[['The ',term('tritone_sub','tritone substitution'),' replaces the V7 chord with another ',term('dom7','dominant 7'),' a ',term('tritone','tritone'),' (6 semitones) away. In C major: G7 can be replaced by D♭7 (♭II7). Both chords share the same tritone interval — B and F appear in both — so both resolve identically to Cmaj7.'],
+           ['The difference is in the bass motion: G7 resolves by a descending 5th (G→C), while D♭7 resolves by a smooth half-step (D♭→C). That chromatic bass slide is the signature sound of the tritone sub — it implies a descending bass line without breaking the harmonic logic. The ',term('guide','guide tones'),' (B and F) do the same job either way; only the bass note and the outer color change. Tap the Tritone Sub form above to hear both back to back.']],
+     items:['Bars 1–4: standard bass drops a 4th (G→C). Bars 5–8: bass slides down a half-step (D♭→C) — hear the difference',
+            'On the ♭II7 bar, try a drop 2 D♭7 — root on string 5, fret 9 (same shape as G7 but 6 frets higher)',
+            ['In standards: wherever you see a V7 resolving to I, try the tritone sub. "Autumn Leaves," "All The Things You Are," and nearly every bebop head use them']]},
     {id:'keys',title:'Take it around the keys',
      preset:{view:'diatonic',key:7,deg:0,vType:'shell'},
+     playPreset:{view:'iivi',key:7,form:'major',bpm:66},
      body:['Every concept so far works identically in all 12 keys — the interval relationships never change, only the pitch names do. This is what Roman numeral analysis is for: II–V–I in G♭ means exactly the same thing structurally as II–V–I in C.',
            'Jazz musicians practice in all 12 keys, traditionally moving around the cycle of fourths (C → F → B♭ → E♭ → A♭ → D♭ → G♭ → B → E → A → D → G → back to C). Each move is a 5th down (or 4th up). Most standards modulate or borrow from multiple keys — knowing the patterns in each key is not optional, it\'s infrastructure.'],
      items:['Change the key in the app and play the same shell shapes — notice they shift position but the hand shapes stay similar','In each new key: shells first, then Drop 2, then the Play-along','One new key per week = all 12 in three months']},
     {id:'scales',title:'Scales over chords — the melodic layer',
      preset:{view:'diatonic',key:0,deg:4,vType:'arpeggio'},
+     playPreset:{view:'iivi',key:0,form:'major',bpm:72},
      body:['Every chord implies a scale — a set of notes that "belong" over it and define its color. In C major, each diatonic chord has a corresponding mode: the IIm7 gets Dorian (D E F G A B C), the V7 gets Mixolydian (G A B C D E F), the Imaj7 gets Ionian (the major scale itself).',
            'Modes are not separate scales learned in isolation — they are the same major scale heard from a different starting point. D Dorian and C major contain identical notes; what changes is which note feels like "home." Over IIm7, D feels like home, so D Dorian is the right frame.',
            'For the V7, Mixolydian is the neutral choice. Altered (7th mode of melodic minor) uses every altered tension — ♭9, ♯9, ♭13 — for maximum pull. The Scale panel in the Chords tab shows exactly which mode applies to each chord.'],
@@ -2680,6 +2697,10 @@ function GuideView({openPreset,level}){
           e('button',{onClick:()=>openPreset(st.preset),style:{
             padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',
             border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,fontWeight:700,minHeight:44}},'▶ Open in app'),
+          st.playPreset?e('button',{onClick:()=>openPreset(st.playPreset),style:{
+            padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',
+            border:'1px solid #74C0FC',background:'#0a1520',color:'#74C0FC',fontWeight:700,minHeight:44,
+          }},'⌾ Try in Play →'):null,
           e('button',{onClick:()=>togDone(st.id),style:{
             padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',
             border:'1px solid '+(isDone?GOLD:BTN_BRD),background:isDone?ACT_GOLD:'transparent',
@@ -2851,7 +2872,7 @@ function GuideView({openPreset,level}){
       )
     ):null,
     sec('Next Steps & Listening',
-      p('Finished the Path? The Full level adds Drop 3, Rootless voicings, altered scales, and extended chord types. Concepts to explore beyond this app: tritone substitution, reharmonization, comping rhythms, chord melody, and playing over rhythm changes.'),
+      p('Finished the Path? The Full level adds Drop 3, Rootless voicings, altered scales, and extended chord types — unlock it with the toggle at the top right. The Chord Explorer tab lets you build any chord with any extension. The Tritone Sub form in Play lets you hear ',term('tritone_sub','tritone substitution'),' in action. Further concepts to build toward: ',term('sec_dom','secondary dominants'),', reharmonization, chord melody, and rhythm changes.'),
       p(e('b',{style:HL},'Players to study:')),
       ul(
         e('span',null,e('b',null,'Wes Montgomery'),' — warmth, clarity, octave technique; a natural first listen for any guitarist'),
