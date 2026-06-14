@@ -2614,7 +2614,7 @@ function GuideView({openPreset,level}){
   useEffect(()=>{localStorage.setItem('jg-path',JSON.stringify(done));},[done]);
   function togDone(id){setDone(s=>({...s,[id]:!s[id]?true:undefined}));}
   const S={marginBottom:14,padding:'14px 16px',background:BG2,border:'1px solid '+BORDER,borderRadius:8};
-  const H={fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:'var(--scale-name)',marginBottom:8};
+  const H={fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,color:'var(--scale-name)',marginBottom:8};
   const P={fontSize:'0.80rem',lineHeight:1.75,color:'var(--txt)',fontFamily:UI_FONT,marginBottom:8};
   const LI={fontSize:'0.80rem',lineHeight:1.7,color:'var(--txt)',fontFamily:UI_FONT,paddingLeft:16};
   const HL={color:'var(--scale-name)',fontWeight:700};
@@ -3207,11 +3207,11 @@ function App(){
             display:'flex',flexDirection:'column',alignItems:'center',gap:2,
             minHeight:0,transition:'border-color 0.1s,background 0.1s',
           }},
-            e('div',{style:{fontSize:'0.68rem',fontWeight:700,fontFamily:UI_FONT,
+            e('div',{style:{fontSize:'0.65rem',fontWeight:700,fontFamily:UI_FONT,
               color:act?qcol:LBL,letterSpacing:'0.3px',lineHeight:1}},r),
-            e('div',{style:{fontSize:'0.78rem',fontWeight:act?700:500,fontFamily:SERIF,
-              color:act?qcol:BTN_OFF,lineHeight:1.1,textAlign:'center'}},nn(rPC,key)),
-            e('div',{style:{fontSize:'0.55rem',fontFamily:UI_FONT,
+            e('div',{style:{fontSize:act?'0.9rem':'0.82rem',fontWeight:act?700:500,fontFamily:SERIF,
+              color:act?qcol:BTN_OFF,lineHeight:1.1,textAlign:'center',transition:'font-size 0.1s'}},nn(rPC,key)),
+            e('div',{style:{fontSize:'0.58rem',fontFamily:UI_FONT,
               color:act?qcol+'cc':HINT,lineHeight:1,letterSpacing:'0.2px'}},QSYMS[i])
           );
         })
