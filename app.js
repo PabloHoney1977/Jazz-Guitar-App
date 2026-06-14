@@ -67,23 +67,23 @@ const PTYPE_NAME={major:'Major',melmin:'Mel. Minor',dim:'Diminished',wt:'Whole T
 const INT_NAMES=['R','b2','2','b3','3','4','#4','5','b6','6','b7','Δ7'];
 
 const CHORD_SCALES=[
-  [{name:'Ionian',   abbr:'Ion',   iv:[0,2,4,5,7,9,11],pType:'major', mPos:0,desc:'Home — fully inside the key'},
-   {name:'Lydian',   abbr:'Lyd',   iv:[0,2,4,6,7,9,11],pType:'major', mPos:3,desc:'#11 — floating, bright color'}],
-  [{name:'Dorian',   abbr:'Dor',   iv:[0,2,3,5,7,9,10],pType:'major', mPos:1,desc:'Standard — nat. 6, fully inside'}],
-  [{name:'Phrygian', abbr:'Phr',   iv:[0,1,3,5,7,8,10],pType:'major', mPos:2,desc:'Diatonic — dark b2 tension'},
-   {name:'Dorian',   abbr:'Dor',   iv:[0,2,3,5,7,9,10],pType:'major', mPos:1,desc:'Brighter — avoids b2'}],
-  [{name:'Lydian',   abbr:'Lyd',   iv:[0,2,4,6,7,9,11],pType:'major', mPos:3,desc:'Natural — #11 defines the sound'},
-   {name:'Ionian',   abbr:'Ion',   iv:[0,2,4,5,7,9,11],pType:'major', mPos:0,desc:'Inside — IV as local tonic'},
-   {name:'Lyd.Aug.', abbr:'LydAug',iv:[0,2,4,6,8,9,11],pType:'melmin',mPos:2,desc:'#5+#11 — dreamy quality'}],
-  [{name:'Mixolydian',abbr:'Mix',  iv:[0,2,4,5,7,9,10],  pType:'major', mPos:4,desc:'Standard — natural tensions'},
-   {name:'Altered',  abbr:'Alt',   iv:[0,1,3,4,6,8,10],  pType:'melmin',mPos:6,desc:'All tensions altered — max pull'},
-   {name:'Lyd.Dom.', abbr:'LydDom',iv:[0,2,4,6,7,9,10],  pType:'melmin',mPos:3,desc:'#11 — bright dominant color'},
-   {name:'HW Dim.',  abbr:'HWDim', iv:[0,1,3,4,6,7,9,10],pType:'dim',   mPos:0,desc:'8-note: b9 #9 #11 nat.13'},
-   {name:'Whole Tone',abbr:'W.T.', iv:[0,2,4,6,8,10],    pType:'wt',    mPos:0,desc:'6-note: #5 and #11'}],
-  [{name:'Aeolian',  abbr:'Aeo',   iv:[0,2,3,5,7,8,10],pType:'major', mPos:5,desc:'Natural minor — fully diatonic'},
-   {name:'Dorian',   abbr:'Dor',   iv:[0,2,3,5,7,9,10],pType:'major', mPos:1,desc:'nat.6 brightens — outside key'}],
-  [{name:'Locrian',  abbr:'Loc',   iv:[0,1,3,5,6,8,10],pType:'major', mPos:6,desc:'Diatonic — b2 b5 b6'},
-   {name:'Loc.nat.2',abbr:'Loc2',  iv:[0,2,3,5,6,8,10],pType:'melmin',mPos:5,desc:'nat.2 softens harshest interval'}],
+  [{name:'Ionian',   abbr:'Ion',   iv:[0,2,4,5,7,9,11],pType:'major', mPos:0,avoid:[5], desc:'Home — fully inside the key'},
+   {name:'Lydian',   abbr:'Lyd',   iv:[0,2,4,6,7,9,11],pType:'major', mPos:3,avoid:[],  desc:'#11 — floating, bright color'}],
+  [{name:'Dorian',   abbr:'Dor',   iv:[0,2,3,5,7,9,10],pType:'major', mPos:1,avoid:[],  desc:'Standard — nat. 6, fully inside'}],
+  [{name:'Phrygian', abbr:'Phr',   iv:[0,1,3,5,7,8,10],pType:'major', mPos:2,avoid:[1], desc:'Diatonic — dark b2 tension'},
+   {name:'Dorian',   abbr:'Dor',   iv:[0,2,3,5,7,9,10],pType:'major', mPos:1,avoid:[],  desc:'Brighter — avoids b2'}],
+  [{name:'Lydian',   abbr:'Lyd',   iv:[0,2,4,6,7,9,11],pType:'major', mPos:3,avoid:[],  desc:'Natural — #11 defines the sound'},
+   {name:'Ionian',   abbr:'Ion',   iv:[0,2,4,5,7,9,11],pType:'major', mPos:0,avoid:[5], desc:'Inside — IV as local tonic'},
+   {name:'Lyd.Aug.', abbr:'LydAug',iv:[0,2,4,6,8,9,11],pType:'melmin',mPos:2,avoid:[],  desc:'#5+#11 — dreamy quality'}],
+  [{name:'Mixolydian',abbr:'Mix',  iv:[0,2,4,5,7,9,10],  pType:'major', mPos:4,avoid:[5],desc:'Standard — natural tensions'},
+   {name:'Altered',  abbr:'Alt',   iv:[0,1,3,4,6,8,10],  pType:'melmin',mPos:6,avoid:[],  desc:'All tensions altered — max pull'},
+   {name:'Lyd.Dom.', abbr:'LydDom',iv:[0,2,4,6,7,9,10],  pType:'melmin',mPos:3,avoid:[],  desc:'#11 — bright dominant color'},
+   {name:'HW Dim.',  abbr:'HWDim', iv:[0,1,3,4,6,7,9,10],pType:'dim',   mPos:0,avoid:[],  desc:'8-note: b9 #9 #11 nat.13'},
+   {name:'Whole Tone',abbr:'W.T.', iv:[0,2,4,6,8,10],    pType:'wt',    mPos:0,avoid:[],  desc:'6-note: #5 and #11'}],
+  [{name:'Aeolian',  abbr:'Aeo',   iv:[0,2,3,5,7,8,10],pType:'major', mPos:5,avoid:[8],  desc:'Natural minor — fully diatonic'},
+   {name:'Dorian',   abbr:'Dor',   iv:[0,2,3,5,7,9,10],pType:'major', mPos:1,avoid:[],   desc:'nat.6 brightens — outside key'}],
+  [{name:'Locrian',  abbr:'Loc',   iv:[0,1,3,5,6,8,10],pType:'major', mPos:6,avoid:[1],  desc:'Diatonic — b2 b5 b6'},
+   {name:'Loc.nat.2',abbr:'Loc2',  iv:[0,2,3,5,6,8,10],pType:'melmin',mPos:5,avoid:[],   desc:'nat.2 softens harshest interval'}],
 ];
 
 function getParentRoot(chordRoot,pType,mPos){
@@ -1149,10 +1149,11 @@ function ScalePanel({degree,chordRoot,tones,degNames,keyIdx,scaleIdx,onScaleChan
   const parentRoot=getParentRoot(chordRoot,sc.pType,sc.mPos);
   const parentLabel=nn(parentRoot,keyIdx)+' '+PTYPE_NAME[sc.pType];
   const sameAsKey=sc.pType==='major'&&parentRoot===KEYS[keyIdx].root;
+  const avoidSet=new Set(sc.avoid||[]);
   const noteRow=sc.iv.map(interval=>{
     const pc=(chordRoot+interval)%12;
     const ti=tones.indexOf(pc);
-    return{noteName:nn(pc,keyIdx),interval,isTone:ti>=0,ti};
+    return{noteName:nn(pc,keyIdx),interval,isTone:ti>=0,ti,isAvoid:avoidSet.has(interval)};
   });
   return e('div',{style:{background:BG2,border:'1px solid '+BORDER,borderRadius:8,padding:'10px 14px',marginBottom:12}},
     e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8,flexWrap:'wrap',gap:6}},
@@ -1183,12 +1184,15 @@ function ScalePanel({degree,chordRoot,tones,degNames,keyIdx,scaleIdx,onScaleChan
         e('div',{key:i,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2}},
           e('div',{style:{width:30,height:30,borderRadius:'50%',
             background:n.isTone?TC[n.ti]:'var(--note-non-chord)',
-            border:'1.5px solid '+(n.isTone?TC[n.ti]:BTN_BRD),
+            border:'1.5px solid '+(n.isAvoid?'#F97316':n.isTone?TC[n.ti]:BTN_BRD),
             display:'flex',alignItems:'center',justifyContent:'center',
-            boxShadow:n.isTone?'0 0 8px '+TC[n.ti]+'44':'none'}},
+            boxShadow:n.isTone?'0 0 8px '+TC[n.ti]+'44':n.isAvoid?'0 0 6px #F9731644':'none',
+            opacity:n.isAvoid?0.7:1}},
             e('span',{style:{fontSize:'0.71rem',fontWeight:700,fontFamily:UI_FONT,color:n.isTone?'white':'var(--note-non-chord-txt)'}},n.noteName)
           ),
-          e('span',{style:{fontSize:'0.64rem',fontFamily:UI_FONT,color:n.isTone?TC[n.ti]+'cc':'var(--note-iv-txt)'}},INT_NAMES[n.interval])
+          e('span',{style:{fontSize:'0.64rem',fontFamily:UI_FONT,
+            color:n.isAvoid?'#F97316':n.isTone?TC[n.ti]+'cc':'var(--note-iv-txt)'}},
+            n.isAvoid?INT_NAMES[n.interval]+'⚠':INT_NAMES[n.interval])
         )
       ),
       e('div',{style:{marginLeft:'auto',alignSelf:'flex-start',paddingTop:2}},
@@ -2741,7 +2745,7 @@ function GuideView({openPreset,level}){
      items:['Explore Rootless voicings — the 9th replacing the root creates a richer, more ambiguous sound','In Any Chord, try a 7alt voicing over the V chord and hear the tension','From here: the Glossary below and Next Steps are your map forward']},
   ];
   const doneCount=stages.filter(s=>done[s.id]).length;
-  function stage(n,st){
+  function stage(n,st,nextSt){
     const isDone=!!done[st.id];
     const theoryOpen=!!expanded['st_'+st.id];
     return e('div',{key:st.id,style:{display:'flex',gap:12,padding:'12px 14px',marginBottom:10,
@@ -2775,6 +2779,13 @@ function GuideView({openPreset,level}){
           theoryOpen?e('div',{style:{marginTop:4,paddingLeft:10,borderLeft:'2px solid '+BORDER}},
             ...st.body.slice(1).map((t,i)=>e('p',{key:'bt'+i,style:{...P,marginBottom:5}},...[].concat(t)))
           ):null
+        ):null,
+        nextSt?e('div',{style:{marginTop:8,display:'flex',justifyContent:'flex-end'}},
+          e('button',{onClick:()=>{togDone(st.id);openPreset(nextSt.preset);window.scrollTo(0,0);},
+            style:{padding:'4px 12px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
+              border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,minHeight:0,
+              display:'flex',alignItems:'center',gap:5}},
+            'Next: '+nextSt.title.split(' — ')[0],' →')
         ):null
       )
     );
@@ -2792,7 +2803,7 @@ function GuideView({openPreset,level}){
         e('span',{style:{fontSize:'0.72rem',fontFamily:UI_FONT,fontWeight:400,color:doneCount===stages.length?GOLD:HINT}},doneCount+' / '+stages.length+' done')
       ),
       p('Work top to bottom — each stage is about a week of practice, and slower is fine. Nothing is locked; the Path just says what matters now. Each button opens the right view, already set up.'),
-      stages.map((st,i)=>stage(i+1,st))
+      stages.map((st,i)=>stage(i+1,st,stages[i+1]))
     ),
     e('div',{style:S},
       e('div',{style:H},'Glossary — click any term'),
