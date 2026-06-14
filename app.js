@@ -645,6 +645,8 @@ function EarTrainingView({level}){
   const [scores,setScores]=useState({intervals:{r:0,w:0},triads:{r:0,w:0},chords:{r:0,w:0}});
   // Per-item breakdown: {intervals:{1:{r,w},...}, triads:{major:{r,w},...}, chords:{...}}
   const [detail,setDetail]=useState({intervals:{},triads:{},chords:{}});
+  // Intro gate — shown once, persisted to localStorage
+  const [seenIntro,setSeenIntro]=useState(()=>!!localStorage.getItem('jg-ear-intro'));
   // Round state
   const [current,setCurrent]=useState(null);
   const [revealed,setRevealed]=useState(false);
@@ -752,7 +754,19 @@ function EarTrainingView({level}){
     setDetail(d=>{const m={...d[mode]},e={...m[key]||{r:0,w:0}};
       e[correct?'r':'w']++;m[key]=e;return{...d,[mode]:m};});
   }
-  useEffect(()=>{newRound();},[mode]);
+  useEffect(()=>{if(seenIntro) newRound();},[mode,seenIntro]);
+  if(!seenIntro) return e('div',{style:{padding:'20px 16px',textAlign:'center',maxWidth:420,margin:'0 auto'}},
+    e('div',{style:{fontSize:'2.5rem',marginBottom:12}},'♫'),
+    e('div',{style:{fontSize:'1.0rem',fontWeight:700,fontFamily:SERIF,marginBottom:8}},'Ear Training'),
+    e('div',{style:{fontSize:'0.8rem',color:LBL,lineHeight:1.6,marginBottom:20}},
+      'You\'ll hear notes played. Identify what you hear — interval, chord type, or quality. ',
+      'The more you practice, the more your ear will recognize these sounds naturally.'
+    ),
+    e('button',{onClick:()=>{setSeenIntro(true);localStorage.setItem('jg-ear-intro','1');},
+      style:{padding:'10px 28px',borderRadius:8,fontSize:'0.9rem',fontWeight:600,
+        background:GOLD,color:'#000',border:'none',cursor:'pointer'}},
+      'Start Training →')
+  );
   if(!current) return null;
 
   const sc=scores[mode];
@@ -1122,6 +1136,7 @@ const ChordBox=React.memo(function ChordBox({voicing,strings,tones,degNames,invL
   const tc=tcArr||TC;
   dotMode=dotMode||'interval';
   dotKeyIdx=dotKeyIdx===undefined?0:dotKeyIdx;
+  const [pressed,setPressed]=useState(false);
   if(!voicing) return null;
   const frets=voicing.frets;
   const allF=[null,null,null,null,null,null];
@@ -1135,7 +1150,12 @@ const ChordBox=React.memo(function ChordBox({voicing,strings,tones,degNames,invL
   const showNut=SF===1;
   const sx=i=>PL+i*SS;
   const fy=f=>PT+(f-SF)*FS+FS/2;
-  return e('div',{onClick:()=>{playChordPreview(voicing,strings);if(onClick)onClick();},style:{cursor:'pointer',flexShrink:0}},
+  return e('div',{
+    onClick:()=>{playChordPreview(voicing,strings);if(onClick)onClick();},
+    onPointerDown:()=>setPressed(true),
+    onPointerUp:()=>setPressed(false),
+    onPointerLeave:()=>setPressed(false),
+    style:{cursor:'pointer',flexShrink:0,filter:pressed?'brightness(1.35)':'none',transition:'filter 0.08s'}},
     e('svg',{width:W,height:H,viewBox:`0 0 ${W} ${H}`},
       e('rect',{width:W,height:H,rx:9,fill:selected?'var(--cb-sel)':'var(--cb-bg)',stroke:selected?'var(--txt)':BORDER,strokeWidth:selected?2.5:1.5}),
       e('text',{x:W/2,y:20,textAnchor:'middle',fill:selected?'var(--txt)':BTN_OFF,fontSize:13,fontWeight:selected?'bold':'normal',fontFamily:UI_FONT},invLabel),
@@ -2320,6 +2340,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
                 flex:1,position:'relative',padding:isPlaying?'3px 4px 5px':'5px 7px 10px',cursor:'pointer',
                 borderRight:col<rowBars.length-1?'1px solid '+BORDER:'none',
                 background:lit?ACT_YEL:isSel?ACT_GOLD+'44':isEditing?ACT_GOLD:'transparent',
+                animation:lit?'barPulse 0.6s ease-in-out infinite':'none',
                 transition:'background 0.1s,padding 0.15s,min-height 0.15s',
                 display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:isPlaying?34:54,
               }
@@ -2671,7 +2692,14 @@ function GuideView({openPreset,level}){
   // Path progress, persisted
   const [done,setDone]=useState(()=>{try{return JSON.parse(localStorage.getItem('jg-path')||'{}');}catch(ex){return{};}});
   useEffect(()=>{localStorage.setItem('jg-path',JSON.stringify(done));},[done]);
-  function togDone(id){setDone(s=>({...s,[id]:!s[id]?true:undefined}));}
+  const [justDone,setJustDone]=useState(null);
+  function togDone(id){
+    setDone(s=>{
+      const isNowDone=!s[id];
+      if(isNowDone){setJustDone(id);setTimeout(()=>setJustDone(d=>d===id?null:d),1200);}
+      return {...s,[id]:isNowDone?true:undefined};
+    });
+  }
   const S={marginBottom:14,padding:'14px 16px',background:BG2,border:'1px solid '+BORDER,borderRadius:8};
   const H={fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,color:'var(--scale-name)',marginBottom:8};
   const P={fontSize:'0.80rem',lineHeight:1.75,color:'var(--txt)',fontFamily:UI_FONT,marginBottom:8};
@@ -2819,7 +2847,8 @@ function GuideView({openPreset,level}){
       e('div',{style:{flexShrink:0,width:26,height:26,borderRadius:'50%',
         border:'2px solid '+GOLD,color:isDone?GOLD:LBL,
         display:'flex',alignItems:'center',justifyContent:'center',
-        fontSize:'0.8rem',fontWeight:700,fontFamily:UI_FONT,background:isDone?ACT_GOLD:'transparent'}},isDone?'✓':String(n)),
+        fontSize:'0.8rem',fontWeight:700,fontFamily:UI_FONT,background:isDone?ACT_GOLD:'transparent',
+        animation:justDone===st.id?'doneFlash 0.5s ease-out':'none'}},isDone?'✓':String(n)),
       e('div',{style:{flex:1}},
         e('div',{style:{fontFamily:SERIF,fontSize:'0.98rem',fontWeight:700,color:'var(--scale-name)',marginBottom:6}},st.title),
         st.body.length>0?e('p',{style:{...P,marginBottom:8}},...[].concat(st.body[0])):null,
@@ -2834,7 +2863,8 @@ function GuideView({openPreset,level}){
           e('button',{onClick:()=>togDone(st.id),style:{
             padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',
             border:'1px solid '+(isDone?GOLD:BTN_BRD),background:isDone?ACT_GOLD:'transparent',
-            color:isDone?GOLD:BTN_OFF,minHeight:44}},isDone?'✓ Done':'Mark done')
+            color:isDone?GOLD:BTN_OFF,minHeight:44,
+            animation:justDone===st.id?'doneFlash 0.5s ease-out':'none'}},isDone?'✓ Done':'Mark done')
         ),
         st.items&&st.items.length?ul(...st.items):null,
         st.body.length>1?e('div',{style:{marginTop:6}},
@@ -3461,13 +3491,15 @@ function App(){
       boxShadow:'0 -4px 16px rgba(0,0,0,0.35)'}},
       [['guide','⚑','Guide'],['diatonic','♬','Chords'],['custom','♪','Any Chord'],['iivi','▶','Play'],['quiz','♫','Ear']].map(([id,icon,lbl])=>{
         const act=viewMode===id;
+        let tabLbl=lbl;
+        if(id==='guide'){try{const d=JSON.parse(localStorage.getItem('jg-path')||'{}');const n=Object.values(d).filter(Boolean).length;if(n>0) tabLbl='Guide·'+n+'✓';}catch(ex){}}
         return e('button',{key:id,onClick:()=>{setViewMode(id);window.scrollTo(0,0);},style:{
           flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:1,
           padding:'7px 0 5px',background:'transparent',border:'none',
           borderTop:'2px solid '+(act?'var(--txt)':'transparent'),
           color:act?'var(--txt)':BTN_OFF,fontFamily:UI_FONT,cursor:'pointer',minHeight:52}},
           e('span',{style:{fontSize:'1.1rem',lineHeight:1.2}},icon),
-          e('span',{style:{fontSize:'0.64rem',letterSpacing:'0.5px',fontWeight:act?700:400}},lbl)
+          e('span',{style:{fontSize:'0.64rem',letterSpacing:'0.5px',fontWeight:act?700:400}},tabLbl)
         );
       })
     )
