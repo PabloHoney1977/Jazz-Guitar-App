@@ -36,16 +36,16 @@ const RL_DNAMES={
 
 // ── Extended / standalone chord types ────────────────────────────────
 const EXT_TYPES=[
-  {id:'maj7', sym:'maj7', label:'Major 7',  iv:[0,4,7,11], dn:['R','3','5','Δ7']},
-  {id:'m7',   sym:'m7',   label:'Minor 7',  iv:[0,3,7,10], dn:['R','b3','5','b7']},
-  {id:'dom7', sym:'7',    label:'Dom 7',    iv:[0,4,7,10], dn:['R','3','5','b7']},
-  {id:'m7b5', sym:'ø7',   label:'Half-Dim', iv:[0,3,6,10], dn:['R','b3','b5','b7']},
-  {id:'maj9', sym:'maj9', label:'Major 9',  iv:[0,4,11,2], dn:['R','3','Δ7','9']},
-  {id:'m9',   sym:'m9',   label:'Minor 9',  iv:[0,3,10,2], dn:['R','b3','b7','9']},
-  {id:'dom9', sym:'9',    label:'Dom 9',    iv:[0,4,10,2], dn:['R','3','b7','9']},
-  {id:'7alt', sym:'7alt', label:'Altered',  iv:[0,4,10,3], dn:['R','3','b7','#9']},
-  {id:'7b9',  sym:'7♭9',  label:'7♭9',     iv:[0,4,10,1], dn:['R','3','b7','b9']},
-  {id:'9sus', sym:'9sus4',label:'9sus4',    iv:[0,5,10,2], dn:['R','4','b7','9']},
+  {id:'maj7', sym:'maj7', label:'Major 7',  iv:[0,4,7,11], dn:['R','3','5','Δ7'],  ctx:'I and IV in major keys — lush, stable home sound'},
+  {id:'m7',   sym:'m7',   label:'Minor 7',  iv:[0,3,7,10], dn:['R','b3','5','b7'], ctx:'II, III, VI in major keys — smooth, floating quality'},
+  {id:'dom7', sym:'7',    label:'Dom 7',    iv:[0,4,7,10], dn:['R','3','5','b7'],  ctx:'V in any key — tritone tension that pulls to I'},
+  {id:'m7b5', sym:'ø7',   label:'Half-Dim', iv:[0,3,6,10], dn:['R','b3','b5','b7'],ctx:'II in minor keys, VII in major — searching and tense'},
+  {id:'maj9', sym:'maj9', label:'Major 9',  iv:[0,4,11,2], dn:['R','3','Δ7','9'],  ctx:'Richer I or IV — 9th adds open, luminous color above the Δ7'},
+  {id:'m9',   sym:'m9',   label:'Minor 9',  iv:[0,3,10,2], dn:['R','b3','b7','9'], ctx:'Warmer IIm or VIm — natural 9th softens the b3'},
+  {id:'dom9', sym:'9',    label:'Dom 9',    iv:[0,4,10,2], dn:['R','3','b7','9'],  ctx:'V7 with natural 9 — full dominant sound, less tension than altered'},
+  {id:'7alt', sym:'7alt', label:'Altered',  iv:[0,4,10,3], dn:['R','3','b7','#9'], ctx:'All tensions altered (b9 #9 b5 #5) — maximum pull on V7'},
+  {id:'7b9',  sym:'7♭9',  label:'7♭9',     iv:[0,4,10,1], dn:['R','3','b7','b9'], ctx:'b9 creates diminished/Spanish sound — strong tension on V7'},
+  {id:'9sus', sym:'9sus4',label:'9sus4',    iv:[0,5,10,2], dn:['R','4','b7','9'],  ctx:'No 3rd — suspended, floating; resolves when 4 drops to 3'},
 ];
 
 // Extension options per EXT_TYPES index — each replaces the 5th (interval slot 2)
@@ -465,7 +465,8 @@ function GuitarToggle({level,setLevel}){
     }},'Essentials'),
     e('button',{
       onClick:()=>setLevel(isBasic?'full':'essentials'),
-      'aria-label':'Currently '+(isBasic?'Basic':'Full')+' — tap to switch',
+      'aria-label':'Currently '+(isBasic?'Essentials':'Full')+' — tap to switch',
+      title:isBasic?'Switch to Full: adds Drop 3, Rootless voicings, Altered scale, extended chord types (9th, sus, altered)':'Switch to Essentials: simplified view for learning the basics',
       style:{background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:0},
     },
       e('svg',{width:52,height:52,viewBox:'0 0 52 52',style:{display:'block'}},
@@ -1262,6 +1263,10 @@ const FORM_DEFS={
     chords:[[2,'m7','m7','IIm7'],[7,'dom7','7','V7'],[0,'maj7','maj7','Imaj7'],[1,'dom7','7','♭II7']],
     bars:[0,1,2,2,0,3,2,2],
     tip:'Bars 1–4: standard IIm7–V7–Imaj7. Bars 5–8: the V7 is replaced by ♭II7 — a dominant 7 a tritone away. G7 and D♭7 share the same tritone (B/C♭ and F), so both resolve identically to Cmaj7. Listen for the chromatic bass motion D♭→C vs. the 4th-down G→C. Set key to C.'},
+  secdom:{lbl:'SEC. DOM.',col:'#F4A261',bg:ACT_GOLD,
+    chords:[[0,'maj7','maj7','Imaj7'],[4,'dom7','7','V/vi'],[9,'m7','m7','VIm7'],[2,'dom7','7','V/ii'],[2,'m7','m7','IIm7'],[7,'dom7','7','V7']],
+    bars:[0,1,2,2,3,4,5,0],
+    tip:'Secondary dominants: E7 (V7/vi) temporarily acts as V of Am7; D7 (V7/ii) acts as V of Dm7 — each creates a mini II–V pull before the main II–V–I. Any chord in the key can be preceded by its own V7. Set key to C.'},
   custom:{lbl:'CUSTOM',col:'#9CA3AF',bg:'transparent',chords:[],bars:[],tip:''},
 };
 
@@ -1924,7 +1929,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
           ),
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}},
             e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Standards'),
-            ['autumn','attya','twnbay','tritone'].map(f=>
+            ['autumn','attya','twnbay','tritone','secdom'].map(f=>
               e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
             )
           )
@@ -2455,7 +2460,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       ),
       e('div',null,
         e('div',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',marginBottom:6,fontWeight:600}},'Chord type'),
-        e('div',{style:{display:'flex',flexWrap:'wrap',gap:3}},
+        e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginBottom:4}},
           (isEss?EXT_TYPES.slice(0,4):EXT_TYPES).map((t,i)=>
             e('button',{key:i,onClick:()=>{setCustomTypeIdx(i);setInvIdx(0);},style:{
               padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
@@ -2464,7 +2469,8 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
               color:customTypeIdx===i?'#C084FC':BTN_OFF,fontWeight:customTypeIdx===i?700:400,
               minHeight:44}},t.sym)
           )
-        )
+        ),
+        e('div',{style:{fontSize:'0.62rem',color:HINT,fontFamily:UI_FONT,lineHeight:1.4}},baseType.ctx)
       )
     ),
     // Extension row — Full mode only
@@ -2598,6 +2604,7 @@ function GuideView({openPreset,level}){
     'tritone':{term:'Tritone',short:'6 semitones apart — the most tense interval, wants to resolve by half-step in both directions.'},
     'tritone_sub':{term:'Tritone substitution',short:'Replacing the V7 chord with a dominant 7 a tritone away (♭II7). Both chords share the same tritone interval and resolve identically, but ♭II7 moves to I by a smooth half-step in the bass.'},
     'sec_dom':{term:'Secondary dominant',short:'A V7 chord that temporarily points to a chord other than I — e.g., V7/ii is the dominant of the ii chord. Creates chromatic motion and temporary key shifts.'},
+    'modal_int':{term:'Modal interchange (borrowing)',short:'Using chords from the parallel minor or major key — e.g., in C major, using IVm7 (Fm7) or ♭VII7 (B♭7) "borrowed" from C minor. Creates unexpected color without fully leaving the key.'},
   };
   function term(id,text){
     return e('span',{key:id,
@@ -2628,13 +2635,13 @@ function GuideView({openPreset,level}){
      preset:{view:'diatonic',key:0,deg:0,vType:'shell'},
      body:['Jazz harmony runs on four chord types. You probably know the sound of major (bright) and minor (dark) from everyday music. Jazz adds a fourth note — the 7th — to each chord, and the exact flavor of that note is what creates four distinct sounds: Major 7, Minor 7, Dominant 7, and Half-diminished.',
            'Major 7 (Cmaj7): warm, lush, settled — the "home" sound. Minor 7 (Dm7): smooth, slightly floating — darker than major but not tense. Dominant 7 (G7): the tension chord — it pulls strongly toward resolution. Half-diminished (Bm7♭5): unstable and searching — the most urgent of the four. The colored dots in the app label each note: red = root, teal = 3rd, blue = 5th, gold = 7th.'],
-     items:['In the Chords tab, tap through a few chords and listen — can you hear which ones feel settled vs. tense?','Set the dot mode to "Interval" to see the chord tones labeled (R, 3, 5, 7) — these colors appear everywhere in the app','Don\'t worry about memorizing names yet. You\'re training your ear to hear the difference first']},
+     items:['In the Explore tab, tap through a few chords and listen — can you hear which ones feel settled vs. tense?','Set the dot mode to "Interval" to see the chord tones labeled (R, 3, 5, 7) — these colors appear everywhere in the app','Don\'t worry about memorizing names yet. You\'re training your ear to hear the difference first']},
     {id:'shells',title:'Shell voicings — your first jazz grips',
      preset:{view:'diatonic',key:0,deg:0,vType:'shell'},
      playPreset:{view:'iivi',key:0,form:'major',bpm:56,vType:'shell'},
      body:[[term('shell','A shell voicing'),' is a 3-note chord: root, 3rd, and 7th. The middle note (the 5th) is left out. This sounds like a sacrifice but it isn\'t — the 3rd and 7th already tell a listener everything about the chord quality. Leaving the 5th out makes the voicing lighter and easier to move around the neck.'],
            ['The 3rd is the note that defines major vs. minor — it\'s the brightest or darkest note in the chord. The 7th is what makes it jazz — it determines the exact flavor (major 7, dominant 7, minor 7). These two notes are called ',term('guide','"guide tones"'),' because they guide the ear through a chord progression. Form A and Form B are just two different fingering shapes — same notes, different string groupings.']],
-     items:['In the Chords tab with Shell selected, play through the chords in C major one by one','Notice that each chord uses the same 3-string shape — only the fret position and one or two notes change','Listen for the 3rd: it\'s the note that makes it sound major (bright) or minor (darker). Try to pick it out by ear']},
+     items:['In the Explore tab with Shell selected, play through the chords in C major one by one','Notice that each chord uses the same 3-string shape — only the fret position and one or two notes change','Listen for the 3rd: it\'s the note that makes it sound major (bright) or minor (darker). Try to pick it out by ear']},
     {id:'iivi',title:'The II–V–I — jazz\'s engine',
      preset:{view:'iivi',key:0,form:'major',bpm:60},
      body:['Three chords that appear in virtually every jazz standard: a ',term('m7','minor 7'),' chord (II), a ',term('dom7','dominant 7'),' chord (V), and a ',term('maj7','major 7'),' chord (I). In C major that\'s Dm7 → G7 → Cmaj7. The ',term('roman','Roman numerals'),' just indicate position in the key — the same pattern works in every key by moving everything up or down. Learn it once, use it everywhere.',
@@ -2680,7 +2687,7 @@ function GuideView({openPreset,level}){
      playPreset:{view:'iivi',key:0,form:'major',bpm:72},
      body:['Every chord implies a scale — a set of notes that "belong" over it and define its color. In C major, each diatonic chord has a corresponding mode: the IIm7 gets Dorian (D E F G A B C), the V7 gets Mixolydian (G A B C D E F), the Imaj7 gets Ionian (the major scale itself).',
            'Modes are not separate scales learned in isolation — they are the same major scale heard from a different starting point. D Dorian and C major contain identical notes; what changes is which note feels like "home." Over IIm7, D feels like home, so D Dorian is the right frame.',
-           'For the V7, Mixolydian is the neutral choice. Altered (7th mode of melodic minor) uses every altered tension — ♭9, ♯9, ♭13 — for maximum pull. The Scale panel in the Chords tab shows exactly which mode applies to each chord.'],
+           'For the V7, Mixolydian is the neutral choice. Altered (7th mode of melodic minor) uses every altered tension — ♭9, ♯9, ♭13 — for maximum pull. The Scale panel in the Explore tab shows exactly which mode applies to each chord.'],
      items:['On the V7 chord, try playing only the four chord tones (use Arpeggio view to find them)', 'Then connect them with scale steps — that\'s the foundation of bebop melody','Switch to Altered scale in the Scale panel and hear how it intensifies the tension']},
     {id:'full',title:'Go Full — Drop 3, Rootless, altered colors',
      preset:{view:'diatonic',key:0,deg:4,vType:'rootless',level:'full'},
@@ -2749,7 +2756,7 @@ function GuideView({openPreset,level}){
       ),
       gloss('maj7','Major 7 (maj7)','The stable, lush chord — the 7th is a half-step below the octave.','maj7',
         'Spelled root–3–5–7: Cmaj7 = C–E–G–B. The major 7th (B in C major) creates a warm, slightly floating sound — it sits one half-step below the octave C, like a gentle lean toward resolution that never quite arrives. This is the I chord in a major key and the IV chord.',
-        'Maj7 is the defining color of jazz ballads, bossa nova, and sophisticated pop. It is the "home" chord — stable enough to feel resolved, colorful enough to linger on. In the app it appears as the I and IV chord in the Chords tab.'
+        'Maj7 is the defining color of jazz ballads, bossa nova, and sophisticated pop. It is the "home" chord — stable enough to feel resolved, colorful enough to linger on. In the app it appears as the I and IV chord in the Explore tab.'
       ),
       gloss('dom7','Dominant 7 (7)','The tension chord — creates strong pull toward resolution.','dom7',
         'Spelled root–3–5–♭7: G7 = G–B–D–F. The ♭7 (F) and the 3rd (B) are 6 half-steps apart — a tritone, the maximally tense interval in Western music. Both notes want to resolve by half-step (B up to C, F down to E), pulling strongly toward the Imaj7 a fifth below.',
@@ -2879,7 +2886,7 @@ function GuideView({openPreset,level}){
       )
     ):null,
     sec('Next Steps & Listening',
-      p('Finished the Path? The Full level adds Drop 3, Rootless voicings, altered scales, and extended chord types — unlock it with the toggle at the top right. The Chord Explorer tab lets you build any chord with any extension. The Tritone Sub form in Play lets you hear ',term('tritone_sub','tritone substitution'),' in action. Further concepts to build toward: ',term('sec_dom','secondary dominants'),', reharmonization, chord melody, and rhythm changes.'),
+      p('Finished the Path? The Full level adds Drop 3, Rootless voicings, altered scales, and extended chord types — unlock it with the toggle at the top right. The Explore tab lets you build any chord with any extension. The Sec. Dom. and Tritone Sub forms in Play let you hear ',term('sec_dom','secondary dominants'),' and ',term('tritone_sub','tritone substitution'),' in action. Further concepts to explore: ',term('modal_int','modal interchange'),', reharmonization, chord melody, and rhythm changes.'),
       p(e('b',{style:HL},'Players to study:')),
       ul(
         e('span',null,e('b',null,'Wes Montgomery'),' — warmth, clarity, octave technique; a natural first listen for any guitarist'),
@@ -3280,7 +3287,7 @@ function App(){
       display:'flex',background:BG2,borderTop:'1px solid '+BORDER,
       paddingBottom:'env(safe-area-inset-bottom)',
       boxShadow:'0 -4px 16px rgba(0,0,0,0.35)'}},
-      [['guide','⚑','Guide'],['diatonic','♬','In a Key'],['custom','♪','Chords'],['iivi','▶','Play'],['quiz','♫','Ear']].map(([id,icon,lbl])=>{
+      [['guide','⚑','Guide'],['diatonic','♬','Key'],['custom','♪','Explore'],['iivi','▶','Play'],['quiz','♫','Ear']].map(([id,icon,lbl])=>{
         const act=viewMode===id;
         return e('button',{key:id,onClick:()=>{setViewMode(id);window.scrollTo(0,0);},style:{
           flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:1,
