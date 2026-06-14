@@ -1347,7 +1347,7 @@ function LedToggle({label,enabled,onToggle,color,compact}){
   );
 }
 
-function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange}){
+function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
   dotMode=dotMode||'interval';
   const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(localStorage.getItem('jg-strSet')||'2',10));
   const [invIdxs,setInvIdxs]=useState([]);
@@ -1522,6 +1522,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange}){
   const bars=def?def.bars:customProg.map((_,i)=>i);
   chordsRef.current=chords;
   barsRef.current=bars;
+  // Register pedal handlers — overwrite on every render so closure is always current
+  if(pedalRef) pedalRef.current={
+    forward:()=>setActiveChordIdx(i=>(i+1)%bars.length),
+    back:()=>setActiveChordIdx(i=>(i-1+bars.length)%bars.length),
+  };
 
   const dropD=DROP_DATA[vType]||DROP_DATA.drop2;
   const ssIdx=Math.min(strSetIdx,dropD.sets.length-1);
@@ -3049,6 +3054,34 @@ function App(){
   const [iiviPlaying,setIiviPlaying]=useState(false);
   // Clear playing state when navigating away from the play tab
   useEffect(()=>{ if(viewMode!=='iivi') setIiviPlaying(false); },[viewMode]);
+
+  // Bluetooth page-turner pedal support
+  // Pedals appear as keyboard events (AirTurn: Space/Backspace or Arrow keys;
+  // PageFlip: PageDown/PageUp). The ref lets IIVIView register its own handlers
+  // without lifting activeChordIdx out of that component.
+  const iiviPedalRef=useRef({forward:null,back:null});
+  useEffect(()=>{
+    function onPedal(ev){
+      if(ev.target.tagName==='INPUT'||ev.target.tagName==='TEXTAREA'||ev.target.isContentEditable) return;
+      const fwd=ev.key==='ArrowRight'||ev.key==='ArrowDown'||ev.key==='PageDown'||ev.key===' ';
+      const bwd=ev.key==='ArrowLeft'||ev.key==='ArrowUp'||ev.key==='PageUp'||ev.key==='Backspace';
+      if(!fwd&&!bwd) return;
+      ev.preventDefault();
+      if(viewMode==='diatonic'){
+        setDeg(d=>fwd?Math.min(d+1,6):Math.max(d-1,0));
+      } else if(viewMode==='custom'){
+        const len=EXT_TYPES.length;
+        setCustomTypeIdx(i=>fwd?(i+1)%len:(i-1+len)%len);
+      } else if(viewMode==='guide'){
+        window.scrollBy({top:fwd?350:-350,behavior:'smooth'});
+      } else if(viewMode==='iivi'){
+        if(fwd) iiviPedalRef.current.forward?.();
+        if(bwd) iiviPedalRef.current.back?.();
+      }
+    }
+    window.addEventListener('keydown',onPedal);
+    return ()=>window.removeEventListener('keydown',onPedal);
+  },[viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
   // Diatonic state
   const [deg,setDeg]=useState(0);
   const [vType,setVType]=useState('shell');
@@ -3224,7 +3257,7 @@ function App(){
     ):null,
 
     // ── IIVI VIEW ────────────────────────────────────────────────────
-    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level,onPlayStateChange:setIiviPlaying}):null,
+    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level,onPlayStateChange:setIiviPlaying,pedalRef:iiviPedalRef}):null,
 
     // ── CUSTOM CHORD VIEW ────────────────────────────────────────────
     viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey:findInKey}):null,
