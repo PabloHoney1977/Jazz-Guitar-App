@@ -2742,6 +2742,13 @@ function GuideView({openPreset,level}){
      items:['Bars 1–4: standard bass drops a 4th (G→C). Bars 5–8: bass slides down a half-step (D♭→C) — hear the difference',
             'On the ♭II7 bar, try a drop 2 D♭7 — root on string 5, fret 9 (same shape as G7 but 6 frets higher)',
             ['In standards: wherever you see a V7 resolving to I, try the tritone sub. "Autumn Leaves," "All The Things You Are," and nearly every bebop head use them']]},
+    {id:'secdom',title:'Secondary dominants — borrowing V7 for any chord',
+     preset:{view:'iivi',key:0,form:'secdom',bpm:60},
+     body:[['A ',term('sec_dom','secondary dominant'),' is any dominant 7 chord that temporarily acts as a V7 to a chord other than I. In C major, D7 is not diatonic — but it pulls strongly to Gm7 (ii), because D7 is V7 of Gm. Calling it "V7/ii" (five-of-two) names that relationship. You can build a secondary dominant to any chord in the key: V7/ii, V7/iii, V7/IV, V7/V, V7/vi.'],
+           ['The secondary dominant creates a momentary key shift — a tiny detour into the orbit of the target chord. The ear hears the tension of a tritone resolving, then snaps back to the main key. In the Sec. Dom. form above, a chain of secondary dominants descends chromatically: each chord is V7 of the next, pulling the ear through a cascade of half-step bass resolutions before landing on Imaj7.']],
+     items:['In C: D7 → Gm7 is V7/ii. The note C♯ (♭7 of D7) pulls down to the 3rd of Gm7 (B♭). Hear the pull on the Play tab using the Sec. Dom. form',
+            'Look for secondary dominants in standards: the D7 in bar 8 of the blues, the A7 in "Autumn Leaves" before the Am7, the B7 before E♭maj7 in "All The Things You Are"',
+            ['Secondary dominants are often tritone-substituted: if you see A♭7 moving to Gm7, that\'s just D7 (V7/ii) with a ',term('tritone_sub','tritone sub'),' applied — the same function, chromatically recolored']]},
     {id:'keys',title:'Take it around the keys',
      preset:{view:'diatonic',key:7,deg:0,vType:'shell'},
      playPreset:{view:'iivi',key:7,form:'major',bpm:66},
@@ -2869,6 +2876,18 @@ function GuideView({openPreset,level}){
       gloss('approach_note','Chromatic approach note','A half-step leading note into a chord tone — bebop\'s signature melodic device.',null,
         'Play a note one half-step above or below a chord tone on the beat just before the chord arrives, then land squarely on the chord tone when the new bar begins. The half-step creates momentary tension that resolves immediately — this "lean and land" motion is what gives bebop melody its sense of inevitability.',
         'Target guide tones (3rd or 7th) for maximum effect. Approach from below (most natural — pulls upward like a leading tone), from above (creates falling tension), or double chromatic (one step above then one below, two beats of approach). Even one approach note per chord change starts to sound like bebop.'
+      ),
+      gloss('tritone','Tritone','6 semitones — the most tense interval, equidistant between root and octave.',null,
+        'The tritone divides the octave exactly in half. In C, the tritone is F♯/G♭. In the dominant 7 chord G7, the tritone exists between B (3rd) and F (♭7) — both notes want to resolve by half-step in opposite directions (B up to C, F down to E). This internal tension is the engine of tonal harmony.',
+        'The name comes from "three whole tones": C → D → E → F♯ spans three whole steps. Medieval music called it "diabolus in musica" (the devil in music) and avoided it. Jazz exploits it constantly: the tritone substitution works because two chords that share a tritone are interchangeable as dominants.'
+      ),
+      gloss('tritone_sub','Tritone substitution','Replacing V7 with ♭II7 — a dominant chord a tritone away with the same tritone inside.',null,
+        'G7 and D♭7 both contain the notes B and F (or C♭) — the same tritone. Both resolve to Cmaj7 identically in terms of harmonic function. But where G7 resolves with a falling fifth in the bass (G→C), D♭7 resolves with a smooth half-step (D♭→C). That chromatic bass slide is the trademark of the tritone sub.',
+        'Find it everywhere in standards: any ♭II7 moving to I, or any chord that slides down a half-step into a target chord. The substitution also works on secondary dominants — a V7/ii can be tritone-subbed, creating a ♭VI7 → IIm7 motion. Because D♭7 is a tritone from G7, and both resolve to C, players can freely swap them without the ear complaining.'
+      ),
+      gloss('sec_dom','Secondary dominant','A V7 chord pointing to a chord other than I — creates a temporary key shift.',null,
+        'Any diatonic chord can be temporarily treated as a local I, and the chord that is a fifth above it becomes its secondary dominant (V7/x). In C major: D7 is not in the key, but it pulls to Gm7 (ii) just as G7 pulls to Cmaj7. Writing it V7/ii names the relationship. Common secondary dominants: V7/ii (D7), V7/iii (E7), V7/IV (F#7 or Gb7), V7/V (A7), V7/vi (B7).',
+        'The secondary dominant creates a brief detour into the tonal orbit of the target chord — the ear hears a tritone resolving, then snaps back to the main key center. Jazz blues makes heavy use of them: the VI7 in bar 8 (D7 in F) acts as V7/ii before the II–V turnaround. In standards, they appear as chromatic chords that briefly intensify motion toward the next chord in the progression.'
       ),
       gloss('diat','Diatonic','Using only the 7 notes of the key — playing "inside."',null,
         'The C major scale has 7 notes: C D E F G A B. Any note, chord, or phrase using only these 7 notes is "diatonic to C major." The 7 diatonic chords of C major are: Cmaj7, Dm7, Em7, Fmaj7, G7, Am7, Bm7♭5.',
