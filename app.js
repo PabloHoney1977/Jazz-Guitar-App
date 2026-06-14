@@ -2366,7 +2366,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
 // ── CustomChordView ───────────────────────────────────────────────────
 // Reuses the same voicing UI as the diatonic view. Receives the active
 // chord data as props and renders controls + neck + chord boxes.
-function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode}){
+function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey}){
   dotMode=dotMode||'interval';
   const isEss=level==='essentials';
   const [vType,setVType]=useState('shell');
@@ -2488,7 +2488,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     ):null,
     // Chord info bar
     e('div',{style:{background:BG2,border:'1px solid '+BORDER,borderRadius:7,
-      padding:'8px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}},
+      padding:'8px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
       e('span',{style:{fontFamily:SERIF,fontSize:'1.35rem',fontWeight:700,color:GOLD,fontStyle:'italic'}},chordName),
       e('span',{style:{fontSize:'0.79rem',color:LBL}},'standalone — '+baseType.label+(extDef?' + '+extDef.dn:'')+'  (5th '+(extDef?'→ '+extDef.dn:'included')+')'),
       e('div',{style:{display:'flex',gap:12,flexWrap:'wrap',marginLeft:'auto'}},
@@ -2498,7 +2498,14 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
             degNames[i]+'='+nn(t,0)
           )
         )
-      )
+      ),
+      onFindInKey&&customTypeIdx<4?e('button',{
+        onClick:()=>onFindInKey(customRoot,customTypeIdx),
+        title:'Find this chord in the diatonic key map',
+        style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
+          fontSize:'0.7rem',border:'1px solid '+BTN_BRD,background:'transparent',
+          color:BTN_OFF,minHeight:0,flexShrink:0,whiteSpace:'nowrap'}
+      },'In a key ↗'):null
     ),
     // Voicing tabs
     e('div',{style:{display:'flex',gap:2,marginBottom:0,flexWrap:'wrap'}},
@@ -2967,6 +2974,24 @@ function App(){
     setViewMode(p.view||'diatonic');
     window.scrollTo(0,0);
   }
+  function findInKey(root,typeIdx){
+    const quality=['maj7','m7','dom7','m7b5'][typeIdx];
+    if(!quality) return;
+    // Prefer current key — search its degrees first
+    for(let d=0;d<7;d++){
+      if(QTYPES[d]===quality&&(KEYS[key].root+MAJOR_SCALE[d])%12===root){
+        setDeg(d);setViewMode('diatonic');window.scrollTo(0,0);return;
+      }
+    }
+    // Fallback: search all keys
+    for(let k=0;k<12;k++){
+      for(let d=0;d<7;d++){
+        if(QTYPES[d]===quality&&(KEYS[k].root+MAJOR_SCALE[d])%12===root){
+          setKey(k);setDeg(d);setViewMode('diatonic');window.scrollTo(0,0);return;
+        }
+      }
+    }
+  }
 
   const quality=QTYPES[deg];
   // m7b5 has no rootless voicing — leave that tab if it's active
@@ -3088,7 +3113,7 @@ function App(){
     viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level}):null,
 
     // ── CUSTOM CHORD VIEW ────────────────────────────────────────────
-    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode}):null,
+    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey:findInKey}):null,
 
     // ── GUIDE / PATH VIEW ────────────────────────────────────────────
     viewMode==='guide'?e(GuideView,{openPreset,level}):null,
@@ -3124,7 +3149,7 @@ function App(){
       ),
       // Chord info bar
       e('div',{style:{background:BG2,border:'1px solid '+BORDER,borderRadius:7,
-        padding:'8px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}},
+        padding:'8px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
         e('span',{style:{fontFamily:SERIF,fontSize:'1.35rem',fontWeight:700,color:GOLD,fontStyle:'italic'}},chordName),
         e('span',{style:{fontSize:'0.79rem',color:LBL,letterSpacing:'0.3px'}},KEYS[key].name+' major — '+ROMAN[deg]),
         e('div',{style:{display:'flex',gap:12,flexWrap:'wrap',marginLeft:'auto'}},
@@ -3137,7 +3162,18 @@ function App(){
           isRl?e('span',{style:{display:'flex',alignItems:'center',gap:5,fontSize:'0.76rem',color:'#C084FC'}},
             e('span',{style:{width:8,height:8,borderRadius:'50%',background:'#C084FC',display:'inline-block',flexShrink:0,boxShadow:'0 0 6px #C084FC88'}}),
             '9='+nn(rlTones[0],key)):null
-        )
+        ),
+        e('button',{
+          onClick:()=>{
+            const qi=['maj7','m7','dom7','m7b5'].indexOf(quality);
+            if(qi>=0){setCustomTypeIdx(qi);setCustomRoot(rootPC);}
+            setViewMode('custom');window.scrollTo(0,0);
+          },
+          title:'Open this chord in the Chord Explorer',
+          style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
+            fontSize:'0.7rem',border:'1px solid '+BTN_BRD,background:'transparent',
+            color:BTN_OFF,minHeight:0,flexShrink:0,whiteSpace:'nowrap'}
+        },'Explore ↗')
       ),
       // Voicing tabs — Essentials shows the starting trio, Full shows everything
       e('div',{'data-tour':'voicing-tabs',style:{display:'flex',gap:2,marginBottom:0,flexWrap:'wrap'}},
