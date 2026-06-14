@@ -1655,11 +1655,27 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
     src.start(startTime);src.stop(startTime+sustainSecs+0.05);
   }
 
-  function playGuitarChord(ctx,midiNotes,startTime,sustainSecs,vol){
+  function playGuitarChord(ctx,midiNotes,startTime,sustainSecs,vol,strum){
     if(!midiNotes||midiNotes.length===0) return;
-    midiNotes.forEach(midi=>{
-      playGuitarNote(ctx,midi,startTime,sustainSecs,vol);
+    const stepSec=strum?(strum.ms/1000):0;
+    const notes=(strum&&strum.dir==='up')?[...midiNotes].reverse():[...midiNotes];
+    notes.forEach((midi,i)=>{
+      const t=startTime+i*stepSec;
+      const vScale=Math.max(0.72,1-i*0.05); // slight taper away from first string hit
+      playGuitarNote(ctx,midi,t,sustainSecs,vol*vScale);
     });
+  }
+
+  function pickStrum(isStab){
+    const r=Math.random();
+    if(isStab){
+      if(r<0.60) return {dir:'down',ms:10};
+      if(r<0.85) return {dir:'up',ms:12};
+      return {dir:'down',ms:18};
+    }
+    if(r<0.50) return {dir:'down',ms:12};
+    if(r<0.80) return {dir:'down',ms:22};
+    return {dir:'up',ms:14};
   }
 
   function playBassNote(ctx,pc,startTime,beatDur,accent){
@@ -1765,22 +1781,22 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
           const top3=midi.slice(-Math.min(3,midi.length));
           if(barPat.comp===0){
             // Standard bop: 1, 2-stab, 3, 4-and anticipation
-            if(b===0) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.30);
-            else if(b===1) playGuitarChord(ctx,top3,nextTimeRef.current,sustStab,0.17);
-            else if(b===2) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.24);
-            else playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*(2/3),sustStab,0.21);
+            if(b===0) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.30,pickStrum(false));
+            else if(b===1) playGuitarChord(ctx,top3,nextTimeRef.current,sustStab,0.17,pickStrum(true));
+            else if(b===2) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.24,pickStrum(false));
+            else playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*(2/3),sustStab,0.21,pickStrum(true));
           } else if(barPat.comp===1){
             // Freddie Green 4-to-bar: all 4 beats, short punchy
-            playGuitarChord(ctx,top3,nextTimeRef.current,sustStab,b===0?0.28:0.20);
+            playGuitarChord(ctx,top3,nextTimeRef.current,sustStab,b===0?0.28:0.20,pickStrum(true));
           } else if(barPat.comp===2){
             // Sparse: beat 2 stab + 4-and anticipation only
-            if(b===1) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.26);
-            else if(b===3) playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*(2/3),sustStab,0.22);
+            if(b===1) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.26,pickStrum(false));
+            else if(b===3) playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*(2/3),sustStab,0.22,pickStrum(true));
           } else {
             // Two-beat: beats 1 and 3 full, beat 2-and stab
-            if(b===0) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.28);
-            else if(b===1) playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*(2/3),sustStab,0.16);
-            else if(b===2) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.22);
+            if(b===0) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.28,pickStrum(false));
+            else if(b===1) playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*(2/3),sustStab,0.16,pickStrum(true));
+            else if(b===2) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.22,pickStrum(false));
           }
         }
       }
