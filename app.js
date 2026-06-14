@@ -2003,8 +2003,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange}){
         )
     ):null,
     // Play-along controls
-    e('div',{style:{display:'flex',alignItems:'center',flexWrap:'wrap',gap:10,marginBottom:10,
-      padding:'10px 14px',background:BG2,border:'1px solid '+BORDER,borderRadius:8}},
+    e('div',{style:{display:'flex',alignItems:'center',flexWrap:'wrap',gap:isPlaying?6:10,marginBottom:10,
+      padding:isPlaying?'6px 10px':'10px 14px',background:BG2,border:'1px solid '+BORDER,borderRadius:8}},
       // Left: play button + BPM grouped so they stay together
       e('div',{style:{display:'flex',alignItems:'center',gap:8,flexShrink:0}},
         countIn>0
@@ -2029,7 +2029,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange}){
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
             background:showEq?'#74C0FC22':'transparent',color:showEq?'#74C0FC':eqGains.some(v=>v!==0)||bassVolume!==80?'#74C0FC99':BTN_OFF,
             fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
-          }},showEq?'MIX ▴':'MIX ▾')
+          }},isPlaying?(showEq?'▴':'▾'):(showEq?'MIX ▴':'MIX ▾'))
         ),
         // COMP + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
@@ -2039,7 +2039,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange}){
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
             background:showGuitarEq?'#86EFAC22':'transparent',color:showGuitarEq?'#86EFAC':guitarEqGains.some(v=>v!==0)||guitarVolume!==80?'#86EFAC99':BTN_OFF,
             fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
-          }},showGuitarEq?'MIX ▴':'MIX ▾')
+          }},isPlaying?(showGuitarEq?'▴':'▾'):(showGuitarEq?'MIX ▴':'MIX ▾'))
         ),
         // RIDE + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
@@ -2049,7 +2049,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange}){
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
             background:showRideEq?GOLD+'22':'transparent',color:showRideEq?GOLD:rideEqGains.some(v=>v!==0)||rideVolume!==80?GOLD+'99':BTN_OFF,
             fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
-          }},showRideEq?'MIX ▴':'MIX ▾')
+          }},isPlaying?(showRideEq?'▴':'▾'):(showRideEq?'MIX ▴':'MIX ▾'))
         ),
         // Separator before click-only control
         e('div',{style:{width:1,alignSelf:'stretch',background:BORDER,margin:'0 2px'}}),
@@ -2281,11 +2281,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange}){
                 if(form==='custom') setEditingBar(prev=>prev===barIdx?-1:barIdx);
               },
               style:{
-                flex:1,position:'relative',padding:'5px 7px 10px',cursor:'pointer',
+                flex:1,position:'relative',padding:isPlaying?'3px 4px 5px':'5px 7px 10px',cursor:'pointer',
                 borderRight:col<rowBars.length-1?'1px solid '+BORDER:'none',
                 background:lit?ACT_YEL:isSel?ACT_GOLD+'44':isEditing?ACT_GOLD:'transparent',
-                transition:'background 0.1s',
-                display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:54,
+                transition:'background 0.1s,padding 0.15s,min-height 0.15s',
+                display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:isPlaying?34:54,
               }
             },
               hasBarOverride?e('div',{style:{position:'absolute',left:0,top:0,bottom:0,width:3,
@@ -2303,8 +2303,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange}){
         );
       })
     ),
-    // Neck label + dot mode
-    e('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:4}},
+    // Neck label + dot mode (hidden during playback — chord name is in the lit grid card)
+    !isPlaying&&e('div',{style:{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:4}},
       e('div',{style:{fontSize:'0.77rem',color:LBL,letterSpacing:'0.3px',flexGrow:1}},
         ac.roman+' — '+ac.name),
       setDotMode?e(DotModeToggle,{dotMode,setDotMode}):null
@@ -2333,27 +2333,43 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange}){
           color:showGTLine?GOLD:BTN_OFF,minHeight:44}},'Guide tones ♦')
       )
     ),
-    // Voicing + String Set row
+    // Voicing + String Set row — full buttons when stopped, compact label when playing
     e('div',{style:{marginBottom:8}},
-      e('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},
-        e('div',{style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
-          e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Voicing'),
-          (level==='essentials'
-            ?[{id:'drop2',lbl:'Drop 2'},{id:'shell',lbl:'Shell'}]
-            :[{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},{id:'shell',lbl:'Shell'}]
-          ).map(({id,lbl})=>e('button',{key:id,onClick:()=>setVType(id),style:mkSsBtn(vType===id)},lbl))
-        ),
-        vType!=='shell'?e('div',{key:'ssg',style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
-          e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Set'),
-          dropD.sets.map((set,i)=>
-            e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
+      isPlaying
+        ?e('div',{style:{display:'flex',alignItems:'center',gap:6}},
+            e('span',{style:{fontSize:'0.68rem',color:LBL}},'Voicing'),
+            e('span',{style:{fontSize:'0.68rem',color:GOLD,fontWeight:600}},
+              activeVT==='shell'?'Shell':(activeVT==='drop3'?'Drop 3':'Drop 2')
+              +(vType!=='shell'&&dropD.sets[ssIdx]?' · '+dropD.sets[ssIdx].lbl:'')
+            )
           )
-        ):null
-      )
+        :e('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},
+            e('div',{style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
+              e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Voicing'),
+              (level==='essentials'
+                ?[{id:'drop2',lbl:'Drop 2'},{id:'shell',lbl:'Shell'}]
+                :[{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},{id:'shell',lbl:'Shell'}]
+              ).map(({id,lbl})=>e('button',{key:id,onClick:()=>setVType(id),style:mkSsBtn(vType===id)},lbl))
+            ),
+            vType!=='shell'?e('div',{key:'ssg',style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
+              e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Set'),
+              dropD.sets.map((set,i)=>
+                e('button',{key:i,onClick:()=>setStrSetIdx(i),style:mkSsBtn(strSetIdx===i)},set.lbl)
+              )
+            ):null
+          )
     ),
-    // Voicing picker
+    // Voicing picker — full grid when stopped, compact inversion label when playing
     e('div',null,
-      e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
+      isPlaying?e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT,paddingBottom:8}},
+        (()=>{
+          const selII=Math.min(invIdxs[safeBarIdx]||0,activeVoicings.length-1);
+          if(activeVT==='shell'){const sh=SHELLS[selII];return sh?sh.lbl+' ('+sh.root+')':'—';}
+          const inv=activeDropD.inv[selII];
+          return inv?(selII===0?'Root pos.':ac.dnames[inv.bassIdx]+' bass'):'—';
+        })()
+      ):null,
+      !isPlaying&&e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
         (()=>{
           const pick=(ii)=>{
             const n=[...invIdxs];n[safeBarIdx]=ii;
