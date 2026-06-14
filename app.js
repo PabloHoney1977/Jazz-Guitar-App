@@ -1365,6 +1365,10 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
     catch(ex){return DFLT_CPROG;}
   });
   const [editingBar,setEditingBar]=useState(-1);
+  const [savedFaves,setSavedFaves]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem('jg-faves')||'null')||[];}
+    catch{return [];}
+  });
 
   // If user switches back to Basic while a non-major form is active, reset to major
   useEffect(()=>{if(level==='essentials'&&form!=='major'&&form!=='minor'){setForm('major');setIsPlaying(false);}},[level]);
@@ -1417,6 +1421,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
   useEffect(()=>{localStorage.setItem('jg-form',form);},[form]);
   useEffect(()=>{localStorage.setItem('jg-cprog',JSON.stringify(customProg));},[customProg]);
   useEffect(()=>{localStorage.setItem('jg-vtype',vType);},[vType]);
+  useEffect(()=>{localStorage.setItem('jg-faves',JSON.stringify(savedFaves));},[savedFaves]);
   useEffect(()=>{setScaleHint(null);},[activeChordIdx,form]);
 
   // Pre-fetch real bass guitar samples (recorded bass-electric) on mount so
@@ -1931,8 +1936,42 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
             e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Standards'),
             ['autumn','attya','twnbay','tritone','secdom'].map(f=>
               e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
+            ),
+            e('button',{
+              title:'Save current progression as a favorite',
+              onClick:()=>{
+                const lbl=(FORM_DEFS[form]?.lbl||form)+' · '+bpm+'bpm · '+vType;
+                if(savedFaves.some(f=>f.form===form&&f.bpm===bpm&&f.vType===vType)) return;
+                setSavedFaves(fs=>[...fs,{form,bpm,vType,lbl}]);
+              },
+              style:{padding:'4px 10px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,
+                fontSize:'0.75rem',border:'1px solid '+BTN_BRD,background:'transparent',
+                color:savedFaves.some(f=>f.form===form&&f.bpm===bpm&&f.vType===vType)?GOLD:BTN_OFF,
+                minHeight:44,flexShrink:0,marginLeft:'auto',
+              }
+            },'★')
+          ),
+          savedFaves.length>0?e('div',{style:{display:'flex',gap:5,flexWrap:'wrap',alignItems:'center',marginTop:5}},
+            e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Saved'),
+            savedFaves.map((fav,i)=>
+              e('div',{key:i,style:{display:'flex',alignItems:'center',gap:0,
+                border:'1px solid '+GOLD+'55',borderRadius:5,overflow:'hidden'}},
+                e('button',{
+                  onClick:()=>{setForm(fav.form);setBpm(fav.bpm);setVType(fav.vType);},
+                  title:'Restore: '+fav.lbl,
+                  style:{padding:'3px 8px',cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.68rem',
+                    border:'none',background:'transparent',color:GOLD,minHeight:0,whiteSpace:'nowrap'}
+                },fav.lbl),
+                e('button',{
+                  onClick:()=>setSavedFaves(fs=>fs.filter((_,j)=>j!==i)),
+                  title:'Remove favorite',
+                  style:{padding:'3px 5px',cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.68rem',
+                    border:'none',borderLeft:'1px solid '+GOLD+'33',background:'transparent',
+                    color:HINT,minHeight:0}
+                },'×')
+              )
             )
-          )
+          ):null
         ),
     // Play-along controls
     e('div',{style:{display:'flex',alignItems:'center',flexWrap:'wrap',gap:10,marginBottom:10,
@@ -1956,31 +1995,31 @@ function IIVIView({keyIdx,dotMode,setDotMode,level}){
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
           e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:'#74C0FC'}),
-          e('button',{onClick:()=>{setShowEq(v=>!v);setShowGuitarEq(false);setShowRideEq(false);},'aria-label':'Bass Mix',title:'Bass Mix',style:{
+          e('button',{onClick:()=>{setShowEq(v=>!v);setShowGuitarEq(false);setShowRideEq(false);},'aria-label':'Bass Mix',title:'Bass EQ & Volume',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
-            background:showEq?'#74C0FC22':'transparent',color:showEq?'#74C0FC':BTN_OFF,
+            background:showEq?'#74C0FC22':'transparent',color:showEq?'#74C0FC':eqGains.some(v=>v!==0)||bassVolume!==80?'#74C0FC99':BTN_OFF,
             fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
-          }},'MIX')
+          }},showEq?'MIX ▴':'MIX ▾')
         ),
         // COMP + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
           e(LedToggle,{label:'COMP',enabled:guitarEnabled,onToggle:()=>setGuitarEnabled(v=>!v),color:'#86EFAC'}),
-          e('button',{onClick:()=>{setShowGuitarEq(v=>!v);setShowEq(false);setShowRideEq(false);},'aria-label':'Comp Mix',title:'Comp Mix',style:{
+          e('button',{onClick:()=>{setShowGuitarEq(v=>!v);setShowEq(false);setShowRideEq(false);},'aria-label':'Comp Mix',title:'Comp EQ & Volume',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
-            background:showGuitarEq?'#86EFAC22':'transparent',color:showGuitarEq?'#86EFAC':BTN_OFF,
+            background:showGuitarEq?'#86EFAC22':'transparent',color:showGuitarEq?'#86EFAC':guitarEqGains.some(v=>v!==0)||guitarVolume!==80?'#86EFAC99':BTN_OFF,
             fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
-          }},'MIX')
+          }},showGuitarEq?'MIX ▴':'MIX ▾')
         ),
         // RIDE + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
           e(LedToggle,{label:'RIDE',enabled:rideEnabled,onToggle:()=>setRideEnabled(v=>!v),color:GOLD}),
-          e('button',{onClick:()=>{setShowRideEq(v=>!v);setShowEq(false);setShowGuitarEq(false);},'aria-label':'Ride Mix',title:'Ride Mix',style:{
+          e('button',{onClick:()=>{setShowRideEq(v=>!v);setShowEq(false);setShowGuitarEq(false);},'aria-label':'Ride Mix',title:'Ride EQ & Volume',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
-            background:showRideEq?GOLD+'22':'transparent',color:showRideEq?GOLD:BTN_OFF,
+            background:showRideEq?GOLD+'22':'transparent',color:showRideEq?GOLD:rideEqGains.some(v=>v!==0)||rideVolume!==80?GOLD+'99':BTN_OFF,
             fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
-          }},'MIX')
+          }},showRideEq?'MIX ▴':'MIX ▾')
         ),
         // Separator before click-only control
         e('div',{style:{width:1,alignSelf:'stretch',background:BORDER,margin:'0 2px'}}),
