@@ -935,7 +935,7 @@ function TourOverlay({step,onNext,onSkip}){
 }
 
 // ── NeckSVG ───────────────────────────────────────────────────────────
-function NeckSVG({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotKeyIdx}){
+const NeckSVG=React.memo(function NeckSVG({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotKeyIdx}){
   hlTc=hlTc||TC;
   dotMode=dotMode||'interval';
   dotKeyIdx=dotKeyIdx===undefined?0:dotKeyIdx;
@@ -1037,12 +1037,12 @@ function NeckSVG({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotK
       );
     })
   );
-}
+});
 
 // ── ScrollNeck ────────────────────────────────────────────────────────
 // Full-width neck that scrolls only when the active voicing would be off-screen.
 // Targets iPad layout (720px content); on iPhone it scrolls to keep dots visible.
-function ScrollNeck({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotKeyIdx,
+const ScrollNeck=React.memo(function ScrollNeck({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotKeyIdx,
   marginBottom,dataTour}){
   const scrollRef=useRef(null);
   const FW=44,PL=38,SVG_W=PL+15*FW+24; // 722 — matches NeckSVG W
@@ -1073,7 +1073,7 @@ function ScrollNeck({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,d
       e(NeckSVG,{arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,dotKeyIdx})
     )
   );
-}
+});
 
 // ── ChordBox ──────────────────────────────────────────────────────────
 // Assigns fingers 1-4 to fretted strings by fret order; same-fret strings share a finger.
@@ -1090,7 +1090,7 @@ function calcFingering(allF){
   groups.forEach((g,gi)=>{if(gi<4) g.strings.forEach(s=>{map[s]=gi+1;});});
   return map;
 }
-function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,onClick,tcArr,dotMode,dotKeyIdx}){
+const ChordBox=React.memo(function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,onClick,tcArr,dotMode,dotKeyIdx}){
   const tc=tcArr||TC;
   dotMode=dotMode||'interval';
   dotKeyIdx=dotKeyIdx===undefined?0:dotKeyIdx;
@@ -1139,7 +1139,7 @@ function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,on
       })
     )
   );
-}
+});
 
 // ── ScalePanel ────────────────────────────────────────────────────────
 function ScalePanel({degree,chordRoot,tones,degNames,keyIdx,scaleIdx,onScaleChange,level}){
