@@ -462,6 +462,7 @@ function GuitarToggle({level,setLevel}){
       fontSize:'0.6rem',fontFamily:'Georgia,"Times New Roman",serif',
       letterSpacing:'0.4px',userSelect:'none',lineHeight:1.2,
       color:isBasic?'#C084FC':'var(--btn-off)',fontWeight:isBasic?700:400,
+      opacity:isBasic?1:0.3,
     }},'Essentials'),
     e('button',{
       onClick:()=>setLevel(isBasic?'full':'essentials'),
@@ -540,6 +541,7 @@ function GuitarToggle({level,setLevel}){
       fontSize:'0.6rem',fontFamily:'Georgia,"Times New Roman",serif',
       letterSpacing:'0.4px',userSelect:'none',lineHeight:1.2,
       color:!isBasic?'#C084FC':'var(--btn-off)',fontWeight:!isBasic?700:400,
+      opacity:!isBasic?1:0.3,
     }},'Full'),
   );
 }
@@ -917,8 +919,8 @@ function TourOverlay({step,onNext,onSkip}){
     e('div',{key:'ring',style:{position:'absolute',
       top:rect.top-PAD,left:rect.left-PAD,
       width:rect.w+PAD*2,height:rect.h+PAD*2,
-      border:'2px solid #d4a855',borderRadius:8,
-      boxShadow:'0 0 12px #d4a85566',pointerEvents:'none'}}),
+      border:'2px solid var(--gold)',borderRadius:8,
+      boxShadow:'0 0 12px var(--gold)',pointerEvents:'none'}}),
   ]:e('div',{style:{position:'absolute',inset:0,background:DIM,pointerEvents:'auto'}});
 
   // Tooltip: place below target if it fits, else above; clamp horizontally
@@ -1306,9 +1308,10 @@ const SCALE_HINTS={
         {name:'Lydian',   iv:[0,2,4,6,7,9,11],note:'#11 replaces 4 — bright, lifted feel'}],
   m7:  [{name:'Dorian',   iv:[0,2,3,5,7,9,10],note:'Standard — b3 b7 match chord; nat.6 adds color'},
         {name:'Aeolian',  iv:[0,2,3,5,7,8,10],note:'Natural minor — b6 darkens vs Dorian'}],
-  dom7:[{name:'Mixolydian',iv:[0,2,4,5,7,9,10],note:'Standard — R 3 5 b7 all inside; nat. tensions'},
-        {name:'Altered',   iv:[0,1,3,4,6,8,10],note:'b9 #9 b5 #5 all altered — max tension into I'},
-        {name:'Lyd. Dom.', iv:[0,2,4,6,7,9,10],note:'#11 with b7 — bright; no avoid notes'}],
+  dom7:[{name:'Mixolydian',   iv:[0,2,4,5,7,9,10],note:'Standard — R 3 5 b7 all inside; nat. tensions'},
+        {name:'Altered',      iv:[0,1,3,4,6,8,10], note:'b9 #9 #11 b13 all altered — max tension into I'},
+        {name:'Lyd. Dom.',    iv:[0,2,4,6,7,9,10], note:'#11 with b7 — bright; no avoid notes'},
+        {name:'Phrygian Dom.',iv:[0,1,4,5,7,8,10], note:'V7 in minor — harmonic minor sound, b9 b13'}],
   m7b5:[{name:'Locrian',   iv:[0,1,3,5,6,8,10],note:'Diatonic — b2 b5 b6 match chord tones'},
         {name:'Loc. nat2', iv:[0,2,3,5,6,8,10],note:'nat.2 softens b2 harshness'}],
 };
@@ -2767,7 +2770,7 @@ function GuideView({openPreset,level}){
     {id:'minor',title:'The minor II–V–I',
      preset:{view:'iivi',key:0,form:'minor',bpm:60},
      body:['The minor II–V–I uses the same structural logic as the major version but with a different harmonic color: IIm7♭5 (half-diminished) – V7 – Im7. The half-diminished chord has a flattened 5th, which adds instability beyond a regular minor 7 — it urgently wants to move.',
-           'The V7 in a minor II–V–I often uses an altered dominant (♭9 or ♯9) because the raised 7th of the melodic minor scale clashes interestingly with the chord. This creates a more intense pull toward the Im7. "Autumn Leaves" alternates major and minor II–V–Is back to back — it\'s the most-studied standard for learning this.'],
+           'The V7 in a minor II–V–I often uses an altered dominant (♭9 or ♯9). The altered scale — the 7th mode of melodic minor — provides all these tensions naturally: its ♭9, ♯9, ♯11, and ♭13 all pull toward resolution into the Im7 while sharing tones with the target chord. "Autumn Leaves" alternates major and minor II–V–Is back to back — it\'s the most-studied standard for learning this.'],
      items:['Loop major then minor II–V–I in the same key back to back — hear the contrast','Listen for how the ♭5 of the IIø pulls downward into the V7','Try switching to minor in the Play tab and notice which voicings change']},
     {id:'tritone_sub',title:'Tritone substitution — same destination, different road',
      preset:{view:'iivi',key:0,form:'tritone',bpm:60},
@@ -3063,7 +3066,7 @@ function App(){
   const [viewMode,setViewMode]=useState(()=>localStorage.getItem('jg-viewMode')||'guide'); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
   const [keyOpen,setKeyOpen]=useState(false);
   const [dotMode,setDotMode]=useState(()=>{const m=localStorage.getItem('jg-dotMode')||'interval';return (m==='both'||m==='finger')?'interval':m;});
-  const [tourStep,setTourStep]=useState(null);
+  const [tourStep,setTourStep]=useState(()=>localStorage.getItem('jg-toured')?null:0);
   useEffect(()=>{localStorage.setItem('jg-dotMode',dotMode);},[dotMode]);
   function tourNext(){
     if(tourStep>=TOUR_STEPS.length-1){setTourStep(null);localStorage.setItem('jg-toured','1');setViewMode('guide');window.scrollTo(0,0);}
@@ -3258,14 +3261,15 @@ function App(){
     !iiviPlaying&&e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
       e('span',{style:{fontFamily:SERIF,fontSize:'1.4rem',fontWeight:700,color:'var(--scale-name)'}},'Jazz Guitar Lab'),
       e('button',{onClick:toggleTheme,'aria-label':'Toggle theme',style:{
-        padding:'2px 6px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.9rem',
-        border:'none',background:'transparent',color:'var(--hint)',minHeight:0,opacity:0.7,flexShrink:0}},
+        padding:'4px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
+        fontSize:'0.9rem',border:'1px solid var(--btn-brd)',background:'var(--bg2)',
+        color:'var(--lbl)',minHeight:0,flexShrink:0}},
         theme==='dark'?'☀':'☾'),
       e('div',{style:{flex:1}}),
       e('div',{'data-tour':'level-switch'},e(GuitarToggle,{level,setLevel})),
       e('button',{onClick:()=>setTourStep(0),'aria-label':'Start tour',style:{padding:'4px 10px',
         borderRadius:18,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',
-        border:'1px solid '+BTN_BRD,background:'transparent',
+        border:'1px solid '+GOLD+'88',background:'var(--bg2)',
         color:BTN_OFF,minHeight:44,flexShrink:0}},'? Tour'),
     ),
 
@@ -3364,7 +3368,7 @@ function App(){
         DROP_TYPES.has(vType)?[
           e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
           setsData.map((ss,i)=>e('button',{key:i,onClick:()=>{setSsIdx(i);setInvIdx(0);},style:mkSsBtn(safeSSIdx===i)},ss.lbl)),
-          voiceOrder?e('span',{key:'vo',style:{marginLeft:'auto',fontSize:'0.7rem',color:HINT}},'voices: '+voiceOrder):null
+          voiceOrder?e('span',{key:'vo',style:{marginLeft:'auto',fontSize:'0.7rem',color:LBL}},'voices: '+voiceOrder):null
         ]:null,
         vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:quality==='m7b5'?'#FFD43B':HINT,fontFamily:UI_FONT}},
           quality==='m7b5'
@@ -3443,7 +3447,7 @@ function App(){
         e('span',{style:{fontSize:'0.79rem',color:HINT}},'bright=voicing · dim=arpeggio · faint=scale non-chord-tone')
       ),
       // Footnote
-      e('div',{style:{marginTop:8,padding:'6px 14px',fontSize:'0.79rem',color:HINT,lineHeight:1.7}},
+      e('div',{style:{marginTop:8,padding:'6px 14px',fontSize:'0.79rem',color:LBL,lineHeight:1.7}},
         'Shell Form A: skip-string shapes. Shell Form B: adjacent-string R-3-7. Drop 2: 2nd-highest note dropped an octave. Drop 3: 3rd-highest dropped, one string gap. Rootless: 9th replaces root — designed to play over a walking bass.')
     ):null,
 
@@ -3455,7 +3459,7 @@ function App(){
       display:'flex',background:BG2,borderTop:'1px solid '+BORDER,
       paddingBottom:'env(safe-area-inset-bottom)',
       boxShadow:'0 -4px 16px rgba(0,0,0,0.35)'}},
-      [['guide','⚑','Guide'],['diatonic','♬','Key'],['custom','♪','Explore'],['iivi','▶','Play'],['quiz','♫','Ear']].map(([id,icon,lbl])=>{
+      [['guide','⚑','Guide'],['diatonic','♬','Chords'],['custom','♪','Any Chord'],['iivi','▶','Play'],['quiz','♫','Ear']].map(([id,icon,lbl])=>{
         const act=viewMode===id;
         return e('button',{key:id,onClick:()=>{setViewMode(id);window.scrollTo(0,0);},style:{
           flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:1,
