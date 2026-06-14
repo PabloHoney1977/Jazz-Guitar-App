@@ -653,6 +653,7 @@ function EarTrainingView({level}){
   const [lastResult,setLastResult]=useState(null);
   const [wrongGuess,setWrongGuess]=useState(null);
   const [choices,setChoices]=useState([]); // random 4-of-12 for intervals mode
+  const [harmonic,setHarmonic]=useState(false); // Full only: play both notes simultaneously
 
   // ── Data ──
   const IVALS=[
@@ -669,6 +670,11 @@ function EarTrainingView({level}){
     {s:11,name:'Major 7th', feel:'Yearning — pulls toward the octave'},
     {s:12,name:'Octave',    feel:'Same note, one octave up — complete resolution'},
   ];
+  // Consonant-first interval pool gated by level
+  const activeIvals=isEss
+    ? IVALS.filter(x=>[3,4,5,7,12].includes(x.s))
+    : IVALS;
+
   const TRIAD_IV={major:[0,4,7],minor:[0,3,7],dim:[0,3,6],aug:[0,4,8]};
   const TRIAD_LBL={major:'Major',minor:'Minor',dim:'Diminished',aug:'Augmented'};
   const TRIAD_DESC={
@@ -688,12 +694,13 @@ function EarTrainingView({level}){
   };
 
   // ── Play functions ──
-  function playInterval(root,sem){
+  function playInterval(root,sem,isHarmonic){
     try{
       const ctx=_getPreviewCtx();if(!ctx)return;
       const m1=52+root,m2=m1+sem;
-      if(_guitarBufs){_playSampledNote(ctx,m1,ctx.currentTime+0.05,0.65,2.5);_playSampledNote(ctx,m2,ctx.currentTime+0.62,0.65,2.5);}
-      else{_playKSNote(ctx,m1,ctx.currentTime+0.05,0.55);_playKSNote(ctx,m2,ctx.currentTime+0.62,0.55);}
+      const t2=isHarmonic?ctx.currentTime+0.05:ctx.currentTime+0.62;
+      if(_guitarBufs){_playSampledNote(ctx,m1,ctx.currentTime+0.05,0.65,2.5);_playSampledNote(ctx,m2,t2,0.65,2.5);}
+      else{_playKSNote(ctx,m1,ctx.currentTime+0.05,0.55);_playKSNote(ctx,m2,t2,0.55);}
     }catch(ex){}
   }
   function playTriad(root,quality){
@@ -719,7 +726,7 @@ function EarTrainingView({level}){
   }
   function replayCurrent(){
     if(!current) return;
-    if(mode==='intervals') playInterval(current.root,current.semitones);
+    if(mode==='intervals') playInterval(current.root,current.semitones,harmonic);
     else if(mode==='triads') playTriad(current.root,current.quality);
     else playChord(current.root,current.quality);
   }
@@ -729,11 +736,11 @@ function EarTrainingView({level}){
     const root=Math.floor(Math.random()*12);
     setRevealed(false);setLastResult(null);setWrongGuess(null);
     if(mode==='intervals'){
-      const correct=IVALS[Math.floor(Math.random()*IVALS.length)];
-      const others=IVALS.filter(x=>x.s!==correct.s).sort(()=>Math.random()-0.5).slice(0,3);
+      const correct=activeIvals[Math.floor(Math.random()*activeIvals.length)];
+      const others=activeIvals.filter(x=>x.s!==correct.s).sort(()=>Math.random()-0.5).slice(0,3);
       setChoices([correct,...others].sort(()=>Math.random()-0.5));
       setCurrent({root,semitones:correct.s});
-      setTimeout(()=>playInterval(root,correct.s),150);
+      setTimeout(()=>playInterval(root,correct.s,harmonic),150);
     } else if(mode==='triads'){
       const quality=TRIAD_LIST[Math.floor(Math.random()*4)];
       setCurrent({root,quality});
@@ -755,6 +762,13 @@ function EarTrainingView({level}){
       e[correct?'r':'w']++;m[key]=e;return{...d,[mode]:m};});
   }
   useEffect(()=>{if(seenIntro) newRound();},[mode,seenIntro]);
+  useEffect(()=>{
+    if(!seenIntro) return;
+    if(isEss) setHarmonic(false);
+    setScores(s=>({...s,intervals:{r:0,w:0}}));
+    setDetail(d=>({...d,intervals:{}}));
+    newRound();
+  },[level]);
   if(!seenIntro) return e('div',{style:{padding:'20px 16px',textAlign:'center',maxWidth:420,margin:'0 auto'}},
     e('div',{style:{fontSize:'2.5rem',marginBottom:12}},'♫'),
     e('div',{style:{fontSize:'1.0rem',fontWeight:700,fontFamily:SERIF,marginBottom:8}},'Ear Training'),
@@ -830,8 +844,11 @@ function EarTrainingView({level}){
     );
   }
 
+  const intervalHint=mode==='intervals'
+    ?(harmonic?'Two notes played simultaneously — name the interval':'Two notes played ascending — name the interval')
+    :null;
   const modeHint={
-    intervals:'Two notes played ascending — name the interval',
+    intervals:intervalHint,
     triads:'Three-note chord — major, minor, diminished, or augmented?',
     chords:'Four-note chord — identify the 7th chord quality'
   };
@@ -859,8 +876,23 @@ function EarTrainingView({level}){
     ):null,
     e('div',{style:{background:BG2,border:'1px solid '+BTN_BRD,
       borderRadius:TABS.length>1?'0 6px 6px 6px':8,padding:'16px',marginBottom:12}},
-      e('div',{style:{fontSize:'0.74rem',color:HINT,textAlign:'center',marginBottom:14,letterSpacing:'0.3px'}},
+      e('div',{style:{fontSize:'0.74rem',color:HINT,textAlign:'center',marginBottom:mode==='intervals'?4:14,letterSpacing:'0.3px'}},
         modeHint[mode]),
+      mode==='intervals'&&!isEss?e('div',{style:{display:'flex',gap:6,justifyContent:'center',marginBottom:14}},
+        e('button',{onClick:()=>setHarmonic(false),style:{
+          padding:'4px 12px',borderRadius:6,cursor:'pointer',fontSize:'0.72rem',fontWeight:!harmonic?700:400,
+          border:'1px solid '+(!harmonic?GOLD:BTN_BRD),background:!harmonic?ACT_YEL:'transparent',
+          color:!harmonic?GOLD:BTN_OFF,minHeight:30
+        }},'Ascending ↑'),
+        e('button',{onClick:()=>setHarmonic(true),style:{
+          padding:'4px 12px',borderRadius:6,cursor:'pointer',fontSize:'0.72rem',fontWeight:harmonic?700:400,
+          border:'1px solid '+(harmonic?GOLD:BTN_BRD),background:harmonic?ACT_YEL:'transparent',
+          color:harmonic?GOLD:BTN_OFF,minHeight:30
+        }},'♪♪ Harmonic')
+      ):mode==='intervals'?e('div',{style:{marginBottom:10}}):null,
+      mode==='intervals'&&isEss?e('div',{style:{fontSize:'0.7rem',color:HINT,textAlign:'center',marginBottom:14}},
+        'Essentials: 5 consonant intervals  →  Full: all 12'
+      ):null,
       e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:16}},
         e('button',{onClick:replayCurrent,style:{
           width:72,height:72,borderRadius:'50%',border:'2px solid '+GOLD,
