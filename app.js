@@ -1420,6 +1420,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
   const [playingBar,setPlayingBar]=useState(null);
   const [scaleHint,setScaleHint]=useState(null); // name of active scale suggestion
   const [countIn,setCountIn]=useState(0); // 0=off, 1-4=counting
+  const [starting,setStarting]=useState(false); // true between play-press and isPlaying
   const [loopCount,setLoopCount]=useState(0);
   const [rideEnabled,setRideEnabled]=useState(()=>localStorage.getItem('jg-ride')!=='false');
   const [showGTLine,setShowGTLine]=useState(false);
@@ -1900,7 +1901,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
   }
 
   function startPlayback(){
-    if(countIn>0) return; // prevent double-start
+    if(countIn>0||starting) return; // prevent double-start
+    setStarting(true);
     setEditingBar(-1);
     const beatDur=60/bpmRef.current;
     setCountIn(4);
@@ -1932,6 +1934,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
       setLoopCount(0);
       const gen=++genRef.current;
       setIsPlaying(true);
+      setStarting(false);
       tick(gen,ctx);
     },startDelay);
   }
@@ -1940,7 +1943,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
     genRef.current++;
     clearTimeout(timerRef.current);
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
-    setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
+    setIsPlaying(false);setStarting(false);setPlayingChordIdx(null);setPlayingBar(null);
   }
 
   function handleTap(){
@@ -2095,9 +2098,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef}){
       padding:isPlaying?'6px 10px':'10px 14px',background:BG2,border:'1px solid '+BORDER,borderRadius:8}},
       // Left: play button + BPM grouped so they stay together
       e('div',{style:{display:'flex',alignItems:'center',gap:8,flexShrink:0}},
-        countIn>0
+        countIn>0||starting
           ?e('div',{style:{minWidth:80,textAlign:'center',fontSize:'1.6rem',fontWeight:700,
-              color:'#ffffff',fontFamily:SERIF,letterSpacing:4}},countIn)
+              color:'#ffffff',fontFamily:SERIF,letterSpacing:4}},countIn>0?countIn:'')
           :e('button',{onClick:isPlaying?stopPlayback:startPlayback,style:playBtn},
               isPlaying
                 ?e('svg',{width:18,height:18,viewBox:'0 0 18 18'},e('rect',{x:2,y:2,width:14,height:14,rx:2,fill:'white'}))
