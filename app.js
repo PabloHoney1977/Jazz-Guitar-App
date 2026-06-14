@@ -1057,9 +1057,9 @@ function ScrollNeck({arpPos,highlight,scalePos,extraDots,degNames,hlTc,dotMode,d
     const voiceRight=(PL+hi*FW)*scale+20;
     const sl=el.scrollLeft,vw=el.clientWidth;
     if(voiceLeft<sl){
-      el.scrollTo({left:Math.max(0,voiceLeft-10),behavior:'smooth'});
+      el.scrollTo({left:Math.max(0,voiceLeft-5),behavior:'auto'});
     } else if(voiceRight>sl+vw){
-      el.scrollTo({left:voiceRight-vw+10,behavior:'smooth'});
+      el.scrollTo({left:voiceRight-vw+5,behavior:'auto'});
     }
   },[highlight]);
   return e('div',{
@@ -2605,6 +2605,7 @@ function GuideView({openPreset,level}){
     'tritone_sub':{term:'Tritone substitution',short:'Replacing the V7 chord with a dominant 7 a tritone away (♭II7). Both chords share the same tritone interval and resolve identically, but ♭II7 moves to I by a smooth half-step in the bass.'},
     'sec_dom':{term:'Secondary dominant',short:'A V7 chord that temporarily points to a chord other than I — e.g., V7/ii is the dominant of the ii chord. Creates chromatic motion and temporary key shifts.'},
     'modal_int':{term:'Modal interchange (borrowing)',short:'Using chords from the parallel minor or major key — e.g., in C major, using IVm7 (Fm7) or ♭VII7 (B♭7) "borrowed" from C minor. Creates unexpected color without fully leaving the key.'},
+    'approach_note':{term:'Chromatic approach note',short:'A note a half-step above or below a chord tone, played on the beat just before the chord arrives. Creates gravity and forward motion — a defining element of bebop melody.'},
   };
   function term(id,text){
     return e('span',{key:id,
@@ -2689,6 +2690,12 @@ function GuideView({openPreset,level}){
            'Modes are not separate scales learned in isolation — they are the same major scale heard from a different starting point. D Dorian and C major contain identical notes; what changes is which note feels like "home." Over IIm7, D feels like home, so D Dorian is the right frame.',
            'For the V7, Mixolydian is the neutral choice. Altered (7th mode of melodic minor) uses every altered tension — ♭9, ♯9, ♭13 — for maximum pull. The Scale panel in the Explore tab shows exactly which mode applies to each chord.'],
      items:['On the V7 chord, try playing only the four chord tones (use Arpeggio view to find them)', 'Then connect them with scale steps — that\'s the foundation of bebop melody','Switch to Altered scale in the Scale panel and hear how it intensifies the tension']},
+    {id:'approach',title:'Chromatic approaches — bebop\'s half-step glue',
+     preset:{view:'diatonic',key:0,deg:4,vType:'arpeggio'},
+     playPreset:{view:'iivi',key:0,form:'major',bpm:60,vType:'drop2'},
+     body:['A ',term('approach_note','chromatic approach note'),' is played a half-step above or below a chord tone on the last beat before the chord changes. You land squarely on the target when the new chord arrives. This half-step tension-and-release is the signature sound of bebop melody — it gives phrases a sense of gravity and inevitability.',
+           ['The best targets are ',term('guide','"guide tones"'),' — the 3rd and 7th — because those are the notes that change most between chords and carry the most harmonic meaning. Approach from below (most natural, pulls up), from above (tenser, falls down), or double chromatic: one half-step above then one below, landing on beat 1. Even a single approach note per chord change transforms a scale run into a bebop phrase.']],
+     items:['Over the II–V–I, pick the 3rd of each chord as your target. On beat 4 of the previous bar, play a half-step below — land on the 3rd on beat 1','Switch to Arpeggio view to see chord tones clearly — those are your landing points','Try a double chromatic into the 3rd of G7 (B): play B♭ then C on beats 3–4, land on B on beat 1 — that surrounding motion is a bebop staple']},
     {id:'full',title:'Go Full — Drop 3, Rootless, altered colors',
      preset:{view:'diatonic',key:0,deg:4,vType:'rootless',level:'full'},
      body:['Full level adds four more tools: Drop 3 (3rd-highest note dropped, 6th-string bass — good for solo guitar), Rootless voicings (root replaced by 9th, designed to play over a walking bassist without doubling their note), Drop 2+4 and Drop 2+3 (wider spread voicings with more open sound), and extended chord types in the Any Chord view (9ths, altered, sus4).'],
@@ -2786,6 +2793,10 @@ function GuideView({openPreset,level}){
       gloss('guide','Guide tones','The 3rd and 7th of a chord — the notes that define its quality and move most dramatically.',null,
         'The root and 5th of a chord are "neutral" — they identify the chord but don\'t tell you much about its quality. The 3rd tells you major vs. minor. The 7th tells you major 7 vs. dominant 7 vs. minor 7. These two notes are called guide tones.',
         'In a G7 → Cmaj7 resolution: the 3rd of G7 (B) resolves up a half-step to C (the root of Cmaj7), and the 7th of G7 (F) resolves down a half-step to E (the 3rd of Cmaj7). These two half-step movements are the engine of jazz harmony. Practice hearing them in the play-along bass line.'
+      ),
+      gloss('approach_note','Chromatic approach note','A half-step leading note into a chord tone — bebop\'s signature melodic device.',null,
+        'Play a note one half-step above or below a chord tone on the beat just before the chord arrives, then land squarely on the chord tone when the new bar begins. The half-step creates momentary tension that resolves immediately — this "lean and land" motion is what gives bebop melody its sense of inevitability.',
+        'Target guide tones (3rd or 7th) for maximum effect. Approach from below (most natural — pulls upward like a leading tone), from above (creates falling tension), or double chromatic (one step above then one below, two beats of approach). Even one approach note per chord change starts to sound like bebop.'
       ),
       gloss('diat','Diatonic','Using only the 7 notes of the key — playing "inside."',null,
         'The C major scale has 7 notes: C D E F G A B. Any note, chord, or phrase using only these 7 notes is "diatonic to C major." The 7 diatonic chords of C major are: Cmaj7, Dm7, Em7, Fmaj7, G7, Am7, Bm7♭5.',
@@ -2886,7 +2897,7 @@ function GuideView({openPreset,level}){
       )
     ):null,
     sec('Next Steps & Listening',
-      p('Finished the Path? The Full level adds Drop 3, Rootless voicings, altered scales, and extended chord types — unlock it with the toggle at the top right. The Explore tab lets you build any chord with any extension. The Sec. Dom. and Tritone Sub forms in Play let you hear ',term('sec_dom','secondary dominants'),' and ',term('tritone_sub','tritone substitution'),' in action. Further concepts to explore: ',term('modal_int','modal interchange'),', reharmonization, chord melody, and rhythm changes.'),
+      p('Finished the Path? The Full level adds Drop 3, Rootless voicings, altered scales, and extended chord types — unlock it with the toggle at the top right. The Explore tab lets you build any chord with any extension. The Sec. Dom. and Tritone Sub forms in Play let you hear ',term('sec_dom','secondary dominants'),' and ',term('tritone_sub','tritone substitution'),' in action. Melodically, practice ',term('approach_note','chromatic approach notes'),' into guide tones — one half-step before each chord change is enough to start sounding like bebop. Further concepts: ',term('modal_int','modal interchange'),', reharmonization, chord melody, and rhythm changes.'),
       p(e('b',{style:HL},'Players to study:')),
       ul(
         e('span',null,e('b',null,'Wes Montgomery'),' — warmth, clarity, octave technique; a natural first listen for any guitarist'),
