@@ -642,9 +642,9 @@ function EarTrainingView({level}){
   // Modes: intervals always visible; triads + 7th chords are Full only
   const [mode,setMode]=useState('intervals');
   // Per-mode scores
-  const [scores,setScores]=useState({intervals:{r:0,w:0},triads:{r:0,w:0},chords:{r:0,w:0}});
-  // Per-item breakdown: {intervals:{1:{r,w},...}, triads:{major:{r,w},...}, chords:{...}}
-  const [detail,setDetail]=useState({intervals:{},triads:{},chords:{}});
+  const [scores,setScores]=useState({intervals:{r:0,w:0},triads:{r:0,w:0},chords:{r:0,w:0},cadences:{r:0,w:0}});
+  // Per-item breakdown: {intervals:{1:{r,w},...}, triads:{major:{r,w},...}, chords:{...}, cadences:{...}}
+  const [detail,setDetail]=useState({intervals:{},triads:{},chords:{},cadences:{}});
   // Intro gate — shown once, persisted to localStorage
   const [seenIntro,setSeenIntro]=useState(()=>!!localStorage.getItem('jg-ear-intro'));
   // Round state
@@ -674,6 +674,14 @@ function EarTrainingView({level}){
   const activeIvals=isEss
     ? IVALS.filter(x=>[3,4,5,7,12].includes(x.s))
     : IVALS;
+
+  const CADENCES=[
+    {id:'ii-V',   name:'II–V',             chords:[{r:2,q:'m7'},{r:9,q:'dom7'}],             feel:'The most common jazz movement — minor pulling to dominant'},
+    {id:'V-I',    name:'V–I',              chords:[{r:9,q:'dom7'},{r:0,q:'maj7'}],            feel:'The resolution — tension releasing to home'},
+    {id:'ii-V-I', name:'II–V–I',           chords:[{r:2,q:'m7'},{r:9,q:'dom7'},{r:0,q:'maj7'}], feel:'The engine of jazz harmony'},
+    {id:'I-VI',   name:'I–VI (turnaround)',chords:[{r:0,q:'maj7'},{r:9,q:'dom7'}],            feel:'Home moving to secondary dominant — sets up II–V'},
+    {id:'iv-I',   name:'iv–I (plagal)',    chords:[{r:5,q:'m7'},{r:0,q:'maj7'}],              feel:'Minor IV to major I — the "Amen" cadence in jazz'},
+  ];
 
   const TRIAD_IV={major:[0,4,7],minor:[0,3,7],dim:[0,3,6],aug:[0,4,8]};
   const TRIAD_LBL={major:'Major',minor:'Minor',dim:'Diminished',aug:'Augmented'};
@@ -724,10 +732,25 @@ function EarTrainingView({level}){
       });
     }catch(ex){}
   }
+  function playCadence(root,cadence){
+    try{
+      const ctx=_getPreviewCtx();if(!ctx)return;
+      cadence.chords.forEach((chord,ci)=>{
+        const chordRoot=((root+chord.r)%12);
+        const iv=INTERVALS[chord.q]||[0,4,7,10];
+        iv.forEach((interval,ni)=>{
+          const t=ctx.currentTime+ci*1.2+ni*0.07;
+          if(_guitarBufs) _playSampledNote(ctx,48+chordRoot+interval,t,0.25,2.8);
+          else _playKSNote(ctx,48+chordRoot+interval,t,0.5);
+        });
+      });
+    }catch(ex){}
+  }
   function replayCurrent(){
     if(!current) return;
     if(mode==='intervals') playInterval(current.root,current.semitones,harmonic);
     else if(mode==='triads') playTriad(current.root,current.quality);
+    else if(mode==='cadences') playCadence(current.root,current.cadence);
     else playChord(current.root,current.quality);
   }
 
@@ -745,6 +768,12 @@ function EarTrainingView({level}){
       const quality=TRIAD_LIST[Math.floor(Math.random()*4)];
       setCurrent({root,quality});
       setTimeout(()=>playTriad(root,quality),150);
+    } else if(mode==='cadences'){
+      const correct=CADENCES[Math.floor(Math.random()*CADENCES.length)];
+      const others=CADENCES.filter(x=>x.id!==correct.id).sort(()=>Math.random()-0.5).slice(0,3);
+      setChoices([correct,...others].sort(()=>Math.random()-0.5));
+      setCurrent({root,cadence:correct});
+      setTimeout(()=>playCadence(root,correct),150);
     } else {
       const quality=QUALITIES[Math.floor(Math.random()*4)];
       setCurrent({root,quality});
@@ -753,8 +782,10 @@ function EarTrainingView({level}){
   }
   function guess(answer){
     if(revealed||!current) return;
-    const correct=mode==='intervals'?(answer===current.semitones):(answer===current.quality);
-    const key=mode==='intervals'?current.semitones:current.quality;
+    let correct,key;
+    if(mode==='intervals'){correct=answer===current.semitones;key=current.semitones;}
+    else if(mode==='cadences'){correct=answer===current.cadence.id;key=current.cadence.id;}
+    else{correct=answer===current.quality;key=current.quality;}
     setRevealed(true);setLastResult(correct?'right':'wrong');
     if(!correct) setWrongGuess(answer);
     setScores(s=>({...s,[mode]:{r:s[mode].r+(correct?1:0),w:s[mode].w+(correct?0:1)}}));
@@ -797,7 +828,9 @@ function EarTrainingView({level}){
     if(!worst) return null;
     const label=mode==='intervals'
       ?(IVALS.find(x=>x.s===+worst.k)||{name:worst.k}).name
-      :mode==='triads'?(TRIAD_LBL[worst.k]||worst.k):(QLABELS[worst.k]||worst.k);
+      :mode==='triads'?(TRIAD_LBL[worst.k]||worst.k)
+      :mode==='cadences'?((CADENCES.find(x=>x.id===worst.k)||{name:worst.k}).name)
+      :(QLABELS[worst.k]||worst.k);
     return{label,missed:worst.w,total:worst.r+worst.w};
   })();
 
@@ -815,6 +848,10 @@ function EarTrainingView({level}){
       return choices.map(iv=>mkBtn(iv.s,()=>guess(iv.s),iv.name,
         revealed&&iv.s===current.semitones,revealed&&wrongGuess===iv.s));
     }
+    if(mode==='cadences'){
+      return choices.map(cad=>mkBtn(cad.id,()=>guess(cad.id),cad.name,
+        revealed&&cad.id===current.cadence.id,revealed&&wrongGuess===cad.id));
+    }
     const list=mode==='triads'?TRIAD_LIST:QUALITIES;
     const lbls=mode==='triads'?TRIAD_LBL:QLABELS;
     return list.map(q=>mkBtn(q,()=>guess(q),lbls[q],
@@ -830,6 +867,8 @@ function EarTrainingView({level}){
       answerName=iv?iv.name:'';answerDesc=iv?iv.feel:'';
     } else if(mode==='triads'){
       answerName=TRIAD_LBL[current.quality];answerDesc=TRIAD_DESC[current.quality];
+    } else if(mode==='cadences'){
+      answerName=current.cadence.name;answerDesc=current.cadence.feel;
     } else {
       answerName=QLABELS[current.quality];answerDesc=QDESCS[current.quality];
     }
@@ -850,11 +889,12 @@ function EarTrainingView({level}){
   const modeHint={
     intervals:intervalHint,
     triads:'Three-note chord — major, minor, diminished, or augmented?',
-    chords:'Four-note chord — identify the 7th chord quality'
+    chords:'Four-note chord — identify the 7th chord quality',
+    cadences:'Two chords played in sequence — name the progression'
   };
   const TABS=isEss
     ?[{id:'intervals',lbl:'Intervals'}]
-    :[{id:'intervals',lbl:'Intervals'},{id:'triads',lbl:'Triads'},{id:'chords',lbl:'7th Chords'}];
+    :[{id:'intervals',lbl:'Intervals'},{id:'triads',lbl:'Triads'},{id:'chords',lbl:'7th Chords'},{id:'cadences',lbl:'Cadences'}];
 
   return e('div',{style:{padding:'0 0 20px'}},
     e('div',{style:{textAlign:'center',marginBottom:12}},
