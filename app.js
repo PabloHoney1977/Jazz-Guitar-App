@@ -3028,6 +3028,7 @@ function App(){
     if(p.ssIdx!==undefined) setSsIdx(p.ssIdx);
     if(p.form) localStorage.setItem('jg-form',p.form);
     if(p.bpm!==undefined) localStorage.setItem('jg-bpm',String(p.bpm));
+    if(p.vType&&p.view==='iivi') localStorage.setItem('jg-vtype',p.vType);
     setViewMode(p.view||'diatonic');
     window.scrollTo(0,0);
   }
