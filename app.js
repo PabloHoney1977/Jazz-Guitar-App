@@ -589,7 +589,7 @@ function BpmKnob({bpm,setBpm,onTap}){
     setBpm(Math.max(min,Math.min(max,dragRef.current.startBpm+delta)));
   }
   function handlePointerUp(){dragRef.current=null;}
-  return e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:1,cursor:'pointer',flexShrink:0},
+  return e('div',{style:{display:'flex',flexDirection:'row',alignItems:'center',gap:8,cursor:'pointer',flexShrink:0},
     onWheel:handleWheel,onKeyDown:handleKey,tabIndex:0,'aria-label':'BPM '+bpm},
     e('svg',{width:60,height:60,viewBox:'0 0 60 60',style:{display:'block',userSelect:'none',touchAction:'none'},
       onPointerDown:handlePointerDown,onPointerMove:handlePointerMove,onPointerUp:handlePointerUp},
@@ -598,13 +598,13 @@ function BpmKnob({bpm,setBpm,onTap}){
       e('circle',{cx,cy,r:16,fill:'var(--bg2)',stroke:'var(--brd)',strokeWidth:1.5}),
       e('line',{x1:mx,y1:my,x2:mx2,y2:my2,stroke:GOLD,strokeWidth:2.5,strokeLinecap:'round'})
     ),
-    e('div',{style:{display:'flex',alignItems:'center',gap:6}},
-      e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center'}},
-        e('div',{style:{fontSize:'1.0rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT,lineHeight:1}},bpm),
-        e('div',{style:{fontSize:'0.6rem',color:'var(--lbl)',letterSpacing:'1px',lineHeight:1}},'BPM')
+    e('div',{style:{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:3}},
+      e('div',{style:{display:'flex',alignItems:'baseline',gap:4}},
+        e('span',{style:{fontSize:'1.15rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT,lineHeight:1}},bpm),
+        e('span',{style:{fontSize:'0.6rem',color:'var(--lbl)',letterSpacing:'1px',lineHeight:1}},'BPM')
       ),
       e('button',{onClick:onTap,style:{fontSize:'0.68rem',color:'var(--btn-off)',background:'transparent',
-        border:'1px solid var(--btn-brd)',borderRadius:4,padding:'3px 8px',cursor:'pointer',
+        border:'1px solid var(--btn-brd)',borderRadius:4,padding:'3px 10px',cursor:'pointer',
         fontFamily:UI_FONT,minHeight:0}},'TAP')
     )
   );
