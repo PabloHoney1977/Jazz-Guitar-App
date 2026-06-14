@@ -2359,17 +2359,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange}){
             ):null
           )
     ),
-    // Voicing picker — full grid when stopped, compact inversion label when playing
+    // Voicing picker — always show chord boxes; compact inversion label during playback
     e('div',null,
-      isPlaying?e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT,paddingBottom:8}},
-        (()=>{
-          const selII=Math.min(invIdxs[safeBarIdx]||0,activeVoicings.length-1);
-          if(activeVT==='shell'){const sh=SHELLS[selII];return sh?sh.lbl+' ('+sh.root+')':'—';}
-          const inv=activeDropD.inv[selII];
-          return inv?(selII===0?'Root pos.':ac.dnames[inv.bassIdx]+' bass'):'—';
-        })()
-      ):null,
-      !isPlaying&&e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
+      e('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
         (()=>{
           const pick=(ii)=>{
             const n=[...invIdxs];n[safeBarIdx]=ii;
