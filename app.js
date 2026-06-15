@@ -453,57 +453,67 @@ function DotModeToggle({dotMode,setDotMode}){
 }
 
 // ── GuitarToggle ──────────────────────────────────────────────────────
-// Bird's-eye view of a Les Paul-style 3-way toggle switch.
-// Lever pivots at center (x=60); knob travels left (Basics) or right (Full).
+// Front view of a Gibson Les Paul 3-way pickup selector: cream "poker chip"
+// ring with a chrome nut and a bat-handle lever that flips up (Full) or
+// down (Basics). The cream amber tip and poker chip are the iconic LP cues.
 function GuitarToggle({level,setLevel}){
   const isBasic=level==='essentials';
-  const kx=isBasic?24:96; // knob circle x-center
-  const armX=isBasic?kx:58, armW=Math.abs(kx-60)+6;
-  return e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,flexShrink:0}},
-    e('span',{style:{fontSize:'0.55rem',color:'var(--lbl)',letterSpacing:'2px',fontFamily:UI_FONT,marginBottom:1}},'MODE'),
+  const up=!isBasic;                 // Full = lever thrown up, Basics = down
+  const px=36,py=42;                 // pivot (center of the poker chip / nut)
+  const tip=up?{x:33,y:14}:{x:39,y:70}; // bat-handle tip travel
+  const ACT='#C084FC',OFF='#6a6a7e';
+  return e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:1,flexShrink:0}},
+    e('span',{style:{fontSize:'0.55rem',color:'var(--lbl)',letterSpacing:'2px',fontFamily:UI_FONT}},'MODE'),
     e('button',{
       onClick:()=>setLevel(isBasic?'full':'essentials'),
       'aria-label':'Currently '+(isBasic?'Basics':'Full')+' — tap to switch',
       title:isBasic?'Switch to Full: adds Drop 3, Rootless voicings, Altered scale, extended chord types':'Switch to Basics: simplified view for building fundamentals',
       style:{background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:0,touchAction:'manipulation'},
     },
-      e('svg',{width:120,height:48,viewBox:'0 0 120 48',style:{display:'block'}},
+      e('svg',{width:50,height:60,viewBox:'0 0 72 86',style:{display:'block'}},
         e('defs',null,
-          e('linearGradient',{id:'gtPlate',x1:'0',y1:'0',x2:'0',y2:'1'},
-            e('stop',{offset:'0%',stopColor:'#28283a'}),
-            e('stop',{offset:'100%',stopColor:'#0d0d18'}),
+          e('radialGradient',{id:'lpChip',cx:'38%',cy:'32%',r:'70%'},
+            e('stop',{offset:'0%',stopColor:'#f4ecd2'}),
+            e('stop',{offset:'62%',stopColor:'#e6d9b2'}),
+            e('stop',{offset:'100%',stopColor:'#cdbd8a'}),
           ),
-          e('radialGradient',{id:'gtKnob',cx:'32%',cy:'28%',r:'60%'},
-            e('stop',{offset:'0%',stopColor:'#f6f0da'}),
-            e('stop',{offset:'55%',stopColor:'#d8cfA0'}),
-            e('stop',{offset:'100%',stopColor:'#b0a46a'}),
+          e('radialGradient',{id:'lpNut',cx:'36%',cy:'30%',r:'72%'},
+            e('stop',{offset:'0%',stopColor:'#fbfbff'}),
+            e('stop',{offset:'48%',stopColor:'#c9c9d6'}),
+            e('stop',{offset:'100%',stopColor:'#8b8b9c'}),
+          ),
+          e('linearGradient',{id:'lpLever',x1:'0',y1:'0',x2:'1',y2:'0'},
+            e('stop',{offset:'0%',stopColor:'#8b8b9a'}),
+            e('stop',{offset:'42%',stopColor:'#e8e8f0'}),
+            e('stop',{offset:'100%',stopColor:'#7a7a88'}),
+          ),
+          e('radialGradient',{id:'lpTip',cx:'34%',cy:'30%',r:'68%'},
+            e('stop',{offset:'0%',stopColor:'#fbf4d8'}),
+            e('stop',{offset:'52%',stopColor:'#e7d39a'}),
+            e('stop',{offset:'100%',stopColor:'#bd9f5c'}),
           ),
         ),
-        // Shadow under plate
-        e('rect',{x:5,y:18,width:112,height:20,rx:10,fill:'rgba(0,0,0,0.5)'}),
-        // Plate body
-        e('rect',{x:2,y:12,width:116,height:24,rx:12,fill:'url(#gtPlate)',stroke:'#40405a',strokeWidth:1.5}),
-        // Inner bevel rim
-        e('rect',{x:5,y:15,width:110,height:18,rx:9,fill:'none',stroke:'rgba(255,255,255,0.07)',strokeWidth:1}),
-        // Travel groove
-        e('rect',{x:20,y:22,width:80,height:8,rx:4,fill:'#05050e',stroke:'#18182a',strokeWidth:0.8}),
-        // Labels
-        e('text',{x:24,y:11,textAnchor:'middle',fontFamily:UI_FONT,fontSize:'7.5',letterSpacing:'0.3',
-          fill:isBasic?'#C084FC':'#3a2d56',fontWeight:isBasic?'700':'400'},'Basics'),
-        e('text',{x:96,y:11,textAnchor:'middle',fontFamily:UI_FONT,fontSize:'7.5',
-          fill:!isBasic?'#C084FC':'#3a2d56',fontWeight:!isBasic?'700':'400'},'Full'),
-        // Lever arm (cream, from knob toward center pivot)
-        e('rect',{x:armX,y:21,width:armW+8,height:10,rx:5,fill:'#c8bf88',stroke:'#9e9450',strokeWidth:0.8}),
-        // Knob — large circle at the active end
-        e('circle',{cx:kx,cy:26,r:9.5,fill:'url(#gtKnob)',stroke:'#a09458',strokeWidth:1}),
-        // Knob specular highlight
-        e('ellipse',{cx:kx-3,cy:23,rx:3.2,ry:2,fill:'rgba(255,255,255,0.3)',transform:'rotate(-10,'+kx+',26)'}),
-        // Center pivot screw
-        e('circle',{cx:60,cy:26,r:3.5,fill:'#22222e',stroke:'#4a4a60',strokeWidth:0.7}),
-        e('line',{x1:57.5,y1:26,x2:62.5,y2:26,stroke:'#5a5a70',strokeWidth:0.8}),
-        e('line',{x1:60,y1:23.5,x2:60,y2:28.5,stroke:'#5a5a70',strokeWidth:0.8}),
-        // Active glow around knob
-        e('circle',{cx:kx,cy:26,r:12,fill:'none',stroke:'#C084FC',strokeWidth:1.2,opacity:0.3}),
+        // Position labels (active one lights up purple)
+        e('text',{x:36,y:9,textAnchor:'middle',fontFamily:UI_FONT,fontSize:'8',fontWeight:up?'700':'400',
+          letterSpacing:'1',fill:up?ACT:OFF},'FULL'),
+        e('text',{x:36,y:84,textAnchor:'middle',fontFamily:UI_FONT,fontSize:'8',fontWeight:up?'400':'700',
+          letterSpacing:'1',fill:up?OFF:ACT},'BASIC'),
+        // Poker chip — drop shadow, cream rim, cream face
+        e('circle',{cx:36,cy:45,r:20,fill:'rgba(0,0,0,0.45)'}),
+        e('circle',{cx:px,cy:py,r:20,fill:'#bfb086',stroke:'#23232f',strokeWidth:1.2}),
+        e('circle',{cx:px,cy:py,r:16.5,fill:'url(#lpChip)'}),
+        e('circle',{cx:px,cy:py,r:13,fill:'none',stroke:'rgba(80,60,20,0.18)',strokeWidth:0.8}),
+        // Bat-handle lever — metallic shaft + cream amber tip
+        e('line',{x1:px,y1:py,x2:tip.x,y2:tip.y,stroke:'#26262f',strokeWidth:9,strokeLinecap:'round'}),
+        e('line',{x1:px,y1:py,x2:tip.x,y2:tip.y,stroke:'url(#lpLever)',strokeWidth:6,strokeLinecap:'round'}),
+        e('circle',{cx:tip.x,cy:tip.y,r:6.5,fill:'url(#lpTip)',stroke:'#9c8348',strokeWidth:0.9}),
+        e('ellipse',{cx:tip.x-2,cy:tip.y-2.3,rx:2.2,ry:1.4,fill:'rgba(255,255,255,0.45)'}),
+        // Active glow halo on the thrown tip
+        e('circle',{cx:tip.x,cy:tip.y,r:9.5,fill:'none',stroke:ACT,strokeWidth:1.3,opacity:0.32}),
+        // Chrome mounting nut at the pivot
+        e('circle',{cx:px,cy:py,r:7,fill:'url(#lpNut)',stroke:'#54545f',strokeWidth:0.9}),
+        e('circle',{cx:px,cy:py,r:3.2,fill:'none',stroke:'rgba(0,0,0,0.35)',strokeWidth:0.8}),
+        e('ellipse',{cx:px-2,cy:py-2.4,rx:2.4,ry:1.5,fill:'rgba(255,255,255,0.5)'}),
       )
     )
   );
@@ -2817,23 +2827,29 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
 }
 
 // ── GuideView — the Path + glossary ──────────────────────────────────
-function GuideView({openPreset,level}){
+function GuideView({openPreset,level,streak,lastPracticeDay}){
   const [expanded,setExpanded]=useState({});
   function tog(id){setExpanded(s=>({...s,[id]:!s[id]?true:undefined}));}
   const [popTerm,setPopTerm]=useState(null);
+  const STAGE_IDS=['qualities','shells','iivi','drop2a','drop2b','modes','play','ear','turnaround','blues','minor','tritone_sub','secdom','keys','approach','standard'];
   // Path progress, persisted
   const [done,setDone]=useState(()=>{try{return JSON.parse(safeLS('jg-path','{}'));}catch(ex){return{};}});
   useEffect(()=>{safeLSSet('jg-path',JSON.stringify(done));},[done]);
+  // Granular per-stage checklist progress, persisted separately
+  const [doneItems,setDoneItems]=useState(()=>{try{return JSON.parse(safeLS('jg-path-items','{}'));}catch(ex){return{};}});
+  useEffect(()=>{safeLSSet('jg-path-items',JSON.stringify(doneItems));},[doneItems]);
+  function toggleItem(stId,i){setDoneItems(s=>{const k=stId+':'+i;return {...s,[k]:!s[k]?true:undefined};});}
   const [justDone,setJustDone]=useState(null);
+  const firstIncomplete=()=>{try{const d=JSON.parse(safeLS('jg-path','{}'));return STAGE_IDS.find(id=>!d[id]);}catch(ex){return null;}};
   const [stagesOpen,setStagesOpen]=useState(()=>{
-    try{
-      const d=JSON.parse(safeLS('jg-path','{}'));
-      const ids=['qualities','shells','iivi','drop2a','drop2b','modes','play','ear','blues','minor','tritone_sub','secdom','keys','approach','standard'];
-      const first=ids.find(id=>!d[id]);
-      return {[first||'qualities']:true};
-    }catch{return {qualities:true};}
+    const first=firstIncomplete();
+    return first?{[first]:true}:{}; // all done → start fully collapsed
   });
   function toggleStage(id){setStagesOpen(s=>({...s,[id]:!s[id]}));}
+  function jumpTo(id){
+    setStagesOpen(s=>({...s,[id]:true}));
+    setTimeout(()=>{const el=document.getElementById('guide-stage-'+id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},70);
+  }
   function togDone(id){
     setDone(s=>{
       const isNowDone=!s[id];
@@ -2852,6 +2868,27 @@ function GuideView({openPreset,level}){
   function p(...k){return e('p',{style:P},...k);}
   function ul(...items){return e('ul',{style:{listStyle:'none',margin:'0 0 8px'}},
     ...items.map((it,i)=>e('li',{key:i,style:LI},'• ',...[].concat(it))));}
+  // Checkable practice list. "Done when:" strings render as a highlighted
+  // mastery criterion (no checkbox); everything else is a tappable micro-task.
+  function isCriterion(it){return typeof it==='string'&&/^Done when:/i.test(it);}
+  function checklist(stId,items){
+    return e('ul',{style:{listStyle:'none',margin:'0 0 8px',padding:0}},
+      ...items.map((it,i)=>{
+        if(isCriterion(it)) return e('li',{key:i,style:{display:'flex',gap:7,alignItems:'flex-start',
+          padding:'7px 10px',marginTop:4,background:ACT_GOLD,border:'1px solid '+GOLD+'55',borderRadius:6}},
+          e('span',{style:{color:GOLD,flexShrink:0,fontSize:'0.78rem'}},'◆'),
+          e('span',{style:{fontSize:'0.78rem',lineHeight:1.6,color:'var(--txt)',fontFamily:UI_FONT}},
+            e('b',{style:{color:GOLD}},'You\'ve got it when: '),it.replace(/^Done when:\s*/i,'')));
+        const checked=!!doneItems[stId+':'+i];
+        return e('li',{key:i,onClick:()=>toggleItem(stId,i),
+          style:{display:'flex',gap:9,alignItems:'flex-start',padding:'7px 2px',cursor:'pointer',minHeight:36}},
+          e('span',{style:{flexShrink:0,width:18,height:18,marginTop:1,borderRadius:4,
+            border:'1.5px solid '+(checked?GOLD:BTN_BRD),background:checked?ACT_GOLD:'transparent',
+            color:GOLD,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.72rem',fontWeight:700}},checked?'✓':''),
+          e('span',{style:{fontSize:'0.80rem',lineHeight:1.6,fontFamily:UI_FONT,
+            color:checked?HINT:'var(--txt)'}},...[].concat(it)));
+      }));
+  }
   function callout(...k){
     return e('div',{style:{background:'var(--act-blue)',border:'1px solid var(--brd)',borderRadius:6,
       padding:'8px 12px',marginBottom:8,fontSize:'0.79rem',lineHeight:1.7,color:'var(--txt)',fontFamily:UI_FONT}},...k);
@@ -2866,7 +2903,7 @@ function GuideView({openPreset,level}){
     'm7':{term:'Minor 7 (m7)',short:'Smooth and floating — neither fully resolved nor urgently tense.',
       detail:'Spelled root–♭3–5–♭7. In D: D–F–A–C. The flat 3rd darkens the quality; the flat 7th (shared with dominant 7) prevents it from settling. It\'s the II, III, and VI chord in major keys. Because it lacks the tritone of a dominant chord, it doesn\'t pull hard toward anything — it floats. Play Dm7 → G7 → Cmaj7 to hear it act as tension-before-the-tension.'},
     'halfdim':{term:'Half-diminished (ø7)',short:'m7 with a flattened 5th — more tense and searching than a regular minor 7.',
-      detail:'Spelled root–♭3–♭5–♭7. In B: B–D–F–A. The flattened 5th (F instead of F#) adds instability. This chord naturally occurs on the VII degree of major keys and on the II degree of minor keys (where it\'s written IIø or IIm7♭5). In C major, Bm7♭5 is the viiø7 — rarely used as home, but effective as a substitute for G7 with extra darkness.'},
+      detail:'Spelled root–♭3–♭5–♭7. In B: B–D–F–A. The flattened 5th (F instead of F#) adds instability. This chord naturally occurs on the VII degree of major keys and on the II degree of minor keys (where it\'s written IIø or IIm7♭5). In C major, Bm7♭5 is the viiø7 — it shares G7\'s guide tones (B, D, F), so it acts as a rootless dominant that resolves to the I with extra darkness.'},
     'inv':{term:'Inversion',short:'Which chord tone sits lowest — root, 3rd, 5th, or 7th in the bass.',
       detail:'Root position: root on the bottom (C–E–G–B). 1st inversion: 3rd on the bottom (E–G–B–C). 2nd inversion: 5th on the bottom. 3rd inversion: 7th on the bottom. For Drop 2 voicings, all four inversions give you different positions on the neck. Voice leading chains them together so the hand moves minimally between chords.'},
     'drop2':{term:'Drop 2',short:'Second-highest note dropped an octave — spreads the chord across 4 adjacent strings.',
@@ -2925,6 +2962,7 @@ function GuideView({openPreset,level}){
   const stages=[
     // ── PHASE 1: FOUNDATION ──────────────────────────────────────────────
     {id:'qualities',phase:'Foundation',phaseLabel:'Phase 1 — Foundation',
+     phaseNote:'These three stages run together over roughly two months — practice shells daily while you learn the II–V–I and start training your ear. They reinforce each other; don\'t wait to "finish" one before starting the next.',
      title:'The four chord qualities — hear the difference',
      time:'1–2 weeks',
      preset:{view:'diatonic',key:0,deg:0,vType:'shell'},
@@ -2938,7 +2976,7 @@ function GuideView({openPreset,level}){
      playPreset:{view:'iivi',key:0,form:'major',bpm:56,vType:'shell'},
      body:[[term('shell','A shell voicing'),' uses just 3 notes: root, 3rd, and 7th. The 5th is left out — it adds bulk without adding harmonic information. The result is lighter, lower, and much easier to move around the neck. These are your working vocabulary; every subsequent voicing type builds on knowing shells cold.'],
            ['The 3rd and 7th are called ',term('guide','"guide tones"'),' — the 3rd sets major vs. minor quality, the 7th sets dom7 vs. maj7. Together they carry all the harmonic meaning. Form A and Form B are the same 3 notes on different string sets. Professionals comp with shells on fast tempos because they\'re clean and mobile.']],
-     items:['Form A (6th-string root): find all 4 chord quality shells with root on string 6 — Cmaj7, Cm7, C7, Cm7♭5','Form B (5th-string root): same 4 qualities with root on string 5','Play all 7 diatonic shells in C major top to bottom without stopping — Cmaj7, Dm7, Em7, Fmaj7, G7, Am7, Bm7♭5','Comp the II–V–I in C at 60 BPM with the Play tab — shells only, focus on landing on time','Add G and F major — same shapes, shifted on the neck','Done when: you can play any ii–V–I in 3 keys from memory without looking']},
+     items:['Form A (6th-string root): find all 4 chord quality shells with root on string 6 — Cmaj7, Cm7, C7, Cm7♭5','Form B (5th-string root): same 4 qualities with root on string 5','Play all 7 diatonic shells in C major top to bottom without stopping — Cmaj7, Dm7, Em7, Fmaj7, G7, Am7, Bm7♭5','Comp the II–V–I in C at 60 BPM with the Play tab — shells only, focus on landing on time','Add G and F major — same shapes, shifted on the neck','Done when: you can find any of the 4 qualities in Form A and Form B without hunting for the shape']},
     {id:'iivi',phase:'Foundation',
      title:'The II–V–I — jazz\'s engine',
      time:'3–6 weeks alongside shells',
@@ -2946,9 +2984,10 @@ function GuideView({openPreset,level}){
      body:['Three chords that appear in virtually every jazz standard: a ',term('m7','minor 7'),' chord (II), a ',term('dom7','dominant 7'),' chord (V), and a ',term('maj7','major 7'),' chord (I). In C: Dm7 → G7 → Cmaj7. The ',term('roman','Roman numerals'),' indicate position in the key — the same pattern works in every key. Learn it once, use it everywhere.',
            ['Why does it work? The V7 chord contains a ',term('tritone','tritone'),' between its 3rd and 7th (B and F in G7). Both notes want to resolve by half-step: B moves up to C, F moves down to E — exactly the root and 3rd of Cmaj7. The resolution is built into the physics of the interval.'],
            ['The ',term('guide','guide tones'),' swap roles on each chord: the 7th of G7 (F) resolves to the 3rd of Cmaj7 (E), and the 3rd of G7 (B) approaches the root. This guide tone chain is the engine of jazz ',term('vl','voice leading'),'.']],
-     items:['Slow the Play tab to 55 BPM and comp shells through the II–V–I — listen for how the V "leans" into the I',['Pick a different II ',term('inv','inversion'),' — the app voice-leads the V and I to follow automatically'],'Ear training: open the Ear tab → Cadences → listen for the II–V pattern — you\'ve been playing it, now hear it cold']},
+     items:['Slow the Play tab to 55 BPM and comp shells through the II–V–I — listen for how the V "leans" into the I',['Pick a different II ',term('inv','inversion'),' — the app voice-leads the V and I to follow automatically'],'Ear training: open the Ear tab → Cadences → listen for the II–V pattern — you\'ve been playing it, now hear it cold','Done when: you can play a ii–V–I from memory in C, F, and G without looking']},
     // ── PHASE 2: VOICINGS ────────────────────────────────────────────────
     {id:'drop2a',phase:'Voicings',phaseLabel:'Phase 2 — Voicings & Texture',
+     phaseNote:'The voicing family, simplest to richest: Shells (root-3-7) → Drop 2 (add the 5th back for a full 4-note grip) → Rootless (drop the root, add the 9th — for playing over a bassist) → Drop 3 (a wider spread). Each one builds on the shapes before it.',
      title:'Drop 2 — learning the shapes',
      time:'3–5 weeks for the shapes',
      preset:{view:'diatonic',key:0,deg:0,vType:'drop2',ssIdx:2},
@@ -2969,16 +3008,16 @@ function GuideView({openPreset,level}){
      preset:{view:'diatonic',key:0,deg:1,vType:'arpeggio'},
      playPreset:{view:'iivi',key:0,form:'major',bpm:60},
      body:['Every chord implies a scale — the notes that belong over it. Three modes cover the II–V–I: ',e('b',null,'Dorian'),' (IIm7 — minor with a natural 6th), ',e('b',null,'Mixolydian'),' (V7 — major with a ♭7), ',e('b',null,'Ionian'),' (Imaj7 — the major scale). These aren\'t separate scales to memorize — they\'re the same major scale heard from different starting points. D Dorian and C major use identical notes; the difference is which note feels like home.',
-           'For the V7: Mixolydian is the neutral, safe choice. Altered (7th mode of melodic minor) uses every altered tension — ♭9, ♯9, ♭13 — for maximum pull. The Scale panel in the Keys tab shows which mode applies to each chord.',
+           'For the V7, Mixolydian is the neutral, safe choice — the major scale of the key you\'re resolving to, with a ♭7. The Scale panel in the Keys tab shows which mode applies to each chord. (Tenser, "altered" dominant scales come later, with the minor II–V–I.)',
            'The goal right now is not speed or licks — it\'s knowing which scale belongs over which chord in the II–V–I. Play the scale tones as quarter notes over the Play tab, slow and deliberate.'],
-     items:['In Keys, set deg to V7 (G7) and view Scale — the highlighted notes are Mixolydian','Play those notes in order over the Play tab at 55 BPM — this is the foundation of improvisation','Set deg to IIm7 (Dm7) and view Dorian — notice the raised 6th (B♮) vs. natural minor (B♭)','In Keys, set deg to Imaj7 and view Ionian — recognize these as the major scale you already know']},
+     items:['In Keys, set deg to V7 (G7) and view Scale — the highlighted notes are Mixolydian','Play those notes in order over the Play tab at 55 BPM — this is the foundation of improvisation','Set deg to IIm7 (Dm7) and view Dorian — notice the raised 6th (B♮) vs. natural minor (B♭)','In Keys, set deg to Imaj7 and view Ionian — recognize these as the major scale you already know','Done when: you can name and play the right scale over each chord of a ii–V–I without checking the Scale panel']},
     {id:'play',phase:'Voicings',
      title:'Play along — rhythm and groove',
-     time:'Ongoing — introduce at Stage 2, never fully done',
+     time:'Ongoing — start early, never fully done',
      preset:{view:'iivi',key:0,bpm:72},
      body:['A correct voicing played out of time sounds worse than a simpler voicing played confidently in the groove. Rhythm is the delivery mechanism — without it, the harmony doesn\'t land. The Play tab loops chord progressions with walking bass and ride cymbal. Your job: place each chord at the right moment, confidently, every time.',
            'The Charleston rhythm (beat 1 + the "and" of 2) is the core jazz comping pattern. Start slow. 60 BPM is not embarrassingly slow — it\'s where control develops. Four consecutive choruses without stopping is the real milestone.'],
-     items:['Strum on beats 1 and 3 first — the strongest beats, lowest risk','Then try the Charleston: beat 1 and the "and" of 2','4 choruses without stopping = move up 5 BPM','Done when: you stop thinking about chord shapes and start listening to the bass line']},
+     items:['Strum on beats 1 and 3 first — the strongest beats, lowest risk','Then try the Charleston: beat 1 and the "and" of 2','4 choruses without stopping = move up 5 BPM','Done when: you can play 4 choruses without stopping, listening to the bass line instead of hunting for shapes']},
     // ── PHASE 3: FORMS & EAR ─────────────────────────────────────────────
     {id:'ear',phase:'Forms',phaseLabel:'Phase 3 — Forms & Ear',
      title:'Train your ear — intervals and cadences',
@@ -2988,6 +3027,15 @@ function GuideView({openPreset,level}){
            'The Ear tab has two modes: Interval recognition (melodic and harmonic — identify the distance between two notes) and Cadence recognition (identify chord progressions by ear). Start with intervals: Perfect 4th, 5th, and Octave first. Then add the intervals that define the chord qualities you already know — Major 7th (the sound of maj7), Minor 7th (the sound of dom7 and m7). Cadences: the II–V pattern is the most valuable. You\'ve been playing it for weeks; now identify it by ear without looking.',
            'Song mnemonics are provided for every interval — they work because your brain already knows the feeling of that distance. Major 7th: "Take On Me" chorus. Tritone: "The Simpsons" theme. Octave: "Somewhere Over the Rainbow." Use what sticks.'],
      items:['Ear tab → Intervals: practice Perfect 4th, 5th, and Octave first — the most common in jazz','Add Major 7th and Minor 7th — these are the defining intervals of maj7 and m7/dom7 chords','Ear tab → Cadences: listen for II–V and V–I — you\'ve been playing these, now identify them cold','Full tier unlocks all 12 intervals and the complete cadence suite (II–V–I, I–VI, iv–I)','10–15 min of ear training per session accelerates everything else faster than extra shape drilling']},
+    {id:'turnaround',phase:'Forms',
+     title:'The turnaround — I–vi–ii–V',
+     time:'2–4 weeks',
+     preset:{view:'diatonic',key:0,deg:5,vType:'shell'},
+     playPreset:{view:'iivi',key:0,form:'custom',bpm:60},
+     body:['The turnaround is the last two bars of nearly every standard — the little loop that resets the form and sends you back to the top. The most common one is ',e('b',null,'I–vi–ii–V'),' (in C: Cmaj7 – Am7 – Dm7 – G7). It\'s your II–V–I with two chords stacked in front, and once you hear it you\'ll hear it everywhere — the end of "Rhythm Changes," the turnaround of a blues, the tag of a ballad.',
+           ['The jazzier version swaps the vi for a ',term('sec_dom','secondary dominant'),': I–VI7–ii–V (Cmaj7 – A7 – Dm7 – G7). The A7 pulls harder into Dm7 than a plain Am7 does. You can also start on iii: iii–vi–ii–V (Em7 – Am7 – Dm7 – G7), a smooth descending cascade. All three are the same idea — a short, repeating engine that loops back home.'],
+           'Build it yourself in the Play tab\'s Custom form: it\'s the best way to internalize that a turnaround is just familiar pieces (vi, ii, V, I) in a new order.'],
+     items:['In Keys, find shells for Cmaj7, Am7, Dm7, G7 — then play them in a loop, top back to top','Play tab → Custom form: build Cmaj7 – Am7 – Dm7 – G7 and loop it at 60 BPM','Try the dominant version: swap Am7 for A7 (VI7) and hear it pull harder into Dm7','Listen for turnarounds in tunes you know — they\'re almost always the last two bars before the form repeats','Done when: you can loop a I–vi–ii–V from memory and hear how it resets the form']},
     {id:'blues',phase:'Forms',
      title:'The jazz blues form',
      time:'4–6 weeks',
@@ -2999,8 +3047,8 @@ function GuideView({openPreset,level}){
      title:'The minor II–V–I',
      time:'3–4 weeks',
      preset:{view:'iivi',key:0,form:'minor',bpm:60},
-     body:['The minor II–V–I uses the same structural logic as the major version with different harmonic color: IIm7♭5 (half-diminished) – V7 – Im7. The half-diminished chord has a flattened 5th, adding instability beyond regular minor 7 — it urgently wants to move.',
-           'The V7 in a minor context often uses an altered dominant (♭9 or ♯9). The altered scale provides all these tensions naturally. "Autumn Leaves" alternates major and minor II–V–Is back to back — the most-studied standard for learning this distinction.',
+     body:['The minor II–V–I uses the same structural logic as the major version with different harmonic color: IIm7♭5 (half-diminished) – V7 – Im7. The half-diminished chord has a flattened 5th, adding instability beyond a regular minor 7 — it has more pull than a plain m7.',
+           'The V7 in a minor context often uses an altered dominant (♭9 or ♯9). The altered scale — the 7th mode of melodic minor, where every extension is altered (♭9, ♯9, ♯11, ♭13) — provides all these tensions naturally. "Autumn Leaves" alternates major and minor II–V–Is back to back — the most-studied standard for learning this distinction.',
            'Loop major then minor II–V–I back to back in the same key and listen to the contrast. The half-diminished chord has a specific "searching" quality that ear training makes immediately recognizable.'],
      items:['Loop major then minor II–V–I in the same key — hear the contrast in the IIø vs. IIm7','Listen for how the ♭5 of the IIø pulls downward into the V7 root','Ear training → Cadences: try to distinguish major vs. minor II–V by sound alone — the half-diminished is the tell']},
     {id:'tritone_sub',phase:'Forms',
@@ -3044,11 +3092,20 @@ function GuideView({openPreset,level}){
      items:['Get a lead sheet for your chosen standard (iRealPro, JazzStandards.com, or search "[title] lead sheet")','Map every chord to a shell voicing in the correct key — no Drop 2 yet, just shells all the way through','Loop difficult sections in the Play tab at slow tempo until they feel easy','Play the whole form with Drop 2 at 70 BPM — all the way through, no stopping','Play it in one other key']},
   ];
   const doneCount=stages.filter(s=>done[s.id]).length;
+  const allDone=stages.length>0&&doneCount===stages.length;
+  const nextIdx=stages.findIndex(s=>!done[s.id]);
+  const nextStage=nextIdx>=0?stages[nextIdx]:null;
+  const PHASE_ORDER=['Foundation','Voicings','Forms','Application'];
+  const phaseNum=nextStage?PHASE_ORDER.indexOf(nextStage.phase)+1:4;
   function stage(n,st,nextSt,dataTour){
     const isDone=!!done[st.id];
     const isOpen=!!stagesOpen[st.id];
     const theoryOpen=!!expanded['st_'+st.id];
-    return e('div',{key:st.id,...(dataTour?{'data-tour':dataTour}:{}),style:{
+    // Granular task progress (criteria don't count toward the tally)
+    let taskTotal=0,taskDone=0;
+    (st.items||[]).forEach((it,i)=>{if(!isCriterion(it)){taskTotal++;if(doneItems[st.id+':'+i])taskDone++;}});
+    const allTasks=taskTotal>0&&taskDone===taskTotal;
+    return e('div',{key:st.id,id:'guide-stage-'+st.id,...(dataTour?{'data-tour':dataTour}:{}),style:{
       marginBottom:8,background:BG,borderRadius:8,overflow:'hidden',
       border:'1px solid '+(isDone?GOLD+'60':BORDER),
       borderLeft:'3px solid '+(isDone?GOLD:isOpen?GOLD+'60':BORDER)}},
@@ -3063,29 +3120,24 @@ function GuideView({openPreset,level}){
           e('div',{style:{fontFamily:SERIF,fontSize:'0.97rem',fontWeight:700,color:'var(--scale-name)'}},st.title),
           e('div',{style:{fontSize:'0.71rem',color:HINT,fontFamily:UI_FONT,marginTop:2}},st.time)
         ),
+        // Per-stage step tally — visible even when collapsed
+        !isDone&&taskTotal>0?e('span',{style:{fontSize:'0.68rem',fontFamily:UI_FONT,fontWeight:700,flexShrink:0,
+          color:allTasks?GOLD:taskDone>0?'var(--txt)':HINT}},taskDone+'/'+taskTotal):null,
         e('span',{style:{color:GOLD,fontSize:'0.85rem',flexShrink:0}},isOpen?'▾':'▸')
       ),
       isOpen?e('div',{style:{padding:'0 14px 14px',borderTop:'1px solid '+BORDER}},
         st.body.length>0?e('p',{style:{...P,marginBottom:8,marginTop:10}},...[].concat(st.body[0])):null,
-        e('div',{style:{display:'flex',gap:8,marginBottom:8,flexWrap:'wrap'}},
+        e('div',{style:{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap'}},
           e('button',{onClick:()=>openPreset(st.preset),style:{
-            padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',
+            padding:'5px 16px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',
             border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,fontWeight:700,minHeight:44}},
             '▶ Open in '+({diatonic:'Keys',iivi:'Play',custom:'Chords',quiz:'Ear Training'}[st.preset.view]||'app')),
           st.playPreset?e('button',{onClick:()=>openPreset(st.playPreset),style:{
-            padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',
+            padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',
             border:'1px solid #74C0FC',background:'#0a1520',color:'#74C0FC',fontWeight:700,minHeight:44,
-          }},'⌾ Try in Play →'):null,
-          e('button',{onClick:()=>{
-            togDone(st.id);
-            if(!isDone&&nextSt){setStagesOpen(s=>({...s,[st.id]:false,[nextSt.id]:true}));}
-          },style:{
-            padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',
-            border:'1px solid '+(isDone?GOLD:BTN_BRD),background:isDone?ACT_GOLD:'transparent',
-            color:isDone?GOLD:BTN_OFF,minHeight:44,
-            animation:justDone===st.id?'doneFlash 0.5s ease-out':'none'}},isDone?'✓ Done':'I\'ve got this')
+          }},'⌾ Try in Play →'):null
         ),
-        st.items&&st.items.length?ul(...st.items):null,
+        st.items&&st.items.length?checklist(st.id,st.items):null,
         st.body.length>1?e('div',{style:{marginTop:6}},
           e('button',{onClick:ev=>{ev.stopPropagation();tog('st_'+st.id);},style:{
             background:'transparent',border:'none',cursor:'pointer',fontFamily:UI_FONT,
@@ -3094,29 +3146,61 @@ function GuideView({openPreset,level}){
           theoryOpen?e('div',{style:{marginTop:4,paddingLeft:10,borderLeft:'2px solid '+BORDER}},
             ...st.body.slice(1).map((t,i)=>e('p',{key:'bt'+i,style:{...P,marginBottom:5}},...[].concat(t)))
           ):null
-        ):null
+        ):null,
+        // "I've got this" — quieter, after the checklist (it's the last thing you do)
+        e('button',{onClick:()=>{
+          togDone(st.id);
+          if(!isDone&&nextSt){setStagesOpen(s=>({...s,[st.id]:false,[nextSt.id]:true}));
+            setTimeout(()=>{const el=document.getElementById('guide-stage-'+nextSt.id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},70);}
+        },style:{
+          width:'100%',marginTop:12,padding:'9px 14px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',fontWeight:700,
+          border:'1px solid '+(isDone?GOLD:BTN_BRD),background:isDone?ACT_GOLD:'transparent',
+          color:isDone?GOLD:BTN_OFF,minHeight:44,
+          animation:justDone===st.id?'doneFlash 0.5s ease-out':'none'}},
+          isDone?'✓ Marked complete — tap to undo':'I\'ve got this'+(nextSt?' — next stage':''))
       ):null
     );
   }
   return e('div',null,
+    // ── Resume / Today card — a single clear next action on every visit ──
+    allDone
+      ?e('div',{style:{marginBottom:14,padding:'14px 16px',background:ACT_GOLD,border:'1px solid '+GOLD,borderRadius:8}},
+        e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:GOLD,marginBottom:6}},'🎉 You\'ve worked the whole Path'),
+        p('You\'ve covered the core of jazz harmony — the four qualities, shells, Drop 2, the II–V–I and its variations, the common forms, and a standard. That\'s a real foundation. The road from here is open-ended:'),
+        ul('Drop 3 and Rootless voicings add harmonic depth (Full tier)','Chord melody and reharmonization','Learn more standards — every tune you know is a new entry point','Play with other people — the single most accelerating thing you can do'),
+        streak>0?e('div',{style:{fontSize:'0.74rem',color:GOLD,fontWeight:700,fontFamily:UI_FONT,marginTop:4}},'🔥 '+streak+'-day streak — keep it going'):null)
+      :nextStage?e('div',{style:{marginBottom:14,padding:'12px 14px',background:BG2,border:'1px solid '+GOLD+'66',borderRadius:8,
+        display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
+        e('div',{style:{flex:1,minWidth:170}},
+          streak>0?e('div',{style:{fontSize:'0.73rem',color:GOLD,fontWeight:700,fontFamily:UI_FONT,marginBottom:2}},'🔥 '+streak+'-day streak'):null,
+          e('div',{style:{fontSize:'0.69rem',color:HINT,fontFamily:UI_FONT,textTransform:'uppercase',letterSpacing:'0.06em'}},
+            doneCount===0?'Start here':'Pick up where you left off'),
+          e('div',{style:{fontFamily:SERIF,fontSize:'0.96rem',fontWeight:700,color:'var(--scale-name)',marginTop:2}},
+            'Stage '+(nextIdx+1)+' — '+nextStage.title)),
+        e('button',{onClick:()=>jumpTo(nextStage.id),style:{
+          padding:'9px 18px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',fontWeight:700,
+          border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,minHeight:44,flexShrink:0}},
+          doneCount===0?'Start →':'Jump back in →'))
+      :null,
     sec('Start Here',
       p('The only thing this guide assumes is that you can play guitar chords — open chords, barre chords, however you\'ve learned them. If you know that some chords sound bright and happy while others sound dark or tense, you already have the ear for this. No other music theory background is required.'),
       p('What you\'ll learn here: jazz uses ',e('b',{style:HL},'four-note chords'),' where most styles use three-note chords. The extra note is what gives jazz its characteristic richness. You\'ll learn to recognize these chord types by ear, play them in multiple positions, and connect them smoothly — the skills that make jazz harmony feel natural rather than academic.'),
       p('Every term that might be unfamiliar — ',term('inv','inversion'),', ',term('modes','mode'),', ',term('guide','guide tone'),', ',term('vl','voice leading'),' — is defined in plain English in the Glossary at the bottom of this page. You do not need to know them before you start. Meet them as they come up.'),
-      callout(e('b',null,'How to use this page: '),'Tap any stage to expand it. Work through the checklist, then tap "I\'ve got this" when you\'re ready to move on — the app opens pre-configured so you can start playing immediately. Honest timing: shells take 2–4 months to feel natural; Drop 2 takes 6+ months to connect smoothly. The goal is playing your guitar, not finishing a checklist.')
+      callout(e('b',null,'How to use this page: '),'Tap a stage to expand it. Check off each practice step as you nail it — the gold "◆ You\'ve got it when…" line is your mastery target for that stage. When it feels solid, tap "I\'ve got this" to mark it done and jump to the next. The buttons open the app already set up, so you can start playing immediately. Honest timing: shells take 2–4 months to feel natural, Drop 2 takes 6+ months to connect — the goal is playing your guitar, not racing a checklist.')
     ),
     e('div',{style:S},
       e('div',{style:{...H,display:'flex',justifyContent:'space-between',alignItems:'baseline',flexWrap:'wrap',gap:8}},
         e('span',null,'The Learning Path — from first chords to jazz'),
-        e('span',{'data-tour':'guide-progress',style:{fontSize:'0.72rem',fontFamily:UI_FONT,fontWeight:400,color:doneCount===stages.length?GOLD:HINT}},doneCount+' / '+stages.length+' done')
+        e('span',{'data-tour':'guide-progress',style:{fontSize:'0.72rem',fontFamily:UI_FONT,fontWeight:allDone?700:400,color:allDone?GOLD:HINT}},
+          allDone?'Complete ✓':'Phase '+phaseNum+' of 4 · '+doneCount+'/'+stages.length)
       ),
       p('Work top to bottom. Tap a stage to see what to practice and open the right tool. Stages vary in depth — some are a week, some are months. Nothing is locked; the Path is a guide, not a gate.'),
       stages.flatMap((st,i)=>{
         const out=[];
-        if(st.phaseLabel) out.push(e('div',{key:'ph_'+st.id,style:{
-          fontSize:'0.71rem',fontWeight:700,fontFamily:UI_FONT,color:GOLD,
-          letterSpacing:'0.09em',textTransform:'uppercase',padding:'12px 2px 4px',opacity:0.85
-        }},st.phaseLabel));
+        if(st.phaseLabel) out.push(e('div',{key:'ph_'+st.id,style:{padding:'12px 2px 4px'}},
+          e('div',{style:{fontSize:'0.71rem',fontWeight:700,fontFamily:UI_FONT,color:GOLD,
+            letterSpacing:'0.09em',textTransform:'uppercase',opacity:0.85}},st.phaseLabel),
+          st.phaseNote?e('div',{style:{fontSize:'0.74rem',lineHeight:1.6,color:HINT,fontFamily:UI_FONT,marginTop:4}},st.phaseNote):null));
         out.push(stage(i+1,st,stages[i+1],i===0?'guide-stage-0':undefined));
         return out;
       })
@@ -3704,7 +3788,7 @@ function App(){
     viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey:findInKey,vType:customVType,setVType:setCustomVType}):null,
 
     // ── GUIDE / PATH VIEW ────────────────────────────────────────────
-    viewMode==='guide'?e(GuideView,{openPreset,level}):null,
+    viewMode==='guide'?e(GuideView,{openPreset,level,streak,lastPracticeDay}):null,
 
     // ── EAR TRAINING VIEW ────────────────────────────────────────────
     viewMode==='quiz'?e(EarTrainingView,{level,onPracticed:markPracticed}):null,
