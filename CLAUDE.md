@@ -1,5 +1,9 @@
 # Jazz Guitar Lab — Project Context
 
+## Workflow Preferences
+- After committing, always push to the appropriate branch immediately — do not wait to be asked.
+- The app is served from `main`; always ensure finished work lands on `main` and is pushed.
+
 ## Big Picture Goal
 Ship Jazz Guitar Lab as a **paid iOS App Store app** targeting adult guitarists who want to learn jazz harmony. Monetization: free Essentials tier (limited features) with a **$9.99 one-time IAP** to unlock Full. No subscription.
 
