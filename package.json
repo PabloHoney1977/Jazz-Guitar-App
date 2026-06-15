@@ -1,0 +1,16 @@
+{
+  "name": "jazz-guitar-lab",
+  "version": "1.0.0",
+  "description": "Jazz Guitar Lab — learn jazz harmony on guitar",
+  "scripts": {
+    "build": "mkdir -p www && cp index.html app.js sw.js manifest.json icon.svg www/ && cp -r icons www/",
+    "sync": "npm run build && npx cap sync ios"
+  },
+  "author": "Pablo Honey",
+  "license": "ISC",
+  "dependencies": {
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/ios": "^8.4.0"
+  }
+}
