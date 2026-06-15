@@ -1,7 +1,16 @@
 # Jazz Guitar Lab — Project Context
 
+## Big Picture Goal
+Ship Jazz Guitar Lab as a **paid iOS App Store app** targeting adult guitarists who want to learn jazz harmony. Monetization: free Essentials tier (limited features) with a **$9.99 one-time IAP** to unlock Full. No subscription.
+
+**Destination:** Apple App Store via Capacitor (web→native wrapper) + Codemagic (cloud CI/CD build — no Mac required).
+**Timeline:** Ship as soon as the product is ready. User has no existing audience and is willing to spend on paid acquisition.
+**Apple Developer account:** Not yet set up ($99/year enrollment needed).
+**Support:** Simple email channel (no dedicated support infrastructure needed pre-launch).
+**Marketing:** Paid ads (Instagram/TikTok/YouTube targeting guitarists). No prior audience to leverage.
+
 ## Stack
-Single-file React 18 PWA. No build step. CDN React, all inline styles, ~2600 lines in `app.js`. Serve from `main` branch, develop on feature branches. Target: iPad (720px content width) primary, iPhone secondary.
+Single-file React 18 PWA. No build step. CDN React, all inline styles, ~3600 lines in `app.js`. Serve from `main` branch, develop on feature branches. Target: iPad (720px content width) primary, iPhone secondary.
 
 ## Active Agent Goals
 
