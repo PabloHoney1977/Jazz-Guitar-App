@@ -997,7 +997,7 @@ const OVERVIEW_STEPS=[
    title:'Keys — see all 7 chords in any key',
    text:'Tap any chord to hear it and see exactly how to play it. Change the key chip at the top and everything updates instantly.'},
   {target:'nav-custom',   view:'custom',
-   title:'Any Chord — explore freely',
+   title:'Chords — explore freely',
    text:'Pick any root and chord quality to see all its voicings. Useful for chords from charts or songs you\'re working on.'},
   {target:'nav-iivi',     view:'iivi',
    title:'Play — back-track practice',
@@ -1023,7 +1023,7 @@ const PAGE_TOURS={
     {target:'neck-area',      title:'The fretboard',
      text:'Bright dots show the selected voicing. Dim dots show every other position of those same notes on the neck. Tap any dot to hear that note.'},
     {target:'diatonic-explore',title:'Explore any chord further',
-     text:'Tap "Explore ↗" to jump to the Any Chord view with this chord already loaded — see every voicing type, add extensions, and look up which keys it belongs to.'},
+     text:'Tap "Explore ↗" to jump to the Chords view with this chord already loaded — see every voicing type, add extensions, and look up which keys it belongs to.'},
   ],
   iivi:[
     {target:'play-form-row',  title:'Choose a progression',
@@ -2671,10 +2671,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
 // ── CustomChordView ───────────────────────────────────────────────────
 // Reuses the same voicing UI as the diatonic view. Receives the active
 // chord data as props and renders controls + neck + chord boxes.
-function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey,initialVType}){
+function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey,vType,setVType}){
   dotMode=dotMode||'interval';
   const isEss=level==='essentials';
-  const [vType,setVType]=useState(initialVType||'shell');
   const [ssIdx,setSsIdx]=useState(2);
   const [invIdx,setInvIdx]=useState(0);
   const [shellIdx,setShellIdx]=useState(0);
@@ -3029,8 +3028,8 @@ function GuideView({openPreset,level}){
      items:['Over the II–V–I, pick the 3rd of each chord as your target. On beat 4 of the previous bar, play a half-step below — land on the 3rd on beat 1','Switch to Arpeggio view to see chord tones clearly — those are your landing points','Try a double chromatic into the 3rd of G7 (B): play B♭ then C on beats 3–4, land on B on beat 1 — that surrounding motion is a bebop staple']},
     {id:'full',title:'Go Full — Drop 3, Rootless, altered colors',
      preset:{view:'diatonic',key:0,deg:4,vType:'rootless',level:'full'},
-     body:['Full level adds four more tools: Drop 3 (3rd-highest note dropped, 6th-string bass — good for solo guitar), Rootless voicings (root replaced by 9th, designed to play over a walking bassist without doubling their note), Drop 2+4 and Drop 2+3 (wider spread voicings with more open sound), and extended chord types in the Any Chord view (9ths, altered, sus4).'],
-     items:['Explore Rootless voicings — the 9th replacing the root creates a richer, more ambiguous sound','In Any Chord, try a 7alt voicing over the V chord and hear the tension','From here: the Glossary below and Next Steps are your map forward']},
+     body:['Full level adds four more tools: Drop 3 (3rd-highest note dropped, 6th-string bass — good for solo guitar), Rootless voicings (root replaced by 9th, designed to play over a walking bassist without doubling their note), Drop 2+4 and Drop 2+3 (wider spread voicings with more open sound), and extended chord types in the Chords view (9ths, altered, sus4).'],
+     items:['Explore Rootless voicings — the 9th replacing the root creates a richer, more ambiguous sound','In the Chords view, try a 7alt voicing over the V chord and hear the tension','From here: the Glossary below and Next Steps are your map forward']},
   ];
   const doneCount=stages.filter(s=>done[s.id]).length;
   function stage(n,st,nextSt,dataTour){
@@ -3156,7 +3155,7 @@ function GuideView({openPreset,level}){
       ),
       gloss('shell','Shell voicing','A 3-note chord using just root, 3rd, and 7th — the 5th is omitted.',null,
         'The 5th adds little harmonic information that the other notes don\'t already provide, so shells strip it out, leaving a minimal but complete harmonic statement. The result is open-sounding and leaves room for other instruments.',
-        'Shell Form A uses skip-string layouts (e.g., strings 6-4-3). Form B uses adjacent strings (e.g., strings 6-5-4). Shells are often the first step toward playing with a bassist, since they leave the low end uncluttered. Find them under the "Shell" tab in Chords in Key or Any Chord.'
+        'Shell Form A uses skip-string layouts (e.g., strings 6-4-3). Form B uses adjacent strings (e.g., strings 6-5-4). Shells are often the first step toward playing with a bassist, since they leave the low end uncluttered. Find them under the "Shell" tab in the Keys or Chords views.'
       ),
       gloss('rootless','Rootless voicing','A 4-note chord where the 9th replaces the root.',null,
         'When a bassist plays the root, your guitar chord can drop the root entirely and substitute the 9th (an octave above the 2nd scale degree). The chord becomes richer and more complex, and doesn\'t double the bass player\'s note.',
@@ -3497,13 +3496,16 @@ function App(){
   function findInKey(root,typeIdx){
     const quality=['maj7','m7','dom7','m7b5'][typeIdx];
     if(!quality) return;
+    // Carry the voicing style across so Chords ↔ Keys stay consistent.
+    // m7b5 has no Rootless tab in Keys, but Chords can't be Rootless anyway.
+    setVType(customVType);
     // Prefer current key — search its degrees first
     for(let d=0;d<7;d++){
       if(QTYPES[d]===quality&&(KEYS[key].root+MAJOR_SCALE[d])%12===root){
         setDeg(d);setViewMode('diatonic');window.scrollTo(0,0);return;
       }
     }
-    // Fallback: search all keys
+    // Fallback: search all keys, lowest key index first
     for(let k=0;k<12;k++){
       for(let d=0;d<7;d++){
         if(QTYPES[d]===quality&&(KEYS[k].root+MAJOR_SCALE[d])%12===root){
@@ -3658,7 +3660,7 @@ function App(){
       }}):null,
 
     // ── CUSTOM CHORD VIEW ────────────────────────────────────────────
-    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey:findInKey,initialVType:customVType}):null,
+    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey:findInKey,vType:customVType,setVType:setCustomVType}):null,
 
     // ── GUIDE / PATH VIEW ────────────────────────────────────────────
     viewMode==='guide'?e(GuideView,{openPreset,level}):null,
@@ -3712,7 +3714,10 @@ function App(){
           onClick:()=>{
             const qi=['maj7','m7','dom7','m7b5'].indexOf(quality);
             if(qi>=0){setCustomTypeIdx(qi);setCustomRoot(rootPC);}
-            setCustomVType(vType);
+            // Chords view has no Rootless tab; map it to the nearest available voicing
+            let cv=vType==='rootless'?'drop3':vType;
+            if(isEss&&(cv==='drop3'||cv==='drop24'||cv==='drop23'))cv='drop2';
+            setCustomVType(cv);
             setViewMode('custom');window.scrollTo(0,0);
           },
           title:'Open this chord in the Chord Explorer — extensions, voicing types, and key lookup',
@@ -3835,7 +3840,7 @@ function App(){
       display:'flex',background:BG2,borderTop:'1px solid '+BORDER,
       paddingBottom:'env(safe-area-inset-bottom)',
       boxShadow:'0 -4px 16px rgba(0,0,0,0.35)'}},
-      [['guide','⚑','Guide'],['diatonic','◎','Keys'],['custom','♪','Any Chord'],['iivi','▶','Play'],['quiz','♫','Ear']].map(([id,icon,lbl])=>{
+      [['guide','⚑','Guide'],['diatonic','◎','Keys'],['custom','♪','Chords'],['iivi','▶','Play'],['quiz','♫','Ear']].map(([id,icon,lbl])=>{
         const act=viewMode===id;
         let tabLbl=lbl;
         if(id==='guide'){try{const d=JSON.parse(safeLS('jg-path','{}'));const n=Object.values(d).filter(Boolean).length;if(n>0) tabLbl='Guide·'+n+'✓';}catch(ex){}}
