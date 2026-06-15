@@ -1580,6 +1580,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   const [rideVolume,setRideVolume]=useState(()=>parseInt(safeLS('jg-rvol','80'),10));
   const [pinnedChords,setPinnedChords]=useState(()=>new Set());
   const [barVTypes,setBarVTypes]=useState(()=>[]);
+  const pendingBarVTypesRef=useRef(null);
   const [vType,setVType]=useState(()=>safeLS('jg-vtype','drop2'));
   const [customProg,setCustomProg]=useState(()=>{
     try{return JSON.parse(safeLS('jg-cprog','null'))||DFLT_CPROG;}
@@ -2140,10 +2141,12 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   // Auto voice-lead over bars. Resets per-bar type overrides on form/key/customProg change.
   // vType/strSetIdx changes only affect bars without a per-bar override.
   useEffect(()=>{
+    const pending=pendingBarVTypesRef.current;
+    pendingBarVTypesRef.current=null;
     const cs=chordsRef.current,brs=barsRef.current;
     if(!cs||!brs||brs.length<2) return;
-    setBarVTypes([]);
-    const av=computeAllVoicings(cs,brs,[]);
+    setBarVTypes(pending||[]);
+    const av=computeAllVoicings(cs,brs,pending||[]);
     setInvIdxs(runVL(av,av.map(()=>0),null));
     setPinnedChords(new Set());
     setActiveChordIdx(0);
@@ -2217,9 +2220,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
               e('div',{key:i,style:{display:'flex',alignItems:'center',gap:0,
                 border:'1px solid '+GOLD+'55',borderRadius:5,overflow:'hidden'}},
                 e('button',{
-                  onClick:()=>{setForm(fav.form);setBpm(fav.bpm);setVType(fav.vType);
-                    if(fav.prog&&fav.form==='custom') setCustomProg(fav.prog);
-                    setBarVTypes(fav.barVTypes||[]);},
+                  onClick:()=>{pendingBarVTypesRef.current=fav.barVTypes||null;
+                    setForm(fav.form);setBpm(fav.bpm);setVType(fav.vType);
+                    if(fav.prog&&fav.form==='custom') setCustomProg(fav.prog);},
                   title:'Restore: '+fav.lbl,
                   style:{padding:'3px 8px',cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.68rem',
                     border:'none',background:'transparent',color:GOLD,minHeight:0,whiteSpace:'nowrap'}
@@ -3310,6 +3313,35 @@ function GuideView({openPreset,level}){
   );
 }
 
+// ── Nav tab icons ─────────────────────────────────────────────────────
+function ChordDiagramIcon(){
+  return e('svg',{width:20,height:21,viewBox:'0 0 20 21',style:{display:'block',overflow:'visible'}},
+    e('rect',{x:1,y:1,width:18,height:2.5,fill:'currentColor',opacity:0.9}),
+    [3.2,7.7,12.3,16.8].map(x=>e('line',{key:x,x1:x,y1:3.5,x2:x,y2:20,stroke:'currentColor',strokeWidth:1,opacity:0.45})),
+    e('line',{x1:1,y1:9.5,x2:19,y2:9.5,stroke:'currentColor',strokeWidth:0.8,opacity:0.35}),
+    e('line',{x1:1,y1:15.5,x2:19,y2:15.5,stroke:'currentColor',strokeWidth:0.8,opacity:0.35}),
+    e('circle',{cx:7.7,cy:6.5,r:2.2,fill:'currentColor'}),
+    e('circle',{cx:12.3,cy:12.5,r:2.2,fill:'currentColor'}),
+    e('circle',{cx:3.2,cy:12.5,r:2.2,fill:'currentColor'})
+  );
+}
+function CircleOfFifthsIcon(){
+  const pts=[0,1,2,3,4,5,6,7,8,9,10,11].map(i=>{
+    const a=(i*30-90)*Math.PI/180;
+    const filled=i===0||i===5||i===7;
+    return e('circle',{key:i,
+      cx:(10+7.5*Math.cos(a)).toFixed(2),cy:(10+7.5*Math.sin(a)).toFixed(2),
+      r:filled?2.1:1.1,fill:filled?'currentColor':'none',
+      stroke:'currentColor',strokeWidth:0.8,opacity:filled?1:0.5
+    });
+  });
+  return e('svg',{width:20,height:20,viewBox:'0 0 20 20',style:{display:'block'}},
+    e('circle',{cx:10,cy:10,r:8.5,fill:'none',stroke:'currentColor',strokeWidth:1.1,opacity:0.6}),
+    ...pts,
+    e('circle',{cx:10,cy:10,r:1.5,fill:'currentColor',opacity:0.8})
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────
 function App(){
   const [theme,setTheme]=useState(()=>safeLS('jg-theme','dark'));
@@ -3812,17 +3844,9 @@ function App(){
           padding:'7px 0 5px',background:'transparent',border:'none',
           borderTop:'2px solid '+(act?'var(--txt)':'transparent'),
           color:act?'var(--txt)':BTN_OFF,fontFamily:UI_FONT,cursor:'pointer',minHeight:52}},
-          id==='diatonic'
-            ?e('svg',{width:20,height:20,viewBox:'0 0 20 20',style:{display:'block',overflow:'visible'}},
-                e('rect',{x:1,y:1,width:18,height:2.5,fill:'currentColor',opacity:0.9}),
-                [3.2,7.7,12.3,16.8].map(x=>e('line',{key:x,x1:x,y1:3.5,x2:x,y2:19.5,stroke:'currentColor',strokeWidth:1,opacity:0.45})),
-                e('line',{x1:1,y1:9.5,x2:19,y2:9.5,stroke:'currentColor',strokeWidth:0.8,opacity:0.35}),
-                e('line',{x1:1,y1:15.5,x2:19,y2:15.5,stroke:'currentColor',strokeWidth:0.8,opacity:0.35}),
-                e('circle',{cx:7.7,cy:6.5,r:2.2,fill:'currentColor'}),
-                e('circle',{cx:12.3,cy:12.5,r:2.2,fill:'currentColor'}),
-                e('circle',{cx:3.2,cy:12.5,r:2.2,fill:'currentColor'})
-              )
-            :e('span',{style:{fontSize:'1.1rem',lineHeight:1.2}},icon),
+          id==='diatonic'?e(CircleOfFifthsIcon,null):
+          id==='custom'?e(ChordDiagramIcon,null):
+          e('span',{style:{fontSize:'1.1rem',lineHeight:1.2}},icon),
           e('span',{style:{fontSize:'0.64rem',letterSpacing:'0.5px',fontWeight:act?700:400}},tabLbl)
         );
       })
