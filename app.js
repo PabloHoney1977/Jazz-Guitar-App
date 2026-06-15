@@ -2,6 +2,10 @@
 const e = React.createElement;
 const {useState, useMemo, useEffect, useRef} = React;
 
+// Safe localStorage wrappers — iOS private browsing throws SecurityError on any localStorage access
+const safeLS=(key,fb='')=>{try{const v=localStorage.getItem(key);return v!==null?v:fb;}catch(ex){return fb;}};
+const safeLSSet=(key,val)=>{try{localStorage.setItem(key,val);}catch(ex){}};
+
 // ── Tuning ───────────────────────────────────────────────────────────
 const OPEN_MIDI=[40,45,50,55,59,64];
 const OPEN_PC  =[4, 9, 2, 7,11, 4];
@@ -636,8 +640,9 @@ function GuidePlayBtn({quality}){
 }
 
 // ── EarTrainingView ───────────────────────────────────────────────────
-function EarTrainingView({level}){
+function EarTrainingView({level,onPracticed}){
   const isEss=level==='essentials';
+  const practicedRef=useRef(false);
 
   // Modes: intervals always visible; triads + 7th chords are Full only
   const [mode,setMode]=useState('intervals');
@@ -646,7 +651,7 @@ function EarTrainingView({level}){
   // Per-item breakdown: {intervals:{1:{r,w},...}, triads:{major:{r,w},...}, chords:{...}, cadences:{...}}
   const [detail,setDetail]=useState({intervals:{},triads:{},chords:{},cadences:{}});
   // Intro gate — shown once, persisted to localStorage
-  const [seenIntro,setSeenIntro]=useState(()=>!!localStorage.getItem('jg-ear-intro'));
+  const [seenIntro,setSeenIntro]=useState(()=>!!safeLS('jg-ear-intro'));
   // Round state
   const [current,setCurrent]=useState(null);
   const [revealed,setRevealed]=useState(false);
@@ -788,6 +793,7 @@ function EarTrainingView({level}){
     else{correct=answer===current.quality;key=current.quality;}
     setRevealed(true);setLastResult(correct?'right':'wrong');
     if(!correct) setWrongGuess(answer);
+    if(!practicedRef.current){practicedRef.current=true;onPracticed?.();}
     setScores(s=>({...s,[mode]:{r:s[mode].r+(correct?1:0),w:s[mode].w+(correct?0:1)}}));
     setDetail(d=>{const m={...d[mode]},e={...m[key]||{r:0,w:0}};
       e[correct?'r':'w']++;m[key]=e;return{...d,[mode]:m};});
@@ -807,7 +813,7 @@ function EarTrainingView({level}){
       'You\'ll hear notes played. Identify what you hear — interval, chord type, or quality. ',
       'The more you practice, the more your ear will recognize these sounds naturally.'
     ),
-    e('button',{onClick:()=>{setSeenIntro(true);localStorage.setItem('jg-ear-intro','1');},
+    e('button',{onClick:()=>{setSeenIntro(true);safeLSSet('jg-ear-intro','1');},
       style:{padding:'10px 28px',borderRadius:8,fontSize:'0.9rem',fontWeight:600,
         background:GOLD,color:'#000',border:'none',cursor:'pointer'}},
       'Start Training →')
@@ -955,7 +961,7 @@ function EarTrainingView({level}){
             activeIvals.map(iv=>
               e('div',{key:iv.s,style:{fontSize:'0.68rem',color:HINT,padding:'3px 6px',
                 borderRadius:4,border:'1px solid '+BORDER,lineHeight:1.4}},
-                e('span',{style:{color:BTN_OFF,fontWeight:600}},(iv.s===12?'P8':iv.s===0?'R':iv.s+'st'),' '),
+                e('span',{style:{color:BTN_OFF,fontWeight:600}},(['P1','m2','M2','m3','M3','P4','TT','P5','m6','M6','m7','M7','P8'][iv.s]||iv.name),' '),
                 iv.feel
               )
             )
@@ -1532,17 +1538,17 @@ function LedToggle({label,enabled,onToggle,color,compact}){
 
 function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,onPracticed}){
   dotMode=dotMode||'interval';
-  const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(localStorage.getItem('jg-strSet')||'2',10));
+  const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(safeLS('jg-strSet','2'),10));
   const [invIdxs,setInvIdxs]=useState([]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
   const [isPlaying,setIsPlaying]=useState(false);
-  const [bpm,setBpm]=useState(()=>Math.max(35,Math.min(150,parseInt(localStorage.getItem('jg-bpm')||'80',10))));
-  const [bassEnabled,setBassEnabled]=useState(()=>localStorage.getItem('jg-bass')!=='false');
-  const [metronomeEnabled,setMetronomeEnabled]=useState(()=>localStorage.getItem('jg-met')==='true');
+  const [bpm,setBpm]=useState(()=>Math.max(35,Math.min(150,parseInt(safeLS('jg-bpm','80'),10))));
+  const [bassEnabled,setBassEnabled]=useState(()=>safeLS('jg-bass')!=='false');
+  const [metronomeEnabled,setMetronomeEnabled]=useState(()=>safeLS('jg-met')==='true');
   const [form,setForm]=useState(()=>{
-    const f=localStorage.getItem('jg-form');
+    const f=safeLS('jg-form');
     if(f&&FORM_DEFS[f]) return f;
-    return localStorage.getItem('jg-minor')==='true'?'minor':'major';
+    return safeLS('jg-minor')==='true'?'minor':'major';
   });
   const [playingChordIdx,setPlayingChordIdx]=useState(null);
   const [playingBar,setPlayingBar]=useState(null);
@@ -1550,38 +1556,38 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   const [countIn,setCountIn]=useState(0); // 0=off, 1-4=counting
   const [starting,setStarting]=useState(false); // true between play-press and isPlaying
   const [loopCount,setLoopCount]=useState(0);
-  const [rideEnabled,setRideEnabled]=useState(()=>localStorage.getItem('jg-ride')!=='false');
+  const [rideEnabled,setRideEnabled]=useState(()=>safeLS('jg-ride')!=='false');
   const [showGTLine,setShowGTLine]=useState(false);
   const [showTip,setShowTip]=useState(false);
   const [eqGains,setEqGains]=useState(()=>{
-    try{return JSON.parse(localStorage.getItem('jg-eq')||'null')||[0,0,0,0,0];}
+    try{return JSON.parse(safeLS('jg-eq','null'))||[0,0,0,0,0];}
     catch{return [0,0,0,0,0];}
   });
   const [showEq,setShowEq]=useState(false);
-  const [guitarEnabled,setGuitarEnabled]=useState(()=>localStorage.getItem('jg-guitar')!=='false');
+  const [guitarEnabled,setGuitarEnabled]=useState(()=>safeLS('jg-guitar')!=='false');
   const [guitarEqGains,setGuitarEqGains]=useState(()=>{
-    try{return JSON.parse(localStorage.getItem('jg-geq')||'null')||[0,0,0,0,0];}
+    try{return JSON.parse(safeLS('jg-geq','null'))||[0,0,0,0,0];}
     catch{return [0,0,0,0,0];}
   });
   const [showGuitarEq,setShowGuitarEq]=useState(false);
   const [rideEqGains,setRideEqGains]=useState(()=>{
-    try{return JSON.parse(localStorage.getItem('jg-req')||'null')||[0,0,0,0,0];}
+    try{return JSON.parse(safeLS('jg-req','null'))||[0,0,0,0,0];}
     catch{return [0,0,0,0,0];}
   });
   const [showRideEq,setShowRideEq]=useState(false);
-  const [bassVolume,setBassVolume]=useState(()=>parseInt(localStorage.getItem('jg-bvol')||'80',10));
-  const [guitarVolume,setGuitarVolume]=useState(()=>parseInt(localStorage.getItem('jg-cvol')||'80',10));
-  const [rideVolume,setRideVolume]=useState(()=>parseInt(localStorage.getItem('jg-rvol')||'80',10));
+  const [bassVolume,setBassVolume]=useState(()=>parseInt(safeLS('jg-bvol','80'),10));
+  const [guitarVolume,setGuitarVolume]=useState(()=>parseInt(safeLS('jg-cvol','80'),10));
+  const [rideVolume,setRideVolume]=useState(()=>parseInt(safeLS('jg-rvol','80'),10));
   const [pinnedChords,setPinnedChords]=useState(()=>new Set());
   const [barVTypes,setBarVTypes]=useState(()=>[]);
-  const [vType,setVType]=useState(()=>localStorage.getItem('jg-vtype')||'drop2');
+  const [vType,setVType]=useState(()=>safeLS('jg-vtype','drop2'));
   const [customProg,setCustomProg]=useState(()=>{
-    try{return JSON.parse(localStorage.getItem('jg-cprog')||'null')||DFLT_CPROG;}
+    try{return JSON.parse(safeLS('jg-cprog','null'))||DFLT_CPROG;}
     catch(ex){return DFLT_CPROG;}
   });
   const [editingBar,setEditingBar]=useState(-1);
   const [savedFaves,setSavedFaves]=useState(()=>{
-    try{return JSON.parse(localStorage.getItem('jg-faves')||'null')||[];}
+    try{return JSON.parse(safeLS('jg-faves','null'))||[];}
     catch{return [];}
   });
 
@@ -1622,23 +1628,23 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   bassRef.current=bassEnabled;
   metronomeRef.current=metronomeEnabled;
 
-  useEffect(()=>{localStorage.setItem('jg-strSet',strSetIdx);},[strSetIdx]);
-  useEffect(()=>{localStorage.setItem('jg-bpm',bpm);},[bpm]);
-  useEffect(()=>{localStorage.setItem('jg-bass',bassEnabled);},[bassEnabled]);
-  useEffect(()=>{localStorage.setItem('jg-met',metronomeEnabled);},[metronomeEnabled]);
-  useEffect(()=>{localStorage.setItem('jg-ride',rideEnabled);},[rideEnabled]);
-  useEffect(()=>{localStorage.setItem('jg-eq',JSON.stringify(eqGains));},[eqGains]);
+  useEffect(()=>{safeLSSet('jg-strSet',strSetIdx);},[strSetIdx]);
+  useEffect(()=>{safeLSSet('jg-bpm',bpm);},[bpm]);
+  useEffect(()=>{safeLSSet('jg-bass',bassEnabled);},[bassEnabled]);
+  useEffect(()=>{safeLSSet('jg-met',metronomeEnabled);},[metronomeEnabled]);
+  useEffect(()=>{safeLSSet('jg-ride',rideEnabled);},[rideEnabled]);
+  useEffect(()=>{safeLSSet('jg-eq',JSON.stringify(eqGains));},[eqGains]);
   useEffect(()=>{onPlayStateChange?.(isPlaying);},[isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(()=>{localStorage.setItem('jg-guitar',guitarEnabled);},[guitarEnabled]);
-  useEffect(()=>{localStorage.setItem('jg-geq',JSON.stringify(guitarEqGains));},[guitarEqGains]);
-  useEffect(()=>{localStorage.setItem('jg-req',JSON.stringify(rideEqGains));},[rideEqGains]);
-  useEffect(()=>{localStorage.setItem('jg-bvol',bassVolume);},[bassVolume]);
-  useEffect(()=>{localStorage.setItem('jg-cvol',guitarVolume);},[guitarVolume]);
-  useEffect(()=>{localStorage.setItem('jg-rvol',rideVolume);},[rideVolume]);
-  useEffect(()=>{localStorage.setItem('jg-form',form);},[form]);
-  useEffect(()=>{localStorage.setItem('jg-cprog',JSON.stringify(customProg));},[customProg]);
-  useEffect(()=>{localStorage.setItem('jg-vtype',vType);},[vType]);
-  useEffect(()=>{localStorage.setItem('jg-faves',JSON.stringify(savedFaves));},[savedFaves]);
+  useEffect(()=>{safeLSSet('jg-guitar',guitarEnabled);},[guitarEnabled]);
+  useEffect(()=>{safeLSSet('jg-geq',JSON.stringify(guitarEqGains));},[guitarEqGains]);
+  useEffect(()=>{safeLSSet('jg-req',JSON.stringify(rideEqGains));},[rideEqGains]);
+  useEffect(()=>{safeLSSet('jg-bvol',bassVolume);},[bassVolume]);
+  useEffect(()=>{safeLSSet('jg-cvol',guitarVolume);},[guitarVolume]);
+  useEffect(()=>{safeLSSet('jg-rvol',rideVolume);},[rideVolume]);
+  useEffect(()=>{safeLSSet('jg-form',form);},[form]);
+  useEffect(()=>{safeLSSet('jg-cprog',JSON.stringify(customProg));},[customProg]);
+  useEffect(()=>{safeLSSet('jg-vtype',vType);},[vType]);
+  useEffect(()=>{safeLSSet('jg-faves',JSON.stringify(savedFaves));},[savedFaves]);
   useEffect(()=>{setScaleHint(null);},[activeChordIdx,form]);
 
   // Pre-fetch real bass guitar samples (recorded bass-electric) on mount so
@@ -2259,7 +2265,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
         // COMP + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
-          e(LedToggle,{label:'COMP',enabled:guitarEnabled,onToggle:()=>setGuitarEnabled(v=>!v),color:'#86EFAC',compact:isPlaying}),
+          e(LedToggle,{label:'GUITAR',enabled:guitarEnabled,onToggle:()=>setGuitarEnabled(v=>!v),color:'#86EFAC',compact:isPlaying}),
           e('button',{onClick:()=>{setShowGuitarEq(v=>!v);setShowEq(false);setShowRideEq(false);},'aria-label':'Comp Mix',title:'Comp EQ & Volume',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
             background:showGuitarEq?'#86EFAC22':'transparent',color:showGuitarEq?'#86EFAC':guitarEqGains.some(v=>v!==0)||guitarVolume!==80?'#86EFAC99':BTN_OFF,
@@ -2855,8 +2861,8 @@ function GuideView({openPreset,level}){
   function tog(id){setExpanded(s=>({...s,[id]:!s[id]?true:undefined}));}
   const [popTerm,setPopTerm]=useState(null);
   // Path progress, persisted
-  const [done,setDone]=useState(()=>{try{return JSON.parse(localStorage.getItem('jg-path')||'{}');}catch(ex){return{};}});
-  useEffect(()=>{localStorage.setItem('jg-path',JSON.stringify(done));},[done]);
+  const [done,setDone]=useState(()=>{try{return JSON.parse(safeLS('jg-path','{}'));}catch(ex){return{};}});
+  useEffect(()=>{safeLSSet('jg-path',JSON.stringify(done));},[done]);
   const [justDone,setJustDone]=useState(null);
   function togDone(id){
     setDone(s=>{
@@ -3306,7 +3312,7 @@ function GuideView({openPreset,level}){
 
 // ── App ───────────────────────────────────────────────────────────────
 function App(){
-  const [theme,setTheme]=useState(()=>localStorage.getItem('jg-theme')||'dark');
+  const [theme,setTheme]=useState(()=>safeLS('jg-theme','dark'));
   const [winW,setWinW]=useState(window.innerWidth);
   useEffect(()=>{
     const onResize=()=>setWinW(window.innerWidth);
@@ -3324,36 +3330,36 @@ function App(){
     document.documentElement.dataset.theme=theme;
     const m=document.getElementById('theme-meta');
     if(m) m.content=theme==='dark'?'#07070f':'#f5f5fa';
-    localStorage.setItem('jg-theme',theme);
+    safeLSSet('jg-theme',theme);
   },[theme]);
   // Global state
-  const [key,setKey]=useState(()=>parseInt(localStorage.getItem('jg-key')||'0',10));
-  const [viewMode,setViewMode]=useState(()=>localStorage.getItem('jg-viewMode')||'guide'); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
+  const [key,setKey]=useState(()=>parseInt(safeLS('jg-key','0'),10));
+  const [viewMode,setViewMode]=useState(()=>safeLS('jg-viewMode','guide')); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
   const [keyOpen,setKeyOpen]=useState(false);
-  const [dotMode,setDotMode]=useState(()=>{const m=localStorage.getItem('jg-dotMode')||'interval';return (m==='both'||m==='finger')?'interval':m;});
-  useEffect(()=>{localStorage.setItem('jg-dotMode',dotMode);},[dotMode]);
-  const [overviewStep,setOverviewStep]=useState(()=>localStorage.getItem('jg-toured')?null:0);
+  const [dotMode,setDotMode]=useState(()=>{const m=safeLS('jg-dotMode','interval');return (m==='both'||m==='finger')?'interval':m;});
+  useEffect(()=>{safeLSSet('jg-dotMode',dotMode);},[dotMode]);
+  const [overviewStep,setOverviewStep]=useState(()=>safeLS('jg-toured')?null:0);
   const [pageTourStep,setPageTourStep]=useState(null);
   const [pageTourId,setPageTourId]=useState(null);
 
   function overviewNext(){
     if(overviewStep>=OVERVIEW_STEPS.length-1){
-      setOverviewStep(null);localStorage.setItem('jg-toured','1');
+      setOverviewStep(null);safeLSSet('jg-toured','1');
       setViewMode('guide');window.scrollTo(0,0);
     } else setOverviewStep(s=>s+1);
   }
-  function overviewSkip(){setOverviewStep(null);localStorage.setItem('jg-toured','1');}
+  function overviewSkip(){setOverviewStep(null);safeLSSet('jg-toured','1');}
 
   function pageTourNext(){
     const steps=PAGE_TOURS[pageTourId]||[];
     if(pageTourStep>=steps.length-1){
       setPageTourStep(null);
-      localStorage.setItem('jg-toured-'+pageTourId,'1');
+      safeLSSet('jg-toured-'+pageTourId,'1');
       setPageTourId(null);
     } else setPageTourStep(s=>s+1);
   }
   function pageTourSkip(){
-    if(pageTourId) localStorage.setItem('jg-toured-'+pageTourId,'1');
+    if(pageTourId) safeLSSet('jg-toured-'+pageTourId,'1');
     setPageTourStep(null);setPageTourId(null);
   }
 
@@ -3364,16 +3370,16 @@ function App(){
   },[overviewStep]);
   // Level: Essentials hides the advanced half of the app. New users start
   // in Essentials; anyone who used the app before the level existed keeps Full.
-  const [level,setLevel]=useState(()=>localStorage.getItem('jg-level')||'essentials');
+  const [level,setLevel]=useState(()=>safeLS('jg-level','essentials'));
   const isEss=level==='essentials';
   const [iiviPlaying,setIiviPlaying]=useState(false);
   // Clear playing state when navigating away from the play tab
   useEffect(()=>{ if(viewMode!=='iivi') setIiviPlaying(false); },[viewMode]);
 
   // Streak & practice tracking
-  const [streak,setStreak]=useState(()=>parseInt(localStorage.getItem('jg-streak')||'0',10));
-  const [lastPracticeDay,setLastPracticeDay]=useState(()=>localStorage.getItem('jg-last-practice')||'');
-  const [playSessions,setPlaySessions]=useState(()=>parseInt(localStorage.getItem('jg-play-sessions')||'0',10));
+  const [streak,setStreak]=useState(()=>parseInt(safeLS('jg-streak','0'),10));
+  const [lastPracticeDay,setLastPracticeDay]=useState(()=>safeLS('jg-last-practice',''));
+  const [playSessions,setPlaySessions]=useState(()=>parseInt(safeLS('jg-play-sessions','0'),10));
 
   function markPracticed(){
     const today=new Date().toISOString().slice(0,10);
@@ -3382,8 +3388,8 @@ function App(){
     const newStreak=lastPracticeDay===yesterday?streak+1:1;
     setStreak(newStreak);
     setLastPracticeDay(today);
-    localStorage.setItem('jg-streak',newStreak);
-    localStorage.setItem('jg-last-practice',today);
+    safeLSSet('jg-streak',newStreak);
+    safeLSSet('jg-last-practice',today);
   }
 
   // Bluetooth page-turner pedal support
@@ -3427,9 +3433,9 @@ function App(){
   const [customVType,setCustomVType]=useState('shell');
 
   useEffect(()=>{setScaleIdx(0);},[deg]);
-  useEffect(()=>{localStorage.setItem('jg-key',key);},[key]);
-  useEffect(()=>{localStorage.setItem('jg-viewMode',viewMode);},[viewMode]);
-  useEffect(()=>{localStorage.setItem('jg-level',level);},[level]);
+  useEffect(()=>{safeLSSet('jg-key',key);},[key]);
+  useEffect(()=>{safeLSSet('jg-viewMode',viewMode);},[viewMode]);
+  useEffect(()=>{safeLSSet('jg-level',level);},[level]);
   // Dropping to Essentials while on an advanced tab/chord type
   useEffect(()=>{
     if(isEss){
@@ -3447,9 +3453,9 @@ function App(){
     if(p.deg!==undefined) setDeg(p.deg);
     if(p.vType) setVType(p.vType);
     if(p.ssIdx!==undefined) setSsIdx(p.ssIdx);
-    if(p.form) localStorage.setItem('jg-form',p.form);
-    if(p.bpm!==undefined) localStorage.setItem('jg-bpm',String(p.bpm));
-    if(p.vType&&p.view==='iivi') localStorage.setItem('jg-vtype',p.vType);
+    if(p.form) safeLSSet('jg-form',p.form);
+    if(p.bpm!==undefined) safeLSSet('jg-bpm',String(p.bpm));
+    if(p.vType&&p.view==='iivi') safeLSSet('jg-vtype',p.vType);
     setViewMode(p.view||'diatonic');
     window.scrollTo(0,0);
   }
@@ -3611,7 +3617,7 @@ function App(){
       onPracticed:()=>{
         const ns=playSessions+1;
         setPlaySessions(ns);
-        localStorage.setItem('jg-play-sessions',ns);
+        safeLSSet('jg-play-sessions',ns);
         markPracticed();
       }}):null,
 
@@ -3622,7 +3628,7 @@ function App(){
     viewMode==='guide'?e(GuideView,{openPreset,level}):null,
 
     // ── EAR TRAINING VIEW ────────────────────────────────────────────
-    viewMode==='quiz'?e(EarTrainingView,{level}):null,
+    viewMode==='quiz'?e(EarTrainingView,{level,onPracticed:markPracticed}):null,
 
     // ── DIATONIC VIEW ────────────────────────────────────────────────
     viewMode==='diatonic'?e('div',null,
@@ -3792,7 +3798,7 @@ function App(){
       [['guide','⚑','Guide'],['diatonic','◎','Keys'],['custom','♪','Any Chord'],['iivi','▶','Play'],['quiz','♫','Ear']].map(([id,icon,lbl])=>{
         const act=viewMode===id;
         let tabLbl=lbl;
-        if(id==='guide'){try{const d=JSON.parse(localStorage.getItem('jg-path')||'{}');const n=Object.values(d).filter(Boolean).length;if(n>0) tabLbl='Guide·'+n+'✓';}catch(ex){}}
+        if(id==='guide'){try{const d=JSON.parse(safeLS('jg-path','{}'));const n=Object.values(d).filter(Boolean).length;if(n>0) tabLbl='Guide·'+n+'✓';}catch(ex){}}
         return e('button',{key:id,'data-tour':'nav-'+id,onClick:()=>{setViewMode(id);window.scrollTo(0,0);},style:{
           flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:1,
           padding:'7px 0 5px',background:'transparent',border:'none',
