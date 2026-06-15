@@ -440,13 +440,13 @@ function playChordPreview(voicing,strings){
 // ── DotModeToggle ─────────────────────────────────────────────────────
 function DotModeToggle({dotMode,setDotMode}){
   const opts=[{id:'interval',lbl:'Interval'},{id:'note',lbl:'Note'}];
-  return e('div',{style:{display:'flex',alignItems:'center',gap:6,marginBottom:6}},
-    e('span',{style:{fontSize:'0.68rem',color:'var(--lbl)',letterSpacing:'0.5px',flexShrink:0}},'● Dots'),
+  return e('div',{style:{display:'flex',alignItems:'center',gap:6}},
+    e('span',{style:{fontSize:'0.65rem',color:'var(--lbl)',letterSpacing:'0.5px',flexShrink:0}},'Dots'),
     e('div',{style:{display:'flex',border:'1px solid var(--btn-brd)',borderRadius:14,overflow:'hidden'}},
       opts.map(({id,lbl})=>e('button',{key:id,onClick:()=>setDotMode(id),style:{
-        padding:'3px 10px',fontFamily:UI_FONT,fontSize:'0.69rem',border:'none',cursor:'pointer',
+        padding:'2px 10px',fontFamily:UI_FONT,fontSize:'0.65rem',border:'none',cursor:'pointer',
         background:dotMode===id?'var(--bg)':'transparent',
-        color:dotMode===id?'var(--txt)':'var(--btn-off)',fontWeight:dotMode===id?700:400,minHeight:44
+        color:dotMode===id?'var(--txt)':'var(--btn-off)',fontWeight:dotMode===id?700:400,minHeight:36
       }},lbl))
     )
   );
@@ -467,11 +467,11 @@ function GuitarToggle({level,setLevel}){
       letterSpacing:'0.4px',userSelect:'none',lineHeight:1.2,
       color:isBasic?'#C084FC':'var(--btn-off)',fontWeight:isBasic?700:400,
       opacity:isBasic?1:0.3,
-    }},'Essentials'),
+    }},'Basics'),
     e('button',{
       onClick:()=>setLevel(isBasic?'full':'essentials'),
-      'aria-label':'Currently '+(isBasic?'Essentials':'Full')+' — tap to switch',
-      title:isBasic?'Switch to Full: adds Drop 3, Rootless voicings, Altered scale, extended chord types (9th, sus, altered)':'Switch to Essentials: simplified view for learning the basics',
+      'aria-label':'Currently '+(isBasic?'Basics':'Full')+' — tap to switch',
+      title:isBasic?'Switch to Full: adds Drop 3, Rootless voicings, Altered scale, extended chord types (9th, sus, altered)':'Switch to Basics: simplified view for learning the fundamentals',
       style:{background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:0},
     },
       e('svg',{width:52,height:52,viewBox:'0 0 52 52',style:{display:'block'}},
@@ -662,18 +662,18 @@ function EarTrainingView({level,onPracticed}){
 
   // ── Data ──
   const IVALS=[
-    {s:1, name:'Minor 2nd', feel:'Half-step — sharp dissonance'},
-    {s:2, name:'Major 2nd', feel:'Whole-step — mild tension'},
-    {s:3, name:'Minor 3rd', feel:'Minor quality — dark, introspective'},
-    {s:4, name:'Major 3rd', feel:'Major quality — bright, open'},
-    {s:5, name:'Perfect 4th',feel:'"Here Comes the Bride" opening'},
-    {s:6, name:'Tritone',   feel:'Maximum tension — splits the octave evenly'},
-    {s:7, name:'Perfect 5th',feel:'Strong, hollow — "Star Wars" theme opening'},
-    {s:8, name:'Minor 6th', feel:'Dark and searching'},
-    {s:9, name:'Major 6th', feel:'Warm, bossa-friendly — "My Bonnie Lies Over the Ocean"'},
-    {s:10,name:'Minor 7th', feel:'Bluesy pull — dominant chord color'},
-    {s:11,name:'Major 7th', feel:'Yearning — pulls toward the octave'},
-    {s:12,name:'Octave',    feel:'Same note, one octave up — complete resolution'},
+    {s:1, name:'Minor 2nd', feel:'"Jaws" 2-note shark motif · "Mission: Impossible" theme'},
+    {s:2, name:'Major 2nd', feel:'"Happy Birthday" opening step (C→D) · "Frère Jacques"'},
+    {s:3, name:'Minor 3rd', feel:'"Smoke on the Water" main riff · "Greensleeves" opening'},
+    {s:4, name:'Major 3rd', feel:'"When the Saints Go Marching In" · "Morning" by Grieg'},
+    {s:5, name:'Perfect 4th',feel:'"Here Comes the Bride" · "Amazing Grace" (G→C)'},
+    {s:6, name:'Tritone',   feel:'"The Simpsons" theme · "Maria" from West Side Story (Ma-RÍ-a)'},
+    {s:7, name:'Perfect 5th',feel:'"Star Wars" main theme · "Twinkle Twinkle" (C→G leap)'},
+    {s:8, name:'Minor 6th', feel:'"The Star-Spangled Banner" (Oh→SAY) · "Because" by The Beatles'},
+    {s:9, name:'Major 6th', feel:'"My Bonnie Lies Over the Ocean" · "Nobody Knows the Trouble I\'ve Seen"'},
+    {s:10,name:'Minor 7th', feel:'"Somewhere" from West Side Story · "Watermelon Man" opening'},
+    {s:11,name:'Major 7th', feel:'"Take On Me" (A-ha) chorus · "Don\'t Know Why" by Norah Jones'},
+    {s:12,name:'Octave',    feel:'"Somewhere Over the Rainbow" (Some-WHERE) · "Singin\' in the Rain"'},
   ];
   // Consonant-first interval pool gated by level
   const activeIvals=isEss
@@ -2198,9 +2198,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
               onClick:()=>{
                 const lbl=(FORM_DEFS[form]?.lbl||form)+' · '+bpm+'bpm · '+vType;
                 const prog=form==='custom'?customProg:undefined;
+                const bvts=barVTypes.some(Boolean)?[...barVTypes]:undefined;
                 if(savedFaves.some(f=>f.form===form&&f.bpm===bpm&&f.vType===vType&&
                   (form!=='custom'||JSON.stringify(f.prog)===JSON.stringify(prog)))) return;
-                setSavedFaves(fs=>[...fs,{form,bpm,vType,lbl,...(prog?{prog}:{})}]);
+                const extra={};if(prog)extra.prog=prog;if(bvts)extra.barVTypes=bvts;
+                setSavedFaves(fs=>[...fs,{form,bpm,vType,lbl,...extra}]);
               },
               style:{padding:'4px 10px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,
                 fontSize:'0.75rem',border:'1px solid '+BTN_BRD,background:'transparent',
@@ -2216,7 +2218,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
                 border:'1px solid '+GOLD+'55',borderRadius:5,overflow:'hidden'}},
                 e('button',{
                   onClick:()=>{setForm(fav.form);setBpm(fav.bpm);setVType(fav.vType);
-                    if(fav.prog&&fav.form==='custom') setCustomProg(fav.prog);},
+                    if(fav.prog&&fav.form==='custom') setCustomProg(fav.prog);
+                    setBarVTypes(fav.barVTypes||[]);},
                   title:'Restore: '+fav.lbl,
                   style:{padding:'3px 8px',cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.68rem',
                     border:'none',background:'transparent',color:GOLD,minHeight:0,whiteSpace:'nowrap'}
@@ -2770,13 +2773,6 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     // Extension row — Full mode only
     availExts.length>0&&!isEss?e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12,alignItems:'center'}},
       e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Extension'),
-      // "none" option
-      e('button',{onClick:()=>setExtOpt(null),title:'No extension — plain 4-note chord (root, 3rd, 5th, 7th)',style:{
-        padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
-        border:'1px solid '+(extOpt===null?'#F4A261':BTN_BRD),
-        background:extOpt===null?ACT_GOLD:BG2,
-        color:extOpt===null?'#F4A261':BTN_OFF,fontWeight:extOpt===null?700:400,minHeight:44}},
-        '—'),
       availExts.map(ex=>
         e('button',{key:ex.id,onClick:()=>setExtOpt(extOpt===ex.id?null:ex.id),style:{
           padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
@@ -2822,9 +2818,13 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'3-note voicing: root, 3rd & 7th — the 5th is omitted (it\'s implied by the context)'):null,
       vType==='arpeggio'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'All chord-tone positions on neck'):null
     ),
-    // Neck (with dot-mode toggle)
-    e('div',{style:{marginBottom:6}},setDotMode?e(DotModeToggle,{dotMode,setDotMode}):null),
-    e(ScrollNeck,{arpPos,highlight,scalePos:[],degNames,dotMode,dotKeyIdx:customRoot}),
+    // Neck (with dot-mode toggle inside)
+    e('div',{style:{border:'1px solid '+BORDER,borderRadius:6,overflow:'hidden',marginBottom:10}},
+      e(ScrollNeck,{arpPos,highlight,scalePos:[],degNames,dotMode,dotKeyIdx:customRoot}),
+      setDotMode?e('div',{style:{borderTop:'1px solid '+BORDER,padding:'4px 10px',background:BG2}},
+        e(DotModeToggle,{dotMode,setDotMode})
+      ):null
+    ),
     // Chord diagrams
     DROP_TYPES.has(vType)?
       e(DiagSection,{title:DROP_LBL[vType]+' inversions'},
@@ -3380,6 +3380,7 @@ function App(){
   const [streak,setStreak]=useState(()=>parseInt(safeLS('jg-streak','0'),10));
   const [lastPracticeDay,setLastPracticeDay]=useState(()=>safeLS('jg-last-practice',''));
   const [playSessions,setPlaySessions]=useState(()=>parseInt(safeLS('jg-play-sessions','0'),10));
+  const [streakAnim,setStreakAnim]=useState(false);
 
   function markPracticed(){
     const today=new Date().toISOString().slice(0,10);
@@ -3390,6 +3391,8 @@ function App(){
     setLastPracticeDay(today);
     safeLSSet('jg-streak',newStreak);
     safeLSSet('jg-last-practice',today);
+    setStreakAnim(true);
+    setTimeout(()=>setStreakAnim(false),900);
   }
 
   // Bluetooth page-turner pedal support
@@ -3577,7 +3580,8 @@ function App(){
       streak>0?e('div',{
         title:'Practice streak — '+streak+' day'+(streak!==1?'s':'')+'! Play or practice ear training daily to keep it going.',
         style:{display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:10,
-        border:'1px solid var(--btn-brd)',background:'var(--bg2)',flexShrink:0,cursor:'default'}},
+        border:'1px solid var(--btn-brd)',background:'var(--bg2)',flexShrink:0,cursor:'default',
+        animation:streakAnim?'streakPop 0.9s ease-out':'none',transformOrigin:'center'}},
         e('span',{style:{fontSize:'0.72rem'}},'🔥'),
         e('span',{style:{fontSize:'0.72rem',color:'var(--lbl)',fontFamily:UI_FONT}},streak+'d')
       ):null,
@@ -3711,9 +3715,13 @@ function App(){
         vType==='drop23'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'Drop 2+3: spread voicing — voices 2 and 3 from top both dropped  ·  guide tones on top'):null,
         vType==='arpeggio'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'All chord-tone positions · scale tones shown faintly'):null
       ),
-      // Neck (with dot-mode toggle)
-      e(DotModeToggle,{dotMode,setDotMode}),
-      e(ScrollNeck,{arpPos,highlight,scalePos,degNames,hlTc,dotMode,dotKeyIdx:key,dataTour:'neck-area'}),
+      // Neck (with dot-mode toggle inside)
+      e('div',{style:{border:'1px solid '+BORDER,borderRadius:6,overflow:'hidden',marginBottom:10}},
+        e(ScrollNeck,{arpPos,highlight,scalePos,degNames,hlTc,dotMode,dotKeyIdx:key,dataTour:'neck-area'}),
+        e('div',{style:{borderTop:'1px solid '+BORDER,padding:'4px 10px',background:BG2}},
+          e(DotModeToggle,{dotMode,setDotMode})
+        )
+      ),
       // Scale panel (diatonic only)
       e(ScalePanel,{degree:deg,chordRoot:rootPC,tones,degNames,
         keyIdx:key,scaleIdx:safeScaleIdx,onScaleChange:setScaleIdx,level}),
@@ -3804,7 +3812,17 @@ function App(){
           padding:'7px 0 5px',background:'transparent',border:'none',
           borderTop:'2px solid '+(act?'var(--txt)':'transparent'),
           color:act?'var(--txt)':BTN_OFF,fontFamily:UI_FONT,cursor:'pointer',minHeight:52}},
-          e('span',{style:{fontSize:'1.1rem',lineHeight:1.2}},icon),
+          id==='diatonic'
+            ?e('svg',{width:20,height:20,viewBox:'0 0 20 20',style:{display:'block',overflow:'visible'}},
+                e('rect',{x:1,y:1,width:18,height:2.5,fill:'currentColor',opacity:0.9}),
+                [3.2,7.7,12.3,16.8].map(x=>e('line',{key:x,x1:x,y1:3.5,x2:x,y2:19.5,stroke:'currentColor',strokeWidth:1,opacity:0.45})),
+                e('line',{x1:1,y1:9.5,x2:19,y2:9.5,stroke:'currentColor',strokeWidth:0.8,opacity:0.35}),
+                e('line',{x1:1,y1:15.5,x2:19,y2:15.5,stroke:'currentColor',strokeWidth:0.8,opacity:0.35}),
+                e('circle',{cx:7.7,cy:6.5,r:2.2,fill:'currentColor'}),
+                e('circle',{cx:12.3,cy:12.5,r:2.2,fill:'currentColor'}),
+                e('circle',{cx:3.2,cy:12.5,r:2.2,fill:'currentColor'})
+              )
+            :e('span',{style:{fontSize:'1.1rem',lineHeight:1.2}},icon),
           e('span',{style:{fontSize:'0.64rem',letterSpacing:'0.5px',fontWeight:act?700:400}},tabLbl)
         );
       })
