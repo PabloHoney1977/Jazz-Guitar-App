@@ -3524,6 +3524,7 @@ function App(){
   const [playSessions,setPlaySessions]=useState(()=>parseInt(safeLS('jg-play-sessions','0'),10));
   const [streakAnim,setStreakAnim]=useState(false);
   const [streakAnimPending,setStreakAnimPending]=useState(false);
+  const [streakMilestone,setStreakMilestone]=useState(null); // day count at which milestone fires
 
   // Fire deferred streak animation when play stops
   useEffect(()=>{
@@ -3534,6 +3535,7 @@ function App(){
     }
   },[iiviPlaying,streakAnimPending]);
 
+  const STREAK_MILESTONES=[3,7,14,30];
   function markPracticed(){
     const today=new Date().toISOString().slice(0,10);
     if(lastPracticeDay===today) return;
@@ -3543,6 +3545,10 @@ function App(){
     setLastPracticeDay(today);
     safeLSSet('jg-streak',newStreak);
     safeLSSet('jg-last-practice',today);
+    if(STREAK_MILESTONES.includes(newStreak)){
+      setStreakMilestone(newStreak);
+      setTimeout(()=>setStreakMilestone(null),5400);
+    }
     if(iiviPlaying){
       setStreakAnimPending(true);
     } else {
@@ -3951,6 +3957,34 @@ function App(){
       e('div',{style:{marginTop:8,padding:'6px 14px',fontSize:'0.79rem',color:LBL,lineHeight:1.7}},
         e('span',{style:{color:GOLD,fontWeight:700}},'△'),
         ' = major 7th (Δ7 interval).  Shell Form A: skip-string.  Shell Form B: adjacent-string R-3-7.  Drop 2: 2nd-highest note dropped an octave.  Drop 3: 3rd-highest dropped.  Rootless: 9th replaces root.')
+    ):null,
+
+    // ── Streak milestone card ─────────────────────────────────────────
+    streakMilestone?e('div',{onClick:()=>setStreakMilestone(null),
+      style:{position:'fixed',inset:0,zIndex:210,display:'flex',alignItems:'flex-end',
+        justifyContent:'center',paddingBottom:'calc(72px + env(safe-area-inset-bottom))'}},
+      e('div',{onClick:ev=>ev.stopPropagation(),
+        style:{width:'min(400px,calc(100vw - 32px))',borderRadius:16,overflow:'hidden',
+          boxShadow:'0 -8px 40px rgba(0,0,0,0.7)',
+          animation:'milestoneUp 5.4s cubic-bezier(.22,.68,0,1.2) both'}},
+        e('div',{style:{
+          background:`linear-gradient(135deg,#1a1000 0%,#0d0d1e 100%)`,
+          border:'1px solid '+GOLD+'80',borderRadius:16,padding:'22px 24px 18px'}},
+          e('div',{style:{fontSize:'2.4rem',textAlign:'center',marginBottom:8}},
+            streakMilestone===3?'🔥':'🔥'),
+          e('div',{style:{fontFamily:SERIF,fontSize:'1.6rem',fontWeight:700,color:GOLD,
+            textAlign:'center',marginBottom:6}},
+            streakMilestone+'-day streak'),
+          e('div',{style:{fontSize:'0.84rem',lineHeight:1.65,color:'var(--txt)',fontFamily:UI_FONT,
+            textAlign:'center',maxWidth:280,margin:'0 auto'}},
+            streakMilestone===3?'Three days in a row — the habit is forming. Most people quit before this.':
+            streakMilestone===7?'One full week. That\'s more consistent practice than most guitarists manage. Keep it going.':
+            streakMilestone===14?'Two weeks straight. You\'re past the "getting started" phase — this is real progress.':
+            'Thirty days. That\'s commitment. Jazz takes time to absorb; you\'re giving it that time.'),
+          e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT,
+            textAlign:'center',marginTop:12}},'Tap to dismiss')
+        )
+      )
     ):null,
 
     // ── Tour overlay ─────────────────────────────────────────────────
