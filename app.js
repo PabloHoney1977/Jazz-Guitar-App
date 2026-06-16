@@ -647,6 +647,30 @@ function GuidePlayBtn({quality}){
   }},'▶ hear');
 }
 
+// ── Glossary definitions (used in Guide; also available to any tab) ───
+const GLOSS_DEFS={
+  '7th':{term:'7th chord',short:'A 4-note chord (root–3–5–7) — the extra note gives jazz its richness.',detail:'Jazz chords almost always include the 7th. It\'s the note that distinguishes a plain major triad (C–E–G) from a jazz Cmaj7 (C–E–G–B). The flavor of the 7th — major, minor, or diminished — is what creates the four chord qualities: maj7 (lush), m7 (floating), dom7 (tense), ø7 (searching).'},
+  'maj7':{term:'Major 7 (maj7)',short:'Stable and lush — the "home" chord. 7th sits a half-step below the octave.',detail:'Spelled root–3–5–Δ7. In C: C–E–G–B. The major 7th (B) is a half-step below the octave — close to resolution but not quite there, which gives it a gentle, suspended beauty. This is the I and IV chord in major keys. In jazz ballads and bossa nova, maj7 is the most "at rest" sound.'},
+  'dom7':{term:'Dominant 7 (7)',short:'The tension chord — its tritone (3rd + ♭7) pulls strongly toward resolution.',detail:'Spelled root–3–5–♭7. In G: G–B–D–F. The 3rd (B) and ♭7 (F) are a tritone apart — the most dissonant interval. Both notes want to resolve: B moves up a half-step to C, F moves down to E. Those are the root and 3rd of Cmaj7. This is the V chord — the engine of all tonal resolution.'},
+  'm7':{term:'Minor 7 (m7)',short:'Smooth and floating — neither fully resolved nor urgently tense.',detail:'Spelled root–♭3–5–♭7. In D: D–F–A–C. The flat 3rd darkens the quality; the flat 7th (shared with dominant 7) prevents it from settling. It\'s the II, III, and VI chord in major keys. Because it lacks the tritone of a dominant chord, it doesn\'t pull hard toward anything — it floats. Play Dm7 → G7 → Cmaj7 to hear it act as tension-before-the-tension.'},
+  'halfdim':{term:'Half-diminished (ø7)',short:'m7 with a flattened 5th — more tense and searching than a regular minor 7.',detail:'Spelled root–♭3–♭5–♭7. In B: B–D–F–A. The flattened 5th (F instead of F#) adds instability. This chord naturally occurs on the VII degree of major keys and on the II degree of minor keys (where it\'s written IIø or IIm7♭5). In C major, Bm7♭5 is the viiø7 — it shares G7\'s guide tones (B, D, F), so it acts as a rootless dominant that resolves to the I with extra darkness.'},
+  'inv':{term:'Inversion',short:'Which chord tone sits lowest — root, 3rd, 5th, or 7th in the bass.',detail:'Root position: root on the bottom (C–E–G–B). 1st inversion: 3rd on the bottom (E–G–B–C). 2nd inversion: 5th on the bottom. 3rd inversion: 7th on the bottom. For Drop 2 voicings, all four inversions give you different positions on the neck. Voice leading chains them together so the hand moves minimally between chords.'},
+  'drop2':{term:'Drop 2',short:'Second-highest note dropped an octave — spreads the chord across 4 adjacent strings.',detail:'Start with a closed chord (all notes within one octave, low to high: C–E–G–B). Drop 2 takes the second-from-top note (G) and moves it down an octave, producing C–G–B–E across 4 adjacent strings. This creates the characteristic jazz comping voicing — full, playable, four-note grip. Every chord has four Drop 2 inversions, each at a different neck position.'},
+  'vl':{term:'Voice leading',short:'Moving each string to the nearest available note in the next chord.',detail:'Good voice leading means each string moves as little as possible between chords. When G7 resolves to Cmaj7, the B (3rd of G7) stays as B (7th of Cmaj7), and the F (7th of G7) moves a half-step to E (3rd of Cmaj7). The bass moves, but the inner voices barely do. This is what makes chords "flow" — the opposite is jumping shapes all over the neck.'},
+  'guide':{term:'Guide tones',short:'The 3rd and 7th — they define chord quality and move most dramatically chord to chord.',detail:'In any 7th chord, the root tells you the name and the 5th is mostly filler. The 3rd and 7th do all the work: the 3rd sets major vs. minor quality; the 7th sets dom7 vs. maj7. In a II–V–I progression, the guide tones swap roles on each chord — the 7th of G7 (F) becomes the 3rd of Cmaj7 (E after a half-step resolution). Shell voicings isolate these two notes plus the root.'},
+  'diat':{term:'Diatonic',short:'Notes or chords belonging entirely to one key, with no outside alterations.',detail:'In C major, the 7 diatonic notes are C–D–E–F–G–A–B. Any melody, chord, or scale that uses only these 7 notes is diatonic to C major. The 7 diatonic chords are Cmaj7–Dm7–Em7–Fmaj7–G7–Am7–Bm7♭5. "Chromatic" or "outside" means using notes not in the key. Jazz constantly moves between diatonic and chromatic — in and out — for tension and color.'},
+  'shell':{term:'Shell voicing',short:'3-note voicing: root + 3rd + 7th — the 5th is omitted.',detail:'Shell voicings use only the 3 most essential notes: root, 3rd, and 7th. The 5th is dropped because it adds little harmonic information (it just confirms the sound is "open"). The result is lighter, lower, and easier to move. Form A uses skip-string layouts (strings 6-4-3 or 5-3-2); Form B uses adjacent strings (6-5-4 or 5-4-3). Both are R–3–7 but in different orders and octave placements.'},
+  'rootless':{term:'Rootless voicing',short:'Root replaced by 9th — designed to play over a bassist without doubling their note.',detail:'A rootless voicing replaces the root with the 9th (the note a whole-step above the root). Cmaj9 rootless: E–G–B–D instead of C–E–G–B. Without the root, the chord sits higher, has less low-end clutter, and leaves more sonic space for the bassist\'s walking notes. Type A (3-5-7-9) and Type B (7-9-3-5) are two inversions of the same four notes.'},
+  'arp':{term:'Arpeggio',short:'Chord notes played one at a time rather than simultaneously.',detail:'An arpeggio is a chord broken up into individual notes, usually ascending or descending. On guitar, strumming each string individually creates an arpeggiated effect. In jazz soloing, outlining the chord tones as an arpeggio ("playing through the changes") is the foundation — hitting the right chord tones at the right time, even with passing notes in between.'},
+  'modes':{term:'Modes',short:'Scales starting on different degrees of a parent scale (Dorian, Mixolydian, etc.).',detail:'Every major scale generates 7 modes by starting on each successive degree. C major (C–D–E–F–G–A–B) starting on D gives D Dorian (D–E–F–G–A–B–C) — same notes, different root. Each mode has a distinct color: Dorian (ii) is the standard minor; Mixolydian (V) has a dominant quality; Lydian (IV) has a #4 that sounds bright and floating. In jazz, modes label which scale to use over each chord.'},
+  'roman':{term:'Roman numerals',short:'I, II, V etc. — chord position relative to the key, independent of key signature.',detail:'Roman numerals describe where a chord sits in the key, not what key it\'s in. In C major, Cmaj7 = I, Dm7 = II, G7 = V. In Bb major, Bbmaj7 = I, Cm7 = II, F7 = V. The II–V–I pattern is always the same relationship regardless of key. Uppercase (I, IV, V) = major or dominant; lowercase (ii, iii, vi) = minor. Learning progressions by Roman numeral means you understand them in every key at once.'},
+  'tritone':{term:'Tritone',short:'6 semitones apart — the most tense interval, wants to resolve by half-step in both directions.',detail:'A tritone is exactly half an octave — 6 semitones. C to F# (or Gb). It\'s the most dissonant interval in Western music, historically called "diabolus in musica" (devil in music). In a G7 chord, the tritone lives between the 3rd (B) and ♭7 (F). B wants to move up a half-step to C; F wants to move down to E. That pull is why V7 resolves so powerfully to I.'},
+  'tritone_sub':{term:'Tritone substitution',short:'Replacing V7 with a dominant 7 a tritone away (♭II7). Both share the same tritone and resolve identically, but ♭II7 approaches by half-step in the bass.',detail:'G7 and D♭7 share the same tritone: B/F (in G7) = C♭/F (in D♭7, enharmonically). Because they share the tritone, both resolve equally well to Cmaj7. D♭7 approaches C from a half-step above in the bass — a smooth chromatic descent. So instead of G7 → Cmaj7 (bass leaps a 4th), you play D♭7 → Cmaj7 (bass steps down by half-step). This substitution is heard everywhere in jazz and bebop.'},
+  'sec_dom':{term:'Secondary dominant',short:'A V7 chord temporarily pointing to a chord other than I — creates chromatic motion and brief tonicization.',detail:'Any diatonic chord can temporarily become a local I, with a dominant 7 built a 5th above it. In C major: G7 is V7/I. But D7 isn\'t diatonic — it points to Gm7 (ii) as if it were I. Writing it V7/ii names the relationship. Common ones: V7/ii (D7 → Dm7), V7/IV (F#7 → Fmaj7), V7/V (A7 → G7), V7/vi (B7 → Am7). They create brief tonicizations — momentary shifts of gravity — before returning to the main key.'},
+  'modal_int':{term:'Modal interchange (borrowing)',short:'Using chords from the parallel minor or major key for unexpected color without leaving the key.',detail:'In C major, you can "borrow" chords from C minor (C–D–Eb–F–G–Ab–Bb). Common borrowed chords: Fm7 (IVm — the note Ab adds darkness), Bbmaj7 (♭VII — a whole-step below the root), Ab major (♭VI — very dramatic). The defining moment is when a chord tone outside the key (like Ab in C major) appears — your ear notices the shift but it doesn\'t feel like a key change. Common in Beatles songs, jazz ballads, and pop standards.'},
+  'approach_note':{term:'Chromatic approach note',short:'A half-step above or below a chord tone, played just before the chord — creates bebop\'s characteristic lean-and-land feel.',detail:'Play any note one half-step above or below a target chord tone on the beat just before the chord arrives. On beat 4 of the bar before Cmaj7, play a C# or B — then land on C when the chord hits. The momentary half-step creates a small lean of tension that releases immediately. String a few of these together and you sound like bebop. Charlie Parker and Dizzy Gillespie built entire vocabulary systems around this principle.'},
+};
+
 // ── EarTrainingView ───────────────────────────────────────────────────
 function EarTrainingView({level,onPracticed,onUpgrade}){
   const isEss=level==='essentials';
@@ -2887,7 +2911,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
 }
 
 // ── GuideView — the Path + glossary ──────────────────────────────────
-function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
+function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade,onPracticed}){
   const [expanded,setExpanded]=useState({});
   function tog(id){setExpanded(s=>({...s,[id]:!s[id]?true:undefined}));}
   const [popTerm,setPopTerm]=useState(null);
@@ -2898,7 +2922,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
   // Granular per-stage checklist progress, persisted separately
   const [doneItems,setDoneItems]=useState(()=>{try{return JSON.parse(safeLS('jg-path-items','{}'));}catch(ex){return{};}});
   useEffect(()=>{safeLSSet('jg-path-items',JSON.stringify(doneItems));},[doneItems]);
-  function toggleItem(stId,i){setDoneItems(s=>{const k=stId+':'+i;return {...s,[k]:!s[k]?true:undefined};});}
+  function toggleItem(stId,i){setDoneItems(s=>{const k=stId+':'+i;const wasUnchecked=!s[k];if(wasUnchecked)onPracticed?.();return {...s,[k]:wasUnchecked?true:undefined};});}
   const [justDone,setJustDone]=useState(null);
   const firstIncomplete=()=>{try{const d=JSON.parse(safeLS('jg-path','{}'));return STAGE_IDS.find(id=>!d[id]);}catch(ex){return null;}};
   const [stagesOpen,setStagesOpen]=useState(()=>{
@@ -3046,7 +3070,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
            ['The ',term('guide','guide tones'),' swap roles on each chord: the 7th of G7 (F) resolves to the 3rd of Cmaj7 (E), and the 3rd of G7 (B) approaches the root. This guide tone chain is the engine of jazz ',term('vl','voice leading'),'.']],
      items:['Slow the Play tab to 55 BPM and comp shells through the II–V–I — listen for how the V "leans" into the I',['Pick a different II ',term('inv','inversion'),' — the app voice-leads the V and I to follow automatically'],'Ear training: open the Ear tab → Cadences → listen for the II–V pattern — you\'ve been playing it, now hear it cold','Done when: you can play a ii–V–I from memory in C, F, and G without looking']},
     // ── PHASE 2: VOICINGS ────────────────────────────────────────────────
-    {id:'drop2a',phase:'Voicings',phaseLabel:'Phase 2 — Voicings & Texture',
+    {id:'drop2a',phase:'Voicings',phaseLabel:'Phase 2 — Voicings & Texture',fullPreset:true,
      phaseNote:'The voicing family, simplest to richest: Shells (root-3-7) → Drop 2 (add the 5th back for a full 4-note grip) → Rootless (drop the root, add the 9th — for playing over a bassist) → Drop 3 (a wider spread). Each one builds on the shapes before it.',
      title:'Drop 2 — learning the shapes',
      time:'3–5 weeks for the shapes',
@@ -3054,7 +3078,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
      body:[[term('drop2','Drop 2'),' takes a "closed" chord (all 4 notes within one octave) and drops the second-highest note down an octave. This spreads the chord across 4 adjacent strings in a span the hand can reach. Drop 2 is the standard jazz guitar comping voicing.'],
            ['Start with one string set: strings 1–4. Learn Drop 2 for all four chord qualities in C. Every chord has four ',term('inv','inversions'),' — same 4 notes, different note on the bottom. Get the shapes in your fingers before thinking about connecting them.']],
      items:['On strings 1–4: find Drop 2 root position for Cmaj7, Dm7, G7, and Bm7♭5','Learn all 4 inversions of Cmaj7 on strings 1–4 — play them low to high and back','Do the same for Dm7 and G7 — now you have 12 shapes for a ii–V–I','Play each shape cleanly at 50 BPM — accuracy first, speed follows','Done when: all 4 qualities, all 4 inversions on strings 1–4, no hesitation on any shape']},
-    {id:'drop2b',phase:'Voicings',
+    {id:'drop2b',phase:'Voicings',fullPreset:true,
      title:'Drop 2 — connecting the chords',
      time:'6–10 weeks to connect smoothly',
      preset:{view:'diatonic',key:0,deg:0,vType:'drop2'},
@@ -3087,7 +3111,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
            'The Ear tab has two modes: Interval recognition (melodic and harmonic — identify the distance between two notes) and Cadence recognition (identify chord progressions by ear). Start with intervals: Perfect 4th, 5th, and Octave first. Then add the intervals that define the chord qualities you already know — Major 7th (the sound of maj7), Minor 7th (the sound of dom7 and m7). Cadences: the II–V pattern is the most valuable. You\'ve been playing it for weeks; now identify it by ear without looking.',
            'Song mnemonics are provided for every interval — they work because your brain already knows the feeling of that distance. Major 7th: "Take On Me" chorus. Tritone: "The Simpsons" theme. Octave: "Somewhere Over the Rainbow." Use what sticks.'],
      items:['Ear tab → Intervals: practice Perfect 4th, 5th, and Octave first — the most common in jazz','Add Major 7th and Minor 7th — these are the defining intervals of maj7 and m7/dom7 chords','Ear tab → Cadences: listen for II–V and V–I — you\'ve been playing these, now identify them cold','Full tier unlocks all 12 intervals and the complete cadence suite (II–V–I, I–VI, iv–I)','10–15 min of ear training per session accelerates everything else faster than extra shape drilling']},
-    {id:'turnaround',phase:'Forms',
+    {id:'turnaround',phase:'Forms',fullPreset:true,
      title:'The turnaround — I–vi–ii–V',
      time:'2–4 weeks',
      preset:{view:'diatonic',key:0,deg:5,vType:'shell'},
@@ -3096,14 +3120,14 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
            ['The jazzier version swaps the vi for a ',term('sec_dom','secondary dominant'),': I–VI7–ii–V (Cmaj7 – A7 – Dm7 – G7). The A7 pulls harder into Dm7 than a plain Am7 does. You can also start on iii: iii–vi–ii–V (Em7 – Am7 – Dm7 – G7), a smooth descending cascade. All three are the same idea — a short, repeating engine that loops back home.'],
            'Open Play → Turnaround form to loop the I–VI7–II–V shape at tempo. The dominant VI (A7) is built in — notice how it pulls harder into Dm7 than Am7 would.'],
      items:['In Keys, find shells for Cmaj7, Am7, Dm7, G7 — then play them in a loop, top back to top','Play tab → select the Turnaround form and loop at 60 BPM — hear the VI7 (A7) pulling into Dm7','Try transposing to G and F — same shape, different starting point','Listen for turnarounds in tunes you know — they\'re almost always the last two bars before the form repeats','Done when: you can loop a I–vi–ii–V from memory and hear how it resets the form']},
-    {id:'blues',phase:'Forms',
+    {id:'blues',phase:'Forms',fullPreset:true,
      title:'The jazz blues form',
      time:'4–6 weeks',
      preset:{view:'iivi',key:5,form:'blues',bpm:66},
      body:['The 12-bar blues is one of the most-played forms in all of music. Jazz transformed it with richer chords and a II–V–I in bars 9–10. The result — jazz blues — sounds unmistakably jazz while keeping the familiar 12-bar architecture.',
            'Jazz blues in F: bars 1–4 on F7 (I), bars 5–6 on B♭7 (IV), bar 7 back to F7, bar 8 adds D7 (a secondary dominant — V7/ii), bars 9–10 are a II–V (Gm7–C7), bar 11 returns to F7, bar 12 is a V7 turnaround. F is the traditional jazz-blues key — "Now\'s the Time," "Billie\'s Bounce," "Blues for Alice" are all in F.'],
      items:['Loop the Jazz Blues form with shells only — one chord per bar, any inversion','Identify the II–V–I in bars 9–11 — it\'s the same progression you already know','Listen to Billie\'s Bounce or Now\'s the Time: can you follow the 12-bar form and hear the II–V coming?','Then upgrade: try Drop 2 on bars 1 and 5 first, then gradually through the rest of the form']},
-    {id:'minor',phase:'Forms',
+    {id:'minor',phase:'Forms',fullPreset:true,
      title:'The minor II–V–I',
      time:'3–4 weeks',
      preset:{view:'iivi',key:0,form:'minor',bpm:60},
@@ -3111,14 +3135,14 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
            'The V7 in a minor context often uses an altered dominant (♭9 or ♯9). The altered scale — the 7th mode of melodic minor, where every extension is altered (♭9, ♯9, ♯11, ♭13) — provides all these tensions naturally. "Autumn Leaves" alternates major and minor II–V–Is back to back — the most-studied standard for learning this distinction.',
            'Loop major then minor II–V–I back to back in the same key and listen to the contrast. The half-diminished chord has a specific "searching" quality that ear training makes immediately recognizable.'],
      items:['Loop major then minor II–V–I in the same key — hear the contrast in the IIø vs. IIm7','Listen for how the ♭5 of the IIø pulls downward into the V7 root','Ear training → Cadences: try to distinguish major vs. minor II–V by sound alone — the half-diminished is the tell']},
-    {id:'tritone_sub',phase:'Forms',
+    {id:'tritone_sub',phase:'Forms',fullPreset:true,
      title:'Tritone substitution — same destination, different road',
      time:'3–5 weeks',
      preset:{view:'iivi',key:0,form:'tritone',bpm:60},
      body:[['The ',term('tritone_sub','tritone substitution'),' replaces the V7 chord with another dominant 7 a ',term('tritone','tritone'),' (6 semitones) away. In C: G7 can be replaced by D♭7. Both chords share the same tritone — B and F — so both resolve identically to Cmaj7. The difference is the bass: G7 drops a 5th (G→C), D♭7 slides a half-step (D♭→C). That chromatic bass descent is the signature sound.'],
            ['The ',term('guide','guide tones'),' do the same job either way; only the bass and outer color change. Tap the Tritone Sub form to hear both approaches back to back.']],
      items:['Bars 1–4: standard V7 (bass drops a 4th G→C). Bars 5–8: tritone sub (bass slides D♭→C) — hear the difference','On the D♭7 bar, try a Drop 2 D♭7 — root on string 5, fret 9 (same shape as G7 but 6 frets higher)',['Wherever you see a V7 resolving to I in a standard, try the tritone sub — "Autumn Leaves," "All The Things You Are," and most bebop heads use them']]},
-    {id:'secdom',phase:'Forms',
+    {id:'secdom',phase:'Forms',fullPreset:true,
      title:'Secondary dominants — borrowing V7 for any chord',
      time:'4–6 weeks',
      preset:{view:'iivi',key:0,form:'secdom',bpm:60},
@@ -3126,7 +3150,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
            ['Secondary dominants are often tritone-substituted: A♭7 moving to Gm7 is just D7 (V7/ii) with a tritone sub — same function, chromatically recolored. The Sec. Dom. form in Play chains them into a cascade of chromatic bass resolutions.']],
      items:['In C: D7 → Gm7 is V7/ii — hear the pull in the Sec. Dom. form','Look for them in standards: the D7 in bar 8 of the jazz blues, the A7 before Am7 in "Autumn Leaves"',['Secondary dominants are often tritone-subbed: A♭7→Gm7 is D7 (V7/ii) ',term('tritone_sub','tritone-subbed'),' — same function, different color']]},
     // ── PHASE 4: APPLICATION ─────────────────────────────────────────────
-    {id:'keys',phase:'Application',phaseLabel:'Phase 4 — Application',
+    {id:'keys',phase:'Application',phaseLabel:'Phase 4 — Application',fullPreset:true,
      title:'Take it around the keys',
      time:'3+ months to cover all 12',
      preset:{view:'diatonic',key:7,deg:0,vType:'shell'},
@@ -3134,7 +3158,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
      body:['Every concept so far works identically in all 12 keys — the interval relationships never change, only the pitch names do. Jazz musicians practice moving around the cycle of fourths (C → F → B♭ → E♭ → A♭ → D♭ → G♭ → B → E → A → D → G). Most standards modulate through multiple keys — knowing the patterns in each key is infrastructure, not optional.',
            'One new key per week = all 12 in three months. Don\'t move on from a key until the ii–V–I feels easy, not just possible. Priority order: G, F, B♭, E♭ (most common jazz keys), then the remaining flats, then sharps.'],
      items:['Shells in G major: use the Keys tab to find all 7 shells, then play the ii–V–I in Play at 60 BPM','Add F and B♭ — these come up constantly in standards and jazz blues','Work through the flat keys (E♭, A♭, D♭) — they appear more often than sharps in jazz','Done when: ii–V–I with shells in all 12 keys from memory, no chart needed']},
-    {id:'approach',phase:'Application',
+    {id:'approach',phase:'Application',fullPreset:true,
      title:'Chromatic approaches — bebop\'s half-step glue',
      time:'6–12 months to feel natural',
      preset:{view:'diatonic',key:0,deg:4,vType:'arpeggio'},
@@ -3142,7 +3166,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
      body:['A ',term('approach_note','chromatic approach note'),' is played a half-step above or below a chord tone on the last beat before the chord changes. You land on the target when the new chord arrives. This lean-and-land motion is the signature of bebop melody — phrases feel like they\'re pulled toward their destination.',
            ['The best targets are ',term('guide','"guide tones"'),' — 3rd and 7th — because they move most dramatically between chords. Approach from below (natural, pulls up), from above (tenser, falls down), or double chromatic: one above then one below, landing on beat 1. Even one approach note per chord change starts to sound like bebop.']],
      items:['Pick the 3rd of each chord as your target — on beat 4 of the previous bar, play a half-step below, land on beat 1','Use Arpeggio view in Keys to locate all chord tones — those are your landing points','Double chromatic into the 3rd of G7 (B): play B♭ then C♯ on beats 3–4, land on B on beat 1 — a bebop staple']},
-    {id:'standard',phase:'Application',
+    {id:'standard',phase:'Application',fullPreset:true,
      title:'Play a jazz standard',
      time:'An arrival, not a finish line',
      preset:{view:'iivi',key:5,form:'blues',bpm:70},
@@ -3188,14 +3212,23 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
       isOpen?e('div',{style:{padding:'0 14px 14px',borderTop:'1px solid '+BORDER}},
         st.body.length>0?e('p',{style:{...P,marginBottom:8,marginTop:10}},...[].concat(st.body[0])):null,
         e('div',{style:{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap'}},
-          e('button',{onClick:()=>openPreset(st.preset),style:{
-            padding:'5px 16px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',
-            border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,fontWeight:700,minHeight:44}},
-            '▶ Open in '+({diatonic:'Keys',iivi:'Play',custom:'Chords',quiz:'Ear Training'}[st.preset.view]||'app')),
-          st.playPreset?e('button',{onClick:()=>openPreset(st.playPreset),style:{
-            padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',
-            border:'1px solid #74C0FC',background:'#0a1520',color:'#74C0FC',fontWeight:700,minHeight:44,
-          }},'⌾ Try in Play →'):null
+          (()=>{
+            const gated=st.fullPreset&&level==='essentials';
+            const presetLbl='▶ Open in '+({diatonic:'Keys',iivi:'Play',custom:'Chords',quiz:'Ear Training'}[st.preset.view]||'app');
+            return e('button',{onClick:gated?()=>onUpgrade?.('Play forms'):()=>openPreset(st.preset),style:{
+              padding:'5px 16px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',
+              border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,fontWeight:700,minHeight:44,
+              opacity:gated?0.7:1}},
+              presetLbl,(gated?e('span',{style:{fontSize:'0.65rem',marginLeft:4}},'🔒'):null));
+          })(),
+          st.playPreset?(()=>{
+            const gated=st.fullPreset&&level==='essentials';
+            return e('button',{onClick:gated?()=>onUpgrade?.('Play forms'):()=>openPreset(st.playPreset),style:{
+              padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',
+              border:'1px solid #74C0FC',background:'#0a1520',color:'#74C0FC',fontWeight:700,minHeight:44,
+              opacity:gated?0.7:1}},
+              '⌾ Try in Play →',(gated?e('span',{style:{fontSize:'0.65rem',marginLeft:4}},'🔒'):null));
+          })():null
         ),
         st.items&&st.items.length?checklist(st.id,st.items):null,
         st.body.length>1?e('div',{style:{marginTop:6}},
@@ -3254,7 +3287,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
         e('span',{'data-tour':'guide-progress',style:{fontSize:'0.72rem',fontFamily:UI_FONT,fontWeight:allDone?700:400,color:allDone?GOLD:HINT}},
           allDone?'Complete ✓':'Phase '+phaseNum+' of 4 · '+doneCount+'/'+stages.length)
       ),
-      p('Work top to bottom. Tap a stage to see what to practice and open the right tool. Stages vary in depth — some are a week, some are months. Nothing is locked; the Path is a guide, not a gate.'),
+      p('Work top to bottom. Tap a stage to see what to practice and open the right tool. Stages vary in depth — some are a week, some are months. The Path covers everything — some steps use Full-tier features, which you can unlock anytime.'),
       stages.flatMap((st,i)=>{
         const out=[];
         if(st.phaseLabel) out.push(e('div',{key:'ph_'+st.id,style:{padding:'12px 2px 4px'}},
@@ -3865,7 +3898,7 @@ function App(){
     viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey:findInKey,vType:customVType,setVType:setCustomVType,onUpgrade:showUpgrade}):null,
 
     // ── GUIDE / PATH VIEW ────────────────────────────────────────────
-    viewMode==='guide'?e(GuideView,{openPreset,level,streak,lastPracticeDay,onUpgrade:showUpgrade}):null,
+    viewMode==='guide'?e(GuideView,{openPreset,level,streak,lastPracticeDay,onUpgrade:showUpgrade,onPracticed:markPracticed}):null,
 
     // ── EAR TRAINING VIEW ────────────────────────────────────────────
     viewMode==='quiz'?e(EarTrainingView,{level,onPracticed:markPracticed,onUpgrade:showUpgrade}):null,
@@ -3880,7 +3913,15 @@ function App(){
           const qcol=qt==='maj7'?GOLD:qt==='dom7'?'#FF6B6B':qt==='m7b5'?'#C084FC':'#74C0FC';
           const qbg=qt==='maj7'?ACT_GOLD:qt==='dom7'?ACT_RED:qt==='m7b5'?'#1a0a2a':'#0a1520';
           const act=deg===i;
-          return e('button',{key:i,onClick:()=>setDeg(i),style:{
+          return e('button',{key:i,onClick:()=>{
+            setDeg(i);
+            try{
+              const ti=getChordTones(rPC,qt);
+              const vs=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ti,1));
+              const vi=vs.findIndex(v=>v!==null);
+              if(vi>=0)playChordPreview(vs[vi],SHELLS[vi].s);
+            }catch(ex){}
+          },style:{
             padding:'6px 4px 5px',borderRadius:6,cursor:'pointer',
             border:'1px solid '+(act?qcol:BTN_BRD),
             background:act?qbg:'transparent',
