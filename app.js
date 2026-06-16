@@ -689,9 +689,9 @@ function EarTrainingView({level,onPracticed,onUpgrade}){
     : IVALS;
 
   const CADENCES=[
-    {id:'ii-V',   name:'II–V',             chords:[{r:2,q:'m7'},{r:9,q:'dom7'}],             feel:'The most common jazz movement — minor pulling to dominant'},
-    {id:'V-I',    name:'V–I',              chords:[{r:9,q:'dom7'},{r:0,q:'maj7'}],            feel:'The resolution — tension releasing to home'},
-    {id:'ii-V-I', name:'II–V–I',           chords:[{r:2,q:'m7'},{r:9,q:'dom7'},{r:0,q:'maj7'}], feel:'The engine of jazz harmony'},
+    {id:'ii-V',   name:'II–V',             chords:[{r:2,q:'m7'},{r:7,q:'dom7'}],             feel:'The most common jazz movement — minor pulling to dominant'},
+    {id:'V-I',    name:'V–I',              chords:[{r:7,q:'dom7'},{r:0,q:'maj7'}],            feel:'The resolution — tension releasing to home'},
+    {id:'ii-V-I', name:'II–V–I',           chords:[{r:2,q:'m7'},{r:7,q:'dom7'},{r:0,q:'maj7'}], feel:'The engine of jazz harmony'},
     {id:'I-VI',   name:'I–VI (turnaround)',chords:[{r:0,q:'maj7'},{r:9,q:'dom7'}],            feel:'Home moving to secondary dominant — sets up II–V'},
     {id:'iv-I',   name:'iv–I (plagal)',    chords:[{r:5,q:'m7'},{r:0,q:'maj7'}],              feel:'Minor IV to major I — the "Amen" cadence in jazz'},
   ];
@@ -3091,11 +3091,11 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade}){
      title:'The turnaround — I–vi–ii–V',
      time:'2–4 weeks',
      preset:{view:'diatonic',key:0,deg:5,vType:'shell'},
-     playPreset:{view:'iivi',key:0,form:'custom',bpm:60},
+     playPreset:{view:'iivi',key:0,form:'turn',bpm:60},
      body:['The turnaround is the last two bars of nearly every standard — the little loop that resets the form and sends you back to the top. The most common one is ',e('b',null,'I–vi–ii–V'),' (in C: Cmaj7 – Am7 – Dm7 – G7). It\'s your II–V–I with two chords stacked in front, and once you hear it you\'ll hear it everywhere — the end of "Rhythm Changes," the turnaround of a blues, the tag of a ballad.',
            ['The jazzier version swaps the vi for a ',term('sec_dom','secondary dominant'),': I–VI7–ii–V (Cmaj7 – A7 – Dm7 – G7). The A7 pulls harder into Dm7 than a plain Am7 does. You can also start on iii: iii–vi–ii–V (Em7 – Am7 – Dm7 – G7), a smooth descending cascade. All three are the same idea — a short, repeating engine that loops back home.'],
-           'Build it yourself in the Play tab\'s Custom form: it\'s the best way to internalize that a turnaround is just familiar pieces (vi, ii, V, I) in a new order.'],
-     items:['In Keys, find shells for Cmaj7, Am7, Dm7, G7 — then play them in a loop, top back to top','Play tab → Custom form: build Cmaj7 – Am7 – Dm7 – G7 and loop it at 60 BPM','Try the dominant version: swap Am7 for A7 (VI7) and hear it pull harder into Dm7','Listen for turnarounds in tunes you know — they\'re almost always the last two bars before the form repeats','Done when: you can loop a I–vi–ii–V from memory and hear how it resets the form']},
+           'Open Play → Turnaround form to loop the I–VI7–II–V shape at tempo. The dominant VI (A7) is built in — notice how it pulls harder into Dm7 than Am7 would.'],
+     items:['In Keys, find shells for Cmaj7, Am7, Dm7, G7 — then play them in a loop, top back to top','Play tab → select the Turnaround form and loop at 60 BPM — hear the VI7 (A7) pulling into Dm7','Try transposing to G and F — same shape, different starting point','Listen for turnarounds in tunes you know — they\'re almost always the last two bars before the form repeats','Done when: you can loop a I–vi–ii–V from memory and hear how it resets the form']},
     {id:'blues',phase:'Forms',
      title:'The jazz blues form',
      time:'4–6 weeks',
@@ -3536,7 +3536,7 @@ function App(){
   },[theme]);
   // Global state
   const [key,setKey]=useState(()=>parseInt(safeLS('jg-key','0'),10));
-  const [viewMode,setViewMode]=useState(()=>safeLS('jg-viewMode','guide')); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
+  const [viewMode,setViewMode]=useState(()=>safeLS('jg-viewMode','iivi')); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
   const [keyOpen,setKeyOpen]=useState(false);
   const [dotMode,setDotMode]=useState(()=>{const m=safeLS('jg-dotMode','interval');return (m==='both'||m==='finger')?'interval':m;});
   useEffect(()=>{safeLSSet('jg-dotMode',dotMode);},[dotMode]);
