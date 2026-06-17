@@ -5,11 +5,11 @@
 - The app is served from `main`; always ensure finished work lands on `main` and is pushed.
 
 ## Big Picture Goal
-Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitarists who want to learn jazz harmony. Monetization: **free download** (Essentials tier) with a **$9.99 one-time IAP** to unlock Full. No subscription.
+Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitarists who want to learn jazz harmony. Monetization: **free download** (Essentials tier) with a **$9.99 one-time IAP** to unlock Pro. No subscription.
 
 **Freemium split:**
 - **Free (Essentials):** Shell voicings only, major II-V-I only, melodic intervals (5 consonant intervals), first 4 chord types in Any Chord tab, all 16 Guide stages (no feature gating in Guide)
-- **Paid Full ($9.99):** Drop 2/3/Rootless voicings, minor II-V-I + jazz blues + tritone sub + sec dom + custom + standards play forms, all 12 intervals + harmonic mode + triads + 7th chords + cadences in Ear Training, all extended chord types (9ths, 11ths, 13ths, altered) in Any Chord
+- **Paid Pro ($9.99):** Drop 2/3/Rootless voicings, minor II-V-I + jazz blues + tritone sub + sec dom + custom + standards play forms, all 12 intervals + harmonic mode + triads + 7th chords + cadences + Auto ear training in Ear Training, all extended chord types (9ths, 11ths, 13ths, altered) in Any Chord
 
 **Destination:** Apple App Store via Capacitor (web→native wrapper) + Codemagic (cloud CI/CD build — no Mac required).
 **Timeline:** Ship as soon as the product is ready. User has no existing audience and is willing to spend on paid acquisition.
@@ -33,7 +33,7 @@ Steps completed and still needed to ship:
 - [ ] Register bundle ID in Apple Developer portal
 - [ ] Create App Store Connect API key, paste into Codemagic dashboard
 - [ ] Create App Store listing (name, screenshots, description, pricing)
-- [ ] Set up $9.99 one-time IAP in App Store Connect (product ID: `full_unlock`)
+- [ ] Set up $9.99 one-time IAP in App Store Connect (product ID: `pro_unlock`)
 - [ ] Add Capacitor Local Notifications plugin (for practice streak reminders — defer until after first build succeeds)
 - [ ] App icon: needs all required sizes (currently have `icon.svg` and `icons/` — need to verify App Store required sizes)
 - [ ] Splash screen: review default Capacitor splash, customize if needed
@@ -43,12 +43,12 @@ Steps completed and still needed to ship:
 
 ## What's Built (current `app.js` features)
 - **5 nav tabs:** Guide, Chords (Diatonic), Any Chord (Custom), Play (II-V-I), Ear Training
-- **Freemium paywall:** `UpgradeSheet` bottom sheet triggered by 🔒 lock badges on gated features. `showUpgrade(feature)` / `doUpgrade()` in App. Currently calls `setLevel('full')` directly — TODO: wire to RevenueCat/StoreKit IAP. Full ✦ chip in header (tap to revert to Essentials for testing).
+- **Freemium paywall:** `UpgradeSheet` bottom sheet triggered by 🔒 lock badges on gated features. `showUpgrade(feature)` / `doUpgrade()` in App. Currently calls `setLevel('full')` directly — TODO: wire to RevenueCat/StoreKit IAP. Pro ✦ chip in header (tap to revert to Essentials for testing).
 - **Guide tab:** 16 ordered learning stages with expandable content, tappable checklist items (persisted to `jg-path-items`), resume card, phase labels, links to live presets
 - **Chords tab:** All 7 diatonic chords in any key, shell/drop2/drop3/rootless voicings, scale overlay, guide tones, fingering numbers
 - **Any Chord tab:** All chord types including extensions, find-in-key, custom root picker
 - **Play tab (IIVIView):** Backing track with walking bass, ride cymbal, jazz guitar comping. Forms: major/minor II-V-I, jazz blues, tritone sub, sec. dom., custom. Swing feel, variable BPM (35–150). Voice leading, pinned chords, bar-level voicing override.
-- **Ear Training tab:** Interval recognition (melodic + harmonic), triads, 7th chords, cadence recognition (II-V, V-I, II-V-I, I-VI, iv-I). Essentials: consonant intervals (melodic) only. Full: all 12 intervals + harmonic mode + triads + 7th chords + cadences.
+- **Ear Training tab:** Interval recognition (melodic + harmonic), triads, 7th chords, cadence recognition (II-V, V-I, II-V-I, I-VI, iv-I). Essentials: consonant intervals (melodic) only. Pro: all 12 intervals + harmonic mode + triads + 7th chords + cadences.
 - **Two-tier tour system:** App overview tour (5 steps across nav tabs) + per-page contextual tour for each tab
 - **Streak tracking:** 🔥 Xd badge in header. Fires when Play tab session starts OR first Ear Training answer. Resets if day is skipped. `playSessions` counted in localStorage. Push notification reminders deferred to Capacitor build.
 - **Streak milestones:** Celebration card slides up at days 3, 7, 14, 30. Auto-dismisses at 5.4s. Tap to dismiss early. `streakMilestone` state, `STREAK_MILESTONES=[3,7,14,30]`, `milestoneUp` CSS animation in index.html.
@@ -73,18 +73,18 @@ Steps completed and still needed to ship:
 - `localStorage` keys: `jg-path` (guide done), `jg-streak`, `jg-last-practice`, `jg-play-sessions`, `jg-level`, `jg-key`, `jg-bpm`, `jg-form`, `jg-toured`, etc.
 - `SCALE_HINTS` has dom7 with 4 options including Phrygian Dom
 - Essentials tier: shell voicings only, major II-V-I only, melodic intervals (consonant) only in ear training, first 4 chord types in Any Chord; gated features show 🔒 badges that trigger UpgradeSheet
-- Full tier: all voicings, all play forms, all ear training modes, all chord types
+- Pro tier: all voicings, all play forms, all ear training modes, all chord types
 
 ## Decided Against (don't re-suggest)
 - Comping rhythm patterns
 - Chord melody examples
 - Enclosures
 - Guitar tone unlocks / EQ presets labeled as guitar models (sounds like EQ, not like actual guitars)
-- Locking Full version behind achievements (advanced users hit a wall = bad reviews)
+- Locking Pro version behind achievements (advanced users hit a wall = bad reviews)
 - Subscription pricing (one-time $9.99 is the model)
 
 ## Pending / Next Session Priorities
-1. **IAP implementation** — Replace `setLevel('full')` in `doUpgrade()` with RevenueCat/StoreKit purchase call. Product ID: `full_unlock`. Use `@capacitor/purchases` or RevenueCat SDK.
+1. **IAP implementation** — Replace `setLevel('full')` in `doUpgrade()` with RevenueCat/StoreKit purchase call. Product ID: `pro_unlock`. Use `@capacitor/purchases` or RevenueCat SDK.
 2. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`
 3. **App Store assets** — app icon in all required sizes, screenshots, store description copywriting
 4. **Apple Developer enrollment** — user action required, $99, developer.apple.com

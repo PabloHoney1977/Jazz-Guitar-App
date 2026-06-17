@@ -467,9 +467,9 @@ function GuitarToggle({level,setLevel}){
   return e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:1,flexShrink:0}},
     e('span',{style:{fontSize:'0.55rem',color:'var(--lbl)',letterSpacing:'2px',fontFamily:UI_FONT}},'MODE'),
     e('button',{
-      onClick:()=>setLevel(isBasic?'full':'essentials'),
-      'aria-label':'Currently '+(isBasic?'Basics':'Full')+' — tap to switch',
-      title:isBasic?'Switch to Full: adds Drop 3, Rootless voicings, Altered scale, extended chord types':'Switch to Basics: simplified view for building fundamentals',
+      onClick:()=>setLevel(isBasic?'pro':'essentials'),
+      'aria-label':'Currently '+(isBasic?'Essentials':'Pro')+' — tap to switch',
+      title:isBasic?'Switch to Pro: adds Drop 3, Rootless voicings, Altered scale, extended chord types':'Switch to Essentials: simplified view for building fundamentals',
       style:{background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:0,touchAction:'manipulation'},
     },
       e('svg',{width:50,height:60,viewBox:'0 0 72 86',style:{display:'block'}},
@@ -539,9 +539,9 @@ function UpgradeSheet({feature,onClose,onUnlock}){
       e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},'🔒'),
       e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
         color:'var(--scale-name)',textAlign:'center',marginBottom:4}},
-        feature+' is in Full'),
+        feature+' is in Pro'),
       e('div',{style:{fontSize:'0.8rem',color:HINT,textAlign:'center',
-        marginBottom:16,fontFamily:UI_FONT}},'Full also includes:'),
+        marginBottom:16,fontFamily:UI_FONT}},'Pro also includes:'),
       e('ul',{style:{listStyle:'none',margin:'0 0 22px',padding:0}},
         PERKS.map((p,i)=>e('li',{key:i,style:{display:'flex',gap:9,padding:'6px 0',
           fontSize:'0.82rem',color:'var(--txt)',fontFamily:UI_FONT,lineHeight:1.5}},
@@ -550,7 +550,7 @@ function UpgradeSheet({feature,onClose,onUnlock}){
         width:'100%',padding:'15px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'1rem',fontWeight:700,
         background:GOLD,border:'none',color:'#07070f',minHeight:54,marginBottom:10}},
-        'Unlock Full — $9.99'),
+        'Unlock Pro — $9.99'),
       e('button',{onClick:onClose,style:{
         width:'100%',padding:'10px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.82rem',background:'transparent',
@@ -574,7 +574,7 @@ function AboutSheet({onClose,level,onRestore}){
       e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
         color:'var(--scale-name)',textAlign:'center',marginBottom:3}},'Jazz Guitar Lab'),
       e('div',{style:{fontSize:'0.78rem',color:HINT,textAlign:'center',fontFamily:UI_FONT,marginBottom:24}},
-        'Version '+APP_VERSION+' · '+(level==='full'?'Full ✦':'Essentials')),
+        'Version '+APP_VERSION+' · '+(level==='pro'?'Pro ✦':'Essentials')),
       e('a',{href:SUPPORT_URL,target:'_blank',rel:'noopener noreferrer',
         style:{display:'block',width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,textAlign:'center',
@@ -1050,7 +1050,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
           total>=20&&pct>=80&&isEss&&mode==='intervals'?e('div',{style:{
             fontSize:'0.72rem',color:'#86EFAC',marginTop:6,padding:'4px 8px',
             borderRadius:6,border:'1px solid #86EFAC44',background:'#86EFAC11',lineHeight:1.5}},
-            '🎉 Great ear! Try Full mode to unlock all 12 intervals, triads, and 7th chords.'):null
+            '🎉 Great ear! Try Pro to unlock all 12 intervals, triads, and 7th chords.'):null
           ):null
     ),
     e('div',{'data-tour':'ear-mode-tabs',style:{display:'flex',gap:2,marginBottom:0,alignItems:'flex-end'}},
@@ -1087,7 +1087,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
         }},'♪♪ Harmonic')
       ):mode==='intervals'?e('div',{style:{marginBottom:10}}):null,
       mode==='intervals'&&isEss?e('div',{style:{fontSize:'0.7rem',color:HINT,textAlign:'center',marginBottom:14}},
-        'Essentials: 5 consonant intervals  →  Full: all 12'
+        'Essentials: 5 consonant intervals  →  Pro: all 12'
       ):null,
       e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:16}},
         e('button',{'data-tour':'ear-play-btn',onClick:replayCurrent,style:{
@@ -1137,9 +1137,9 @@ const OVERVIEW_STEPS=[
   {target:'nav-guide',    view:'guide',
    title:'The Guide — your learning path',
    text:'Work through jazz harmony step by step. Each stage explains one concept and opens the right tool already configured. Start here.'},
-  {target:'level-switch', view:'guide',
-   title:'Essentials vs Full',
-   text:'This knob sets your level. Essentials keeps it focused — Shell voicings and the core concepts. Flip to Full when you\'re ready for Drop 3, Rootless voicings, altered scales, and extended chord types. You can switch any time.'},
+  {target:'nav-quiz', view:'quiz',
+   title:'Essentials vs Pro',
+   text:'Essentials is free forever — shells, major II–V–I, and 5 ear training intervals. Pro ($9.99 one-time) unlocks Drop 2/3/Rootless voicings, all play forms, all 12 intervals, triads, 7th chords, and extended chord types. Look for 🔒 to see what unlocks.'},
   {target:'nav-diatonic', view:'diatonic',
    title:'Keys — see all 7 chords in any key',
    text:'Tap any chord to hear it and see exactly how to play it. Change the key chip at the top and everything updates instantly.'},
@@ -1151,7 +1151,7 @@ const OVERVIEW_STEPS=[
    text:'Play II-V-Is and jazz standards with bass and drums. Set your key, choose a tempo, and practice playing along.'},
   {target:'nav-quiz',     view:'quiz',
    title:'Ear Training — recognize what you hear',
-   text:'Identify intervals and chord qualities by ear. Essentials starts with the five most consonant sounds; Full unlocks all twelve.'},
+   text:'Identify intervals and chord qualities by ear. Essentials starts with the five most consonant sounds; Pro unlocks all twelve.'},
   {target:'page-tour-btn', view:'guide',
    title:'Page tours',
    text:'Each section has its own guided walkthrough. Tap the gold "? Tour" button at the top right whenever you want to learn what you\'re looking at.'},
@@ -1161,8 +1161,8 @@ const PAGE_TOURS={
   diatonic:[
     {target:'key-chip',       title:'Set your key',
      text:'Tap to pick any key. Every chord and scale in the app updates to match.'},
-    {target:'level-switch',   title:'Essentials or Full',
-     text:'Essentials keeps it simple — Shell voicings and the basics. Flip to Full when you\'re ready for Drop 2, Drop 3, and extended chord types.'},
+    {target:'voicing-tabs',   title:'Essentials vs Pro voicings',
+     text:'Shell voicings are free. Drop 2, Drop 3, and Rootless unlock with Pro — tap any 🔒 to learn more.'},
     {target:'chord-row',      title:'The 7 chords in a key',
      text:'Each button is one of the chords that naturally occurs in this key. Roman numerals (I–VII) show position — I is home, V is tension.'},
     {target:'voicing-tabs',   title:'How to play each chord',
@@ -1174,7 +1174,7 @@ const PAGE_TOURS={
   ],
   iivi:[
     {target:'play-form-row',  title:'Choose a progression',
-     text:'Pick a form — II-V-I is the foundation of jazz harmony. Standards like Autumn Leaves are in Full mode.'},
+     text:'Pick a form — II-V-I is the foundation of jazz harmony. Standards like Autumn Leaves are in Pro.'},
     {target:'play-transport', title:'Play controls',
      text:'Hit the green button for a 4-count-in, then the loop begins. BPM knob sets tempo — start at 60 and build up.'},
     {target:'bar-grid',       title:'Follow the chord changes',
@@ -1194,7 +1194,7 @@ const PAGE_TOURS={
   ],
   quiz:[
     {target:'ear-mode-tabs', title:'Three training modes',
-     text:'Start with Intervals — they\'re the building blocks. Triads and 7th Chords unlock in Full mode.'},
+     text:'Start with Intervals — they\'re the building blocks. Triads and 7th Chords unlock in Pro.'},
     {target:'ear-play-btn',  title:'Listen, then answer',
      text:'Tap the gold circle to hear the sound. Replay as many times as you need before choosing.'},
     {target:'ear-choices',   title:'Learn from every answer',
@@ -1202,7 +1202,7 @@ const PAGE_TOURS={
   ],
   custom:[
     {target:'chord-type-tabs', title:'Pick any chord type',
-     text:'Choose a quality — major 7, minor 7, dominant, and more in Full mode.'},
+     text:'Choose a quality — major 7, minor 7, dominant, and more in Pro.'},
     {target:'neck-area',       title:'See all voicings',
      text:'Every playable shape appears below. Tap any diagram to hear it. Tap any dot on the neck to hear that individual note.'},
     {target:'custom-inkey',    title:'Find this chord in a key',
@@ -2715,7 +2715,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     // Neck
     e(ScrollNeck,{arpPos,highlight,scalePos,extraDots:gtDots,degNames:ac.dnames,dotMode,dotKeyIdx:keyIdx,marginBottom:level==='essentials'?12:0}),
     // Scale + guide-tone controls (full mode only)
-    level==='full'&&e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',
+    level==='pro'&&e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',
       padding:'6px 10px',background:BG2,border:'1px solid '+BORDER,borderTop:'none',
       borderRadius:'0 0 9px 9px',marginBottom:12,minHeight:52}},
       e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.5px',flexShrink:0}},'Scale'),
@@ -3187,7 +3187,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade,onPractice
      body:['Ear training is the feedback loop that makes everything else stick. When you can hear a II–V–I by ear, every recording you listen to becomes active practice. When you can identify a major 7th interval, you hear it in melodies you already know. Without ear training, you\'re memorizing shapes in isolation from sound.',
            'The Ear tab has two modes: Interval recognition (melodic and harmonic — identify the distance between two notes) and Cadence recognition (identify chord progressions by ear). Start with intervals: Perfect 4th, 5th, and Octave first. Then add the intervals that define the chord qualities you already know — Major 7th (the sound of maj7), Minor 7th (the sound of dom7 and m7). Cadences: the II–V pattern is the most valuable. You\'ve been playing it for weeks; now identify it by ear without looking.',
            'Song mnemonics are provided for every interval — they work because your brain already knows the feeling of that distance. Major 7th: "Take On Me" chorus. Tritone: "The Simpsons" theme. Octave: "Somewhere Over the Rainbow." Use what sticks.'],
-     items:['Ear tab → Intervals: practice Perfect 4th, 5th, and Octave first — the most common in jazz','Add Major 7th and Minor 7th — these are the defining intervals of maj7 and m7/dom7 chords','Ear tab → Cadences: listen for II–V and V–I — you\'ve been playing these, now identify them cold','Full tier unlocks all 12 intervals and the complete cadence suite (II–V–I, I–VI, iv–I)','10–15 min of ear training per session accelerates everything else faster than extra shape drilling']},
+     items:['Ear tab → Intervals: practice Perfect 4th, 5th, and Octave first — the most common in jazz','Add Major 7th and Minor 7th — these are the defining intervals of maj7 and m7/dom7 chords','Ear tab → Cadences: listen for II–V and V–I — you\'ve been playing these, now identify them cold','Pro unlocks all 12 intervals and the complete cadence suite (II–V–I, I–VI, iv–I)','10–15 min of ear training per session accelerates everything else faster than extra shape drilling']},
     {id:'turnaround',phase:'Forms',fullPreset:true,
      title:'The turnaround — I–vi–ii–V',
      time:'2–4 weeks',
@@ -3249,7 +3249,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade,onPractice
      preset:{view:'iivi',key:5,form:'blues',bpm:70},
      body:['This is what the whole path built toward. Pick one standard and play it all the way through — changes, form, in time. Suggested starting points: ',e('b',null,'Autumn Leaves'),' (major and minor ii–V–Is back to back, the most-studied standard for a reason), ',e('b',null,'Blue Bossa'),' (bossa nova feel, two-key form, accessible), ',e('b',null,'Fly Me to the Moon'),' (clear changes in one key, beautiful melody), or any ',e('b',null,'jazz blues'),' ("Now\'s the Time," "Billie\'s Bounce").',
            'You don\'t need to play it perfectly. You need to play it all the way through, with forward momentum, in time — then do it again. Get a lead sheet from iRealPro or JazzStandards.com. Standards are how jazz musicians communicate; knowing even one gives you a point of entry to every session and recording you\'ll encounter.',
-           'What comes after: Drop 3 and Rootless voicings add harmonic depth (Full tier). Chord melody, reharmonization, and playing with other humans are the next frontiers. Finding a musician to play with is the single most accelerating thing you can do from here.'],
+           'What comes after: Drop 3 and Rootless voicings add harmonic depth (Pro). Chord melody, reharmonization, and playing with other humans are the next frontiers. Finding a musician to play with is the single most accelerating thing you can do from here.'],
      items:['Get a lead sheet for your chosen standard (iRealPro, JazzStandards.com, or search "[title] lead sheet")','Map every chord to a shell voicing in the correct key — no Drop 2 yet, just shells all the way through','Loop difficult sections in the Play tab at slow tempo until they feel easy','Play the whole form with Drop 2 at 70 BPM — all the way through, no stopping','Play it in one other key']},
   ];
   const doneCount=stages.filter(s=>done[s.id]).length;
@@ -3337,7 +3337,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade,onPractice
       ?e('div',{style:{marginBottom:14,padding:'14px 16px',background:ACT_GOLD,border:'1px solid '+GOLD,borderRadius:8}},
         e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:GOLD,marginBottom:6}},'🎉 You\'ve worked the whole Path'),
         p('You\'ve covered the core of jazz harmony — the four qualities, shells, Drop 2, the II–V–I and its variations, the common forms, and a standard. That\'s a real foundation. The road from here is open-ended:'),
-        ul('Drop 3 and Rootless voicings add harmonic depth (Full tier)','Chord melody and reharmonization','Learn more standards — every tune you know is a new entry point','Play with other people — the single most accelerating thing you can do'),
+        ul('Drop 3 and Rootless voicings add harmonic depth (Pro)','Chord melody and reharmonization','Learn more standards — every tune you know is a new entry point','Play with other people — the single most accelerating thing you can do'),
         streak>0?e('div',{style:{fontSize:'0.74rem',color:GOLD,fontWeight:700,fontFamily:UI_FONT,marginTop:4}},'🔥 '+streak+'-day streak — keep it going'):null)
       :nextStage?e('div',{style:{marginBottom:14,padding:'12px 14px',background:BG2,border:'1px solid '+GOLD+'66',borderRadius:8,
         display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
@@ -3440,7 +3440,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade,onPractice
       ),
       gloss('rootless','Rootless voicing','A 4-note chord where the 9th replaces the root.',null,
         'When a bassist plays the root, your guitar chord can drop the root entirely and substitute the 9th (an octave above the 2nd scale degree). The chord becomes richer and more complex, and doesn\'t double the bass player\'s note.',
-        'Type A voicings (3-5-7-9) have the 3rd at the bottom. Type B (7-9-3-5) have the 7th at the bottom. These are the voicings you\'ll hear Bill Evans and other jazz pianists use. On guitar they live on the middle strings (4-3-2-1 or 5-4-3-2). Find them in the Chords in Key view under "Rootless" (Full level).'
+        'Type A voicings (3-5-7-9) have the 3rd at the bottom. Type B (7-9-3-5) have the 7th at the bottom. These are the voicings you\'ll hear Bill Evans and other jazz pianists use. On guitar they live on the middle strings (4-3-2-1 or 5-4-3-2). Find them in the Chords in Key view under "Rootless" (Pro).'
       ),
       gloss('arp','Arpeggio','Playing chord notes one at a time instead of simultaneously.',null,
         'An arpeggio is the melodic version of a chord — the notes played in sequence like a harp (the word comes from the Italian "arpa"). Every chord position on the neck can become a melodic pattern by playing the notes one at a time.',
@@ -3579,7 +3579,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade,onPractice
       )
     ):null,
     sec('Next Steps & Listening',
-      p('Finished the Path? The Full level adds Drop 3, Rootless voicings, altered scales, and extended chord types — unlock it with the toggle at the top right. The Chords tab lets you build any chord with any extension. The Sec. Dom. and Tritone Sub forms in Play let you hear ',term('sec_dom','secondary dominants'),' and ',term('tritone_sub','tritone substitution'),' in action. Melodically, practice ',term('approach_note','chromatic approach notes'),' into guide tones — one half-step before each chord change is enough to start sounding like bebop. Further concepts: ',term('modal_int','modal interchange'),', reharmonization, chord melody, and rhythm changes.'),
+      p('Finished the Path? Pro adds Drop 3, Rootless voicings, altered scales, and extended chord types — tap any 🔒 badge to unlock. The Chords tab lets you build any chord with any extension. The Sec. Dom. and Tritone Sub forms in Play let you hear ',term('sec_dom','secondary dominants'),' and ',term('tritone_sub','tritone substitution'),' in action. Melodically, practice ',term('approach_note','chromatic approach notes'),' into guide tones — one half-step before each chord change is enough to start sounding like bebop. Further concepts: ',term('modal_int','modal interchange'),', reharmonization, chord melody, and rhythm changes.'),
       p(e('b',{style:HL},'Players to study:')),
       ul(
         e('span',null,e('b',null,'Wes Montgomery'),' — warmth, clarity, octave technique; a natural first listen for any guitarist'),
@@ -3689,12 +3689,12 @@ function App(){
   function showUpgrade(feature){setUpgradeSheet(feature);}
   function doUpgrade(){
     // TODO: replace the two lines below with RevenueCat/StoreKit purchase call when IAP is ready
-    setLevel('full');safeLSSet('jg-level','full');
+    setLevel('pro');safeLSSet('jg-level','pro');
     setUpgradeSheet(null);
   }
   function doRestore(){
     // TODO: replace with RevenueCat restorePurchases() when IAP is ready
-    setLevel('full');safeLSSet('jg-level','full');
+    setLevel('pro');safeLSSet('jg-level','pro');
   }
   const isEss=level==='essentials';
   const [iiviPlaying,setIiviPlaying]=useState(false);
@@ -3928,11 +3928,11 @@ function App(){
         color:'var(--lbl)',minHeight:0,flexShrink:0}},
         theme==='dark'?'☀':'☾'),
       e('div',{style:{flex:1}}),
-      level==='full'?e('div',{'data-tour':'level-switch',onClick:()=>{setLevel('essentials');safeLSSet('jg-level','essentials');},
+      level==='pro'?e('div',{'data-tour':'level-switch',onClick:()=>{setLevel('essentials');safeLSSet('jg-level','essentials');},
         title:'Tap to switch back to Essentials',
         style:{fontSize:'0.72rem',fontWeight:700,fontFamily:UI_FONT,color:GOLD,
           border:'1px solid '+GOLD+'66',borderRadius:10,padding:'3px 10px',cursor:'pointer',
-          background:ACT_GOLD,flexShrink:0}},'Full ✦'):null,
+          background:ACT_GOLD,flexShrink:0}},'Pro ✦'):null,
       streak>0?e('div',{
         title:'Practice streak — '+streak+' day'+(streak!==1?'s':'')+'! Play or practice ear training daily to keep it going.',
         style:{display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:10,
