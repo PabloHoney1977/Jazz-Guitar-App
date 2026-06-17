@@ -1077,7 +1077,6 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
           background:autoMode?ACT_GOLD:'transparent',color:autoMode?GOLD:BTN_OFF,
           minHeight:40,flexShrink:0,whiteSpace:'nowrap'}},
         autoMode?'Auto ●':e(React.Fragment,null,'Auto ○',(isEss?e('span',{style:{fontSize:'0.6rem',marginLeft:3}},'🔒'):null)))
-      )
     ),
     e('div',{style:{background:BG2,border:'1px solid '+BTN_BRD,
       borderRadius:'0 6px 6px 6px',padding:'16px',marginBottom:12}},
