@@ -890,8 +890,9 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
       setCurrent({root,quality});
       setTimeout(()=>playTriad(root,quality),150);
     } else if(mode==='cadences'){
-      const correct=CADENCES[Math.floor(Math.random()*CADENCES.length)];
-      const others=CADENCES.filter(x=>x.id!==correct.id).sort(()=>Math.random()-0.5).slice(0,3);
+      const cadencePool=isEss?CADENCES.slice(0,2):CADENCES;
+      const correct=cadencePool[Math.floor(Math.random()*cadencePool.length)];
+      const others=cadencePool.filter(x=>x.id!==correct.id).sort(()=>Math.random()-0.5).slice(0,3);
       setChoices([correct,...others].sort(()=>Math.random()-0.5));
       setCurrent({root,cadence:correct});
       setTimeout(()=>playCadence(root,correct),150);
@@ -1026,7 +1027,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     {id:'intervals',lbl:'Intervals',locked:false},
     {id:'triads',lbl:'Triads',locked:isEss},
     {id:'chords',lbl:'7th Chords',locked:isEss},
-    {id:'cadences',lbl:'Cadences',locked:isEss},
+    {id:'cadences',lbl:'Cadences',locked:false},
   ];
 
   function toggleAuto(){
@@ -1088,6 +1089,9 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
       ):mode==='intervals'?e('div',{style:{marginBottom:10}}):null,
       mode==='intervals'&&isEss?e('div',{style:{fontSize:'0.7rem',color:HINT,textAlign:'center',marginBottom:14}},
         'Essentials: 5 consonant intervals  →  Pro: all 12'
+      ):null,
+      mode==='cadences'&&isEss?e('div',{style:{fontSize:'0.7rem',color:HINT,textAlign:'center',marginBottom:14}},
+        'Essentials: II–V and V–I  →  Pro unlocks II–V–I, I–VI, and iv–I'
       ):null,
       e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:16}},
         e('button',{'data-tour':'ear-play-btn',onClick:replayCurrent,style:{
@@ -3030,7 +3034,8 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
 }
 
 // ── GuideView — the Path + glossary ──────────────────────────────────
-function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade,onPracticed}){
+function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade,onPracticed}){
+  const daysSince=lastPracticeDay?Math.round((Date.now()-new Date(lastPracticeDay+'T00:00:00'))/86400000):0;
   const [expanded,setExpanded]=useState({});
   function tog(id){setExpanded(s=>({...s,[id]:!s[id]?true:undefined}));}
   const [popTerm,setPopTerm]=useState(null);
@@ -3342,6 +3347,9 @@ function GuideView({openPreset,level,streak,lastPracticeDay,onUpgrade,onPractice
       :nextStage?e('div',{style:{marginBottom:14,padding:'12px 14px',background:BG2,border:'1px solid '+GOLD+'66',borderRadius:8,
         display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
         e('div',{style:{flex:1,minWidth:170}},
+          daysSince>1?e('div',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,marginBottom:2}},
+            '👋 Welcome back after '+daysSince+' day'+(daysSince===1?'':'s')
+            +(bestStreak>1?' — your best streak: '+bestStreak+' day'+(bestStreak===1?'':'s'):'')):null,
           streak>0?e('div',{style:{fontSize:'0.73rem',color:GOLD,fontWeight:700,fontFamily:UI_FONT,marginBottom:2}},'🔥 '+streak+'-day streak'):null,
           e('div',{style:{fontSize:'0.69rem',color:HINT,fontFamily:UI_FONT,textTransform:'uppercase',letterSpacing:'0.06em'}},
             doneCount===0?'Start here':'Pick up where you left off'),
@@ -3703,6 +3711,7 @@ function App(){
 
   // Streak & practice tracking
   const [streak,setStreak]=useState(()=>parseInt(safeLS('jg-streak','0'),10));
+  const [bestStreak,setBestStreak]=useState(()=>parseInt(safeLS('jg-best-streak','0'),10));
   const [lastPracticeDay,setLastPracticeDay]=useState(()=>safeLS('jg-last-practice',''));
   const [playSessions,setPlaySessions]=useState(()=>parseInt(safeLS('jg-play-sessions','0'),10));
   const [streakAnim,setStreakAnim]=useState(false);
@@ -3728,6 +3737,7 @@ function App(){
     setLastPracticeDay(today);
     safeLSSet('jg-streak',newStreak);
     safeLSSet('jg-last-practice',today);
+    if(newStreak>bestStreak){setBestStreak(newStreak);safeLSSet('jg-best-streak',newStreak);}
     if(STREAK_MILESTONES.includes(newStreak)){
       setStreakMilestone(newStreak);
       setTimeout(()=>setStreakMilestone(null),5400);
@@ -3990,7 +4000,7 @@ function App(){
     viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey:findInKey,vType:customVType,setVType:setCustomVType,onUpgrade:showUpgrade}):null,
 
     // ── GUIDE / PATH VIEW ────────────────────────────────────────────
-    viewMode==='guide'?e(GuideView,{openPreset,level,streak,lastPracticeDay,onUpgrade:showUpgrade,onPracticed:markPracticed}):null,
+    viewMode==='guide'?e(GuideView,{openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade:showUpgrade,onPracticed:markPracticed}):null,
 
     // ── EAR TRAINING VIEW ────────────────────────────────────────────
     viewMode==='quiz'?e(EarTrainingView,{level,onPracticed:markPracticed,onUpgrade:showUpgrade,pedalRef:earPedalRef}):null,
