@@ -944,7 +944,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     clearTimeout(autoTimerRef.current);
     clearTimeout(autoTimer2Ref.current);
     autoTimer2Ref.current=setTimeout(replayCurrent,2000);
-    autoTimerRef.current=setTimeout(autoReveal,5000);
+    autoTimerRef.current=setTimeout(autoReveal,7000);
     return()=>{clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);};
   },[current,autoMode,revealed]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1303,11 +1303,19 @@ function TourOverlay({steps,step,onNext,onSkip}){
       const el=document.querySelector('[data-tour="'+s.target+'"]');
       if(el){const r=el.getBoundingClientRect();setRect({top:r.top,left:r.left,w:r.width,h:r.height});}
       else setRect(null);
+      return !!el;
     }
-    measure();
-    const id=requestAnimationFrame(measure);
+    // Immediate + rAF attempt; if target isn't in DOM yet (view just switched),
+    // retry at 150ms and 350ms to let React finish rendering the new view.
+    if(!measure()){
+      const t1=setTimeout(()=>{if(!measure()){const t2=setTimeout(measure,200);return()=>clearTimeout(t2);}},150);
+      const raf=requestAnimationFrame(measure);
+      window.addEventListener('scroll',measure,{passive:true});
+      return ()=>{cancelAnimationFrame(raf);clearTimeout(t1);window.removeEventListener('scroll',measure);};
+    }
+    const raf=requestAnimationFrame(measure);
     window.addEventListener('scroll',measure,{passive:true});
-    return ()=>{cancelAnimationFrame(id);window.removeEventListener('scroll',measure);};
+    return ()=>{cancelAnimationFrame(raf);window.removeEventListener('scroll',measure);};
   },[step,s&&s.target]);
 
   if(!s) return null;
