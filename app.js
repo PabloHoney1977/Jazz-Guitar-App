@@ -1032,6 +1032,12 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
 
   function toggleAuto(){
     if(!autoMode&&isEss){onUpgrade('Auto ear training');return;}
+    // Unlock speech synthesis during user gesture — iOS requires speak() from a tap before
+    // it will work from setTimeout callbacks.
+    if(!autoMode&&window.speechSynthesis){
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+    }
     setAutoMode(m=>{
       if(!m&&revealed){setTimeout(newRound,80);}
       if(m){clearTimeout(autoTimerRef.current);window.speechSynthesis?.cancel();}
@@ -1062,14 +1068,16 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
         background:mode===id?BG2:'transparent',color:mode===id?'var(--txt)':BTN_OFF,
         marginBottom:mode===id?'-1px':0,position:'relative',zIndex:mode===id?1:0,minHeight:44,
         ...(locked?{opacity:0.6}:{})
-      }},lbl,(locked?e('span',{style:{fontSize:'0.6rem',marginLeft:2}},'🔒'):null))),
-      e('div',{style:{flex:1}}),
+      }},lbl,(locked?e('span',{style:{fontSize:'0.6rem',marginLeft:2}},'🔒'):null)))
+    ),
+    e('div',{style:{display:'flex',justifyContent:'flex-end',marginTop:4,marginBottom:4}},
       e('button',{onClick:toggleAuto,title:autoMode?'Turn off auto-advance':'Auto-advance: hear the answer, then next question',
         style:{padding:'5px 10px',borderRadius:8,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           fontWeight:autoMode?700:400,border:'1px solid '+(autoMode?GOLD:BTN_BRD),
           background:autoMode?ACT_GOLD:'transparent',color:autoMode?GOLD:BTN_OFF,
-          minHeight:40,marginBottom:4,flexShrink:0,whiteSpace:'nowrap'}},
+          minHeight:40,flexShrink:0,whiteSpace:'nowrap'}},
         autoMode?'Auto ●':e(React.Fragment,null,'Auto ○',(isEss?e('span',{style:{fontSize:'0.6rem',marginLeft:3}},'🔒'):null)))
+      )
     ),
     e('div',{style:{background:BG2,border:'1px solid '+BTN_BRD,
       borderRadius:'0 6px 6px 6px',padding:'16px',marginBottom:12}},
