@@ -1030,8 +1030,9 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   ];
 
   function toggleAuto(){
+    if(!autoMode&&isEss){onUpgrade('Auto ear training');return;}
     setAutoMode(m=>{
-      if(!m&&revealed){setTimeout(newRound,80);} // turn on while stuck on reveal → kick new round
+      if(!m&&revealed){setTimeout(newRound,80);}
       if(m){clearTimeout(autoTimerRef.current);window.speechSynthesis?.cancel();}
       return!m;
     });
@@ -1067,7 +1068,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
           fontWeight:autoMode?700:400,border:'1px solid '+(autoMode?GOLD:BTN_BRD),
           background:autoMode?ACT_GOLD:'transparent',color:autoMode?GOLD:BTN_OFF,
           minHeight:32,marginBottom:4,flexShrink:0,whiteSpace:'nowrap'}},
-        autoMode?'Auto ●':'Auto ○')
+        autoMode?'Auto ●':e(React.Fragment,null,'Auto ○',(isEss?e('span',{style:{fontSize:'0.6rem',marginLeft:3}},'🔒'):null)))
     ),
     e('div',{style:{background:BG2,border:'1px solid '+BTN_BRD,
       borderRadius:'0 6px 6px 6px',padding:'16px',marginBottom:12}},
