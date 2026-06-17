@@ -732,6 +732,14 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const [wrongGuess,setWrongGuess]=useState(null);
   const [choices,setChoices]=useState([]); // random 4-of-12 for intervals mode
   const [harmonic,setHarmonic]=useState(false); // Full only: play both notes simultaneously
+  const [autoMode,setAutoMode]=useState(false);
+  const autoTimerRef=useRef(null);
+
+  // Cancel timers and speech when auto mode turns off or component unmounts
+  useEffect(()=>{
+    if(!autoMode){clearTimeout(autoTimerRef.current);window.speechSynthesis?.cancel();}
+  },[autoMode]);
+  useEffect(()=>()=>{clearTimeout(autoTimerRef.current);window.speechSynthesis?.cancel();},[]);
 
   // ── Data ──
   const IVALS=[
@@ -831,6 +839,41 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     else if(mode==='cadences') playCadence(current.root,current.cadence);
     else playChord(current.root,current.quality);
   }
+  function autoReveal(){
+    if(!current) return;
+    let spk='';
+    if(mode==='intervals'){const iv=IVALS.find(x=>x.s===current.semitones);spk=iv?iv.name:'';}
+    else if(mode==='triads'){spk=(TRIAD_LBL[current.quality]||'')+' triad';}
+    else if(mode==='cadences'){
+      const m={'ii-V':'Two five','V-I':'Five one','ii-V-I':'Two five one','I-VI':'One six','iv-I':'Four minor one'};
+      spk=m[current.cadence.id]||current.cadence.name;
+    } else {
+      const m={'maj7':'Major seven','m7':'Minor seven','dom7':'Dominant seven','m7b5':'Half diminished'};
+      spk=m[current.quality]||QLABELS[current.quality]||'';
+    }
+    setRevealed(true);
+    if(window.speechSynthesis&&spk){
+      window.speechSynthesis.cancel();
+      const utt=new SpeechSynthesisUtterance(spk);
+      utt.rate=0.88;
+      let done=false;
+      function advance(){if(done)return;done=true;autoTimerRef.current=setTimeout(newRound,1400);}
+      utt.onend=advance;utt.onerror=advance;
+      // Fallback: WebKit sometimes drops onend
+      autoTimerRef.current=setTimeout(advance,Math.max(2800,spk.length*75));
+      window.speechSynthesis.speak(utt);
+    } else {
+      autoTimerRef.current=setTimeout(newRound,2600);
+    }
+  }
+
+  // Auto-advance: wait 3s after each new round then reveal + speak
+  useEffect(()=>{
+    if(!autoMode||!current||revealed)return;
+    clearTimeout(autoTimerRef.current);
+    autoTimerRef.current=setTimeout(autoReveal,3000);
+    return()=>clearTimeout(autoTimerRef.current);
+  },[current,autoMode,revealed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Round logic ──
   function newRound(){
@@ -894,8 +937,12 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   if(!current) return null;
 
   // Register pedal handlers — overwrite on every render so closure is always current
-  // Forward: replay if not answered yet; advance if answer is showing
-  if(pedalRef) pedalRef.current={forward:()=>revealed?newRound():replayCurrent(),back:replayCurrent};
+  if(pedalRef) pedalRef.current={
+    forward:autoMode
+      ?(()=>{clearTimeout(autoTimerRef.current);if(!revealed)autoReveal();else newRound();})
+      :(()=>revealed?newRound():replayCurrent()),
+    back:replayCurrent,
+  };
 
   const sc=scores[mode];
   const total=sc.r+sc.w;
@@ -982,20 +1029,30 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     {id:'cadences',lbl:'Cadences',locked:isEss},
   ];
 
+  function toggleAuto(){
+    setAutoMode(m=>{
+      if(!m&&revealed){setTimeout(newRound,80);} // turn on while stuck on reveal → kick new round
+      if(m){clearTimeout(autoTimerRef.current);window.speechSynthesis?.cancel();}
+      return!m;
+    });
+  }
+
   return e('div',{style:{padding:'0 0 20px'}},
     e('div',{style:{textAlign:'center',marginBottom:12}},
       e('div',{style:{fontFamily:SERIF,fontSize:'1.2rem',fontWeight:700,color:'var(--scale-name)',marginBottom:4}},'Ear Training'),
-      total>0?e('div',null,
-        e('div',{style:{fontSize:'0.95rem',fontWeight:700,color:pct>=70?GOLD:'#FF6B6B'}},pct+'% — '+sc.r+'/'+total),
-        weakest?e('div',{style:{fontSize:'0.7rem',color:HINT,marginTop:3}},
-          '⚠ Weakest: '+weakest.label+' ('+weakest.missed+'/'+weakest.total+' missed)'):null,
-        total>=20&&pct>=80&&isEss&&mode==='intervals'?e('div',{style:{
-          fontSize:'0.72rem',color:'#86EFAC',marginTop:6,padding:'4px 8px',
-          borderRadius:6,border:'1px solid #86EFAC44',background:'#86EFAC11',lineHeight:1.5}},
-          '🎉 Great ear! Try Full mode to unlock all 12 intervals, triads, and 7th chords.'):null
-      ):null
+      autoMode
+        ?e('div',{style:{fontSize:'0.78rem',color:HINT,fontFamily:UI_FONT}},'Auto mode — listen and learn, no scoring')
+        :total>0?e('div',null,
+          e('div',{style:{fontSize:'0.95rem',fontWeight:700,color:pct>=70?GOLD:'#FF6B6B'}},pct+'% — '+sc.r+'/'+total),
+          weakest?e('div',{style:{fontSize:'0.7rem',color:HINT,marginTop:3}},
+            '⚠ Weakest: '+weakest.label+' ('+weakest.missed+'/'+weakest.total+' missed)'):null,
+          total>=20&&pct>=80&&isEss&&mode==='intervals'?e('div',{style:{
+            fontSize:'0.72rem',color:'#86EFAC',marginTop:6,padding:'4px 8px',
+            borderRadius:6,border:'1px solid #86EFAC44',background:'#86EFAC11',lineHeight:1.5}},
+            '🎉 Great ear! Try Full mode to unlock all 12 intervals, triads, and 7th chords.'):null
+          ):null
     ),
-    e('div',{'data-tour':'ear-mode-tabs',style:{display:'flex',gap:2,marginBottom:0}},
+    e('div',{'data-tour':'ear-mode-tabs',style:{display:'flex',gap:2,marginBottom:0,alignItems:'flex-end'}},
       TABS.map(({id,lbl,locked})=>e('button',{key:id,onClick:locked?()=>onUpgrade(lbl):()=>setMode(id),style:{
         padding:'7px 16px',borderRadius:'6px 6px 0 0',cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.79rem',fontWeight:mode===id?700:400,
@@ -1003,7 +1060,14 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
         background:mode===id?BG2:'transparent',color:mode===id?'var(--txt)':BTN_OFF,
         marginBottom:mode===id?'-1px':0,position:'relative',zIndex:mode===id?1:0,minHeight:44,
         ...(locked?{opacity:0.6}:{})
-      }},lbl,(locked?e('span',{style:{fontSize:'0.6rem',marginLeft:2}},'🔒'):null)))
+      }},lbl,(locked?e('span',{style:{fontSize:'0.6rem',marginLeft:2}},'🔒'):null))),
+      e('div',{style:{flex:1}}),
+      e('button',{onClick:toggleAuto,title:autoMode?'Turn off auto-advance':'Auto-advance: hear the answer, then next question',
+        style:{padding:'5px 10px',borderRadius:8,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
+          fontWeight:autoMode?700:400,border:'1px solid '+(autoMode?GOLD:BTN_BRD),
+          background:autoMode?ACT_GOLD:'transparent',color:autoMode?GOLD:BTN_OFF,
+          minHeight:32,marginBottom:4,flexShrink:0,whiteSpace:'nowrap'}},
+        autoMode?'Auto ●':'Auto ○')
     ),
     e('div',{style:{background:BG2,border:'1px solid '+BTN_BRD,
       borderRadius:'0 6px 6px 6px',padding:'16px',marginBottom:12}},
@@ -1031,7 +1095,8 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
           display:'flex',alignItems:'center',justifyContent:'center',
           boxShadow:'0 0 16px '+GOLD+'44',transition:'box-shadow 0.15s'
         }},'♪'),
-        e('div',{style:{fontSize:'0.72rem',color:HINT}},'Tap to replay')
+        e('div',{style:{fontSize:'0.72rem',color:HINT}},
+          autoMode&&!revealed?'Answer in 3 seconds…':autoMode&&revealed?'Next question coming…':'Tap to replay')
       ),
       renderReveal(),
       !revealed&&mode==='intervals'?e('div',{style:{marginBottom:12}},
@@ -1052,17 +1117,17 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
       e('div',{'data-tour':'ear-choices',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:revealed?12:0}},
         renderChoices()
       ),
-      revealed?e('button',{onClick:newRound,style:{
+      !autoMode&&revealed?e('button',{onClick:newRound,style:{
         width:'100%',padding:'12px',background:GOLD,border:'none',borderRadius:8,
         color:'#07070f',fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:'bold',
         cursor:'pointer',minHeight:48
       }},'Next →'):null
     ),
-    e('button',{onClick:()=>{setScores(s=>({...s,[mode]:{r:0,w:0}}));setDetail(d=>({...d,[mode]:{}}));},style:{
+    !autoMode?e('button',{onClick:()=>{setScores(s=>({...s,[mode]:{r:0,w:0}}));setDetail(d=>({...d,[mode]:{}}));},style:{
       width:'100%',padding:'6px',background:'transparent',
       border:'1px solid '+BTN_BRD,borderRadius:6,color:BTN_OFF,
       fontFamily:UI_FONT,fontSize:'0.78rem',cursor:'pointer',minHeight:44
-    }},'Reset score')
+    }},'Reset score'):null
   );
 }
 
