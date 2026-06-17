@@ -2198,6 +2198,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     const beatDur=60/bpmRef.current;
     setCountIn(4);
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    ctx.resume(); // iOS may create AudioContext in suspended state even from a tap
     audioCtxRef.current=ctx;
     const comp=ctx.createDynamicsCompressor();
     comp.threshold.value=-18;comp.knee.value=8;comp.ratio.value=4;
@@ -2255,6 +2256,17 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       setBpm(Math.max(35,Math.min(150,Math.round(60000/avg))));
     }
   }
+
+  // Resume AudioContext when app returns to foreground (iOS suspends it on background)
+  useEffect(()=>{
+    function onVisible(){
+      if(document.visibilityState==='visible'&&audioCtxRef.current?.state==='suspended'){
+        audioCtxRef.current.resume();
+      }
+    }
+    document.addEventListener('visibilitychange',onVisible);
+    return ()=>document.removeEventListener('visibilitychange',onVisible);
+  },[]);
 
   // cleanup on unmount
   useEffect(()=>()=>{
