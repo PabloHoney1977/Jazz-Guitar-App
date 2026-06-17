@@ -588,10 +588,13 @@ function AboutSheet({onClose,level,onRestore}){
           background:'transparent',border:'1px solid '+GOLD+'66',
           color:restored?HINT:GOLD,minHeight:44,marginBottom:10}},
         restored?'Purchase restored ✓':'Restore Purchase'):null,
+      e('div',{style:{borderTop:'1px solid '+BORDER,marginTop:14,paddingTop:14,
+        fontSize:'0.75rem',color:HINT,fontFamily:UI_FONT,lineHeight:1.6}},
+        '🦶 Bluetooth pedal: AirTurn or PageFlip works in all tabs. Forward = next chord / next question. Back = previous chord / replay sound.'),
       e('button',{onClick:onClose,style:{
         width:'100%',padding:'10px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.82rem',background:'transparent',
-        border:'1px solid '+BORDER,color:HINT,minHeight:44}},'Close')
+        border:'1px solid '+BORDER,color:HINT,minHeight:44,marginTop:14}},'Close')
     )
   );
 }
@@ -710,7 +713,7 @@ const GLOSS_DEFS={
 };
 
 // ── EarTrainingView ───────────────────────────────────────────────────
-function EarTrainingView({level,onPracticed,onUpgrade}){
+function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const isEss=level==='essentials';
   const practicedRef=useRef(false);
 
@@ -889,6 +892,10 @@ function EarTrainingView({level,onPracticed,onUpgrade}){
       'Start Training →')
   );
   if(!current) return null;
+
+  // Register pedal handlers — overwrite on every render so closure is always current
+  // Forward: replay if not answered yet; advance if answer is showing
+  if(pedalRef) pedalRef.current={forward:()=>revealed?newRound():replayCurrent(),back:replayCurrent};
 
   const sc=scores[mode];
   const total=sc.r+sc.w;
@@ -1108,6 +1115,8 @@ const PAGE_TOURS={
      text:'The gold-pulsing bar shows the current chord. Watch it cycle and play along.'},
     {target:'neck-area',      title:'Comp along',
      text:'The fretboard shows the voicing for the active chord. Find it, hold it, play the rhythm.'},
+    {target:'play-transport', title:'Bluetooth pedal supported',
+     text:'Using an AirTurn or PageFlip pedal? Forward steps to the next chord, back steps to the previous — hands stay on the guitar. Works in Keys, Chords, and Ear Training too.'},
   ],
   guide:[
     {target:'guide-stage-0',  title:'Stage cards',
@@ -3670,6 +3679,7 @@ function App(){
   // PageFlip: PageDown/PageUp). The ref lets IIVIView register its own handlers
   // without lifting activeChordIdx out of that component.
   const iiviPedalRef=useRef({forward:null,back:null});
+  const earPedalRef=useRef({forward:null,back:null});
   useEffect(()=>{
     function onPedal(ev){
       if(ev.target.tagName==='INPUT'||ev.target.tagName==='TEXTAREA'||ev.target.isContentEditable) return;
@@ -3687,6 +3697,9 @@ function App(){
       } else if(viewMode==='iivi'){
         if(fwd) iiviPedalRef.current.forward?.();
         if(bwd) iiviPedalRef.current.back?.();
+      } else if(viewMode==='quiz'){
+        if(fwd) earPedalRef.current.forward?.();
+        if(bwd) earPedalRef.current.back?.();
       }
     }
     window.addEventListener('keydown',onPedal);
@@ -3914,7 +3927,7 @@ function App(){
     viewMode==='guide'?e(GuideView,{openPreset,level,streak,lastPracticeDay,onUpgrade:showUpgrade,onPracticed:markPracticed}):null,
 
     // ── EAR TRAINING VIEW ────────────────────────────────────────────
-    viewMode==='quiz'?e(EarTrainingView,{level,onPracticed:markPracticed,onUpgrade:showUpgrade}):null,
+    viewMode==='quiz'?e(EarTrainingView,{level,onPracticed:markPracticed,onUpgrade:showUpgrade,pedalRef:earPedalRef}):null,
 
     // ── DIATONIC VIEW ────────────────────────────────────────────────
     viewMode==='diatonic'?e('div',null,
