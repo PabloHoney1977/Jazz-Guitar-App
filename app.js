@@ -3754,7 +3754,7 @@ function App(){
       if(!fwd&&!bwd) return;
       ev.preventDefault();
       if(viewMode==='diatonic'){
-        setDeg(d=>fwd?Math.min(d+1,6):Math.max(d-1,0));
+        setDeg(d=>fwd?(d+1)%7:(d+6)%7);
       } else if(viewMode==='custom'){
         const len=EXT_TYPES.length;
         setCustomTypeIdx(i=>fwd?(i+1)%len:(i-1+len)%len);
@@ -4177,16 +4177,16 @@ function App(){
         padding:'18px 20px 32px',boxShadow:'0 -8px 32px rgba(0,0,0,0.55)',
         maxHeight:'60vh',overflowY:'auto'}},
         e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
-          e('span',{style:{fontWeight:700,color:'var(--gold)',fontSize:'0.92rem',fontFamily:'ui-monospace,monospace'}},GLOSS_DEFS[popTerm].term),
+          e('span',{style:{fontWeight:700,color:'var(--gold)',fontSize:'0.92rem',fontFamily:UI_FONT}},GLOSS_DEFS[popTerm].term),
           e('button',{onClick:()=>setPopTerm(null),style:{marginLeft:'auto',background:'transparent',
             border:'none',cursor:'pointer',color:'var(--btn-off)',fontSize:'1.1rem',minHeight:0,padding:'2px 6px'}},'✕')
         ),
-        e('p',{style:{fontSize:'0.84rem',lineHeight:1.65,color:'var(--txt)',fontFamily:'ui-monospace,monospace',
+        e('p',{style:{fontSize:'0.84rem',lineHeight:1.65,color:'var(--txt)',fontFamily:UI_FONT,
           marginBottom:GLOSS_DEFS[popTerm].detail?10:0,borderBottom:GLOSS_DEFS[popTerm].detail?'1px solid var(--brd)':'none',
           paddingBottom:GLOSS_DEFS[popTerm].detail?10:0}},
           GLOSS_DEFS[popTerm].short),
         GLOSS_DEFS[popTerm].detail?e('p',{style:{fontSize:'0.82rem',lineHeight:1.7,color:'var(--txt)',
-          fontFamily:'ui-monospace,monospace',marginBottom:0,opacity:0.85}},GLOSS_DEFS[popTerm].detail):null
+          fontFamily:UI_FONT,marginBottom:0,opacity:0.85}},GLOSS_DEFS[popTerm].detail):null
       )
     ):null,
 
@@ -4202,7 +4202,7 @@ function App(){
           background:`linear-gradient(135deg,#1a1000 0%,#0d0d1e 100%)`,
           border:'1px solid '+GOLD+'80',borderRadius:16,padding:'22px 24px 18px'}},
           e('div',{style:{fontSize:'2.4rem',textAlign:'center',marginBottom:8}},
-            streakMilestone===3?'🔥':'🔥'),
+            streakMilestone===3?'🔥':streakMilestone===7?'⭐':'🏆'),
           e('div',{style:{fontFamily:SERIF,fontSize:'1.6rem',fontWeight:700,color:GOLD,
             textAlign:'center',marginBottom:6}},
             streakMilestone+'-day streak'),
