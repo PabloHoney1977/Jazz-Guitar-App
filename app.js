@@ -1148,7 +1148,7 @@ const OVERVIEW_STEPS=[
   {target:'nav-guide',    view:'guide',
    title:'The Guide — your learning path',
    text:'Work through jazz harmony step by step. Each stage explains one concept and opens the right tool already configured. Start here.'},
-  {target:'nav-quiz', view:'quiz',
+  {target:'ear-mode-tabs', view:'quiz',
    title:'Essentials vs Pro',
    text:'Essentials is free forever — shells, major II–V–I, and 5 ear training intervals. Pro ($9.99 one-time) unlocks Drop 2/3/Rootless voicings, all play forms, all 12 intervals, triads, 7th chords, and extended chord types. Look for 🔒 to see what unlocks.'},
   {target:'nav-diatonic', view:'diatonic',
