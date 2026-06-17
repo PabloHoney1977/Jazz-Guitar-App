@@ -116,6 +116,8 @@ const ACT_PUR ='var(--act-pur)';
 const ACT_YEL ='var(--act-yel)';
 const UI_FONT  ="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
 const SERIF ="Georgia,'Times New Roman',serif";
+const APP_VERSION='1.0.0';
+const SUPPORT_URL='https://pablohoney1977.github.io/jazz-guitar-app/docs/support.html';
 
 // ── Voicing tables ───────────────────────────────────────────────────
 const D2_INV=[
@@ -554,6 +556,42 @@ function UpgradeSheet({feature,onClose,onUnlock}){
         fontFamily:UI_FONT,fontSize:'0.82rem',background:'transparent',
         border:'1px solid '+BORDER,color:HINT,minHeight:44}},
         'Maybe later')
+    )
+  );
+}
+
+// ── AboutSheet ────────────────────────────────────────────────────────
+function AboutSheet({onClose,level,onRestore}){
+  const [restored,setRestored]=React.useState(false);
+  function handleRestore(){onRestore();setRestored(true);}
+  return e(React.Fragment,null,
+    e('div',{onClick:onClose,style:{position:'fixed',inset:0,zIndex:299,background:'rgba(0,0,0,0.5)'}}),
+    e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:300,
+      background:BG2,borderRadius:'16px 16px 0 0',
+      border:'1px solid '+BORDER,padding:'20px 20px 36px',
+      boxShadow:'0 -8px 32px rgba(0,0,0,0.55)',maxHeight:'72vh',overflowY:'auto'}},
+      e('div',{style:{width:40,height:4,background:BORDER,borderRadius:2,margin:'0 auto 18px'}}),
+      e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
+        color:'var(--scale-name)',textAlign:'center',marginBottom:3}},'Jazz Guitar Lab'),
+      e('div',{style:{fontSize:'0.78rem',color:HINT,textAlign:'center',fontFamily:UI_FONT,marginBottom:24}},
+        'Version '+APP_VERSION+' · '+(level==='full'?'Full ✦':'Essentials')),
+      e('a',{href:SUPPORT_URL,target:'_blank',rel:'noopener noreferrer',
+        style:{display:'block',width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,textAlign:'center',
+          textDecoration:'none',border:'1px solid '+BORDER,background:'var(--bg)',
+          color:'var(--txt)',marginBottom:10,minHeight:44,boxSizing:'border-box'}},
+        'Contact Support'),
+      level==='essentials'?e('button',{
+        onClick:handleRestore,
+        style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,
+          background:'transparent',border:'1px solid '+GOLD+'66',
+          color:restored?HINT:GOLD,minHeight:44,marginBottom:10}},
+        restored?'Purchase restored ✓':'Restore Purchase'):null,
+      e('button',{onClick:onClose,style:{
+        width:'100%',padding:'10px',borderRadius:10,cursor:'pointer',
+        fontFamily:UI_FONT,fontSize:'0.82rem',background:'transparent',
+        border:'1px solid '+BORDER,color:HINT,minHeight:44}},'Close')
     )
   );
 }
@@ -3572,11 +3610,16 @@ function App(){
   const [level,setLevel]=useState(()=>safeLS('jg-level','essentials'));
   const [upgradeSheet,setUpgradeSheet]=useState(null); // feature name string, or null
   const [popTerm,setPopTerm]=useState(null); // glossary term key, or null
+  const [aboutOpen,setAboutOpen]=useState(false);
   function showUpgrade(feature){setUpgradeSheet(feature);}
   function doUpgrade(){
     // TODO: replace the two lines below with RevenueCat/StoreKit purchase call when IAP is ready
     setLevel('full');safeLSSet('jg-level','full');
     setUpgradeSheet(null);
+  }
+  function doRestore(){
+    // TODO: replace with RevenueCat restorePurchases() when IAP is ready
+    setLevel('full');safeLSSet('jg-level','full');
   }
   const isEss=level==='essentials';
   const [iiviPlaying,setIiviPlaying]=useState(false);
@@ -3831,7 +3874,12 @@ function App(){
                 fontSize:'0.72rem',border:'1px solid '+GOLD+'88',background:'var(--bg2)',
                 color:GOLD,minHeight:0}},
               '? Tour')
-          :null
+          :null,
+        e('button',{'aria-label':'About & support',onClick:()=>setAboutOpen(true),
+          style:{padding:'3px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
+            fontSize:'0.8rem',border:'1px solid var(--btn-brd)',background:'var(--bg2)',
+            color:'var(--lbl)',minHeight:0,letterSpacing:'1px'}},
+          '···')
       ),
     ),
 
@@ -4042,6 +4090,7 @@ function App(){
     ):null,
 
     upgradeSheet?e(UpgradeSheet,{feature:upgradeSheet,onClose:()=>setUpgradeSheet(null),onUnlock:doUpgrade}):null,
+    aboutOpen?e(AboutSheet,{onClose:()=>setAboutOpen(false),level,onRestore:doRestore}):null,
     popTerm&&GLOSS_DEFS[popTerm]?e(React.Fragment,null,
       e('div',{onClick:()=>setPopTerm(null),style:{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,0.35)'}}),
       e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:200,background:'var(--bg2)',
