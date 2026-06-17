@@ -1067,7 +1067,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
         style:{padding:'5px 10px',borderRadius:8,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           fontWeight:autoMode?700:400,border:'1px solid '+(autoMode?GOLD:BTN_BRD),
           background:autoMode?ACT_GOLD:'transparent',color:autoMode?GOLD:BTN_OFF,
-          minHeight:32,marginBottom:4,flexShrink:0,whiteSpace:'nowrap'}},
+          minHeight:40,marginBottom:4,flexShrink:0,whiteSpace:'nowrap'}},
         autoMode?'Auto ●':e(React.Fragment,null,'Auto ○',(isEss?e('span',{style:{fontSize:'0.6rem',marginLeft:3}},'🔒'):null)))
     ),
     e('div',{style:{background:BG2,border:'1px solid '+BTN_BRD,
@@ -3945,19 +3945,19 @@ function App(){
         e('button',{onClick:()=>setOverviewStep(0),
           style:{padding:'3px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
             fontSize:'0.72rem',border:'1px solid var(--btn-brd)',background:'var(--bg2)',
-            color:'var(--lbl)',minHeight:0}},
+            color:'var(--lbl)',minHeight:36}},
           'Overview'),
         PAGE_TOURS[viewMode]
           ?e('button',{'data-tour':'page-tour-btn',onClick:()=>{setPageTourStep(0);setPageTourId(viewMode);},
               style:{padding:'3px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
                 fontSize:'0.72rem',border:'1px solid '+GOLD+'88',background:'var(--bg2)',
-                color:GOLD,minHeight:0}},
+                color:GOLD,minHeight:36}},
               '? Tour')
           :null,
         e('button',{'aria-label':'About & support',onClick:()=>setAboutOpen(true),
           style:{padding:'3px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
             fontSize:'0.8rem',border:'1px solid var(--btn-brd)',background:'var(--bg2)',
-            color:'var(--lbl)',minHeight:0,letterSpacing:'1px'}},
+            color:'var(--lbl)',minHeight:36,letterSpacing:'1px'}},
           '···')
       ),
     ),
@@ -3998,7 +3998,8 @@ function App(){
     // ── DIATONIC VIEW ────────────────────────────────────────────────
     viewMode==='diatonic'?e('div',null,
       // Diatonic chord map — all 7 chords as visual cards
-      e('div',{'data-tour':'chord-row',style:{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:3,marginBottom:10}},
+      e('div',{'data-tour':'chord-row',style:{display:'flex',flexWrap:'nowrap',gap:3,marginBottom:10,
+        overflowX:'auto',scrollbarWidth:'none',msOverflowStyle:'none',WebkitOverflowScrolling:'touch'}},
         ROMAN.map((r,i)=>{
           const rPC=(KEYS[key].root+MAJOR_SCALE[i])%12;
           const qt=QTYPES[i];
@@ -4014,11 +4015,11 @@ function App(){
               if(vi>=0)playChordPreview(vs[vi],SHELLS[vi].s);
             }catch(ex){}
           },style:{
-            padding:'6px 4px 5px',borderRadius:6,cursor:'pointer',
+            flex:'1 0 48px',padding:'6px 4px 5px',borderRadius:6,cursor:'pointer',
             border:'1px solid '+(act?qcol:BTN_BRD),
             background:act?qbg:'transparent',
             display:'flex',flexDirection:'column',alignItems:'center',gap:2,
-            minHeight:0,transition:'border-color 0.1s,background 0.1s',
+            minHeight:44,transition:'border-color 0.1s,background 0.1s',
           }},
             e('div',{style:{fontSize:'0.65rem',fontWeight:700,fontFamily:UI_FONT,
               color:act?qcol:LBL,letterSpacing:'0.3px',lineHeight:1}},r),
