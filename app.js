@@ -64,6 +64,53 @@ const CHORD_EXTS={
 // Chord types that support rootless voicings (root replaced by 9th)
 const ROOTLESS_OK=new Set(['maj7','m7','dom7']);
 
+// ── Chord detection ──────────────────────────────────────────────────
+const DETECT_SHAPES=[
+  {sym:'',      name:'major',    iv:[0,4,7]},
+  {sym:'m',     name:'minor',    iv:[0,3,7]},
+  {sym:'°',     name:'dim',      iv:[0,3,6]},
+  {sym:'+',     name:'aug',      iv:[0,4,8]},
+  {sym:'sus2',  name:'sus2',     iv:[0,2,7]},
+  {sym:'sus4',  name:'sus4',     iv:[0,5,7]},
+  {sym:'6',     name:'major 6',  iv:[0,4,7,9]},
+  {sym:'m6',    name:'minor 6',  iv:[0,3,7,9]},
+  {sym:'△7',    name:'major 7',  iv:[0,4,7,11]},
+  {sym:'m7',    name:'minor 7',  iv:[0,3,7,10]},
+  {sym:'7',     name:'dom 7',    iv:[0,4,7,10]},
+  {sym:'ø7',    name:'half-dim', iv:[0,3,6,10]},
+  {sym:'°7',    name:'dim 7',    iv:[0,3,6,9]},
+  {sym:'△9',    name:'major 9',  iv:[0,2,4,7,11]},
+  {sym:'m9',    name:'minor 9',  iv:[0,2,3,7,10]},
+  {sym:'9',     name:'dom 9',    iv:[0,2,4,7,10]},
+  {sym:'m△7',   name:'min/maj7', iv:[0,3,7,11]},
+];
+function detectChords(pitchClasses){
+  const pcs=[...new Set(pitchClasses)];
+  if(pcs.length<2) return [];
+  const results=[];
+  for(let root=0;root<12;root++){
+    const norm=pcs.map(p=>(p-root+12)%12).sort((a,b)=>a-b);
+    const normStr=norm.join(',');
+    for(const sh of DETECT_SHAPES){
+      const shNorm=[...sh.iv].sort((a,b)=>a-b);
+      if(normStr===shNorm.join(','))
+        results.push({root,sym:sh.sym,name:nn(root,root)+sh.sym,quality:sh.name,exact:true});
+    }
+    // Subset: user's notes are all contained in a known chord shape
+    if(pcs.length>=2&&pcs.length<5){
+      for(const sh of DETECT_SHAPES){
+        const shSet=new Set(sh.iv);
+        if(norm.every(n=>shSet.has(n))&&norm.length<sh.iv.length)
+          results.push({root,sym:sh.sym,name:nn(root,root)+sh.sym,quality:sh.name,exact:false,matched:norm.length,total:sh.iv.length});
+      }
+    }
+  }
+  results.sort((a,b)=>a.exact===b.exact?0:a.exact?-1:1);
+  // Deduplicate by name
+  const seen=new Set();
+  return results.filter(r=>{if(seen.has(r.name))return false;seen.add(r.name);return true;}).slice(0,6);
+}
+
 // ── Chord-scale data ─────────────────────────────────────────────────
 const PARENT_SC={major:[0,2,4,5,7,9,11],melmin:[0,2,3,5,7,9,11]};
 const PTYPE_NAME={major:'Major',melmin:'Mel. Minor',dim:'Diminished',wt:'Whole Tone'};
@@ -529,6 +576,23 @@ function UpgradeSheet({feature,onClose,onUnlock}){
     'All 12 ear training intervals + harmonic mode, triads, 7th chords, and cadence recognition',
     'All extended chord types (9ths, 11ths, 13ths, altered) in the Any Chord tab',
   ];
+  const FEATURE_DESC={
+    'Drop 2 voicings':'The most common jazz comping grip — four notes across adjacent strings, clean and compact.',
+    'Drop 3 voicings':'Wider spread, more open sound — great for comping in lower positions.',
+    'Rootless voicings':'Play like a pianist: remove the root so the bassist has space. Type A and B give you two inversion sets.',
+    'Triads':'Major, minor, dim, aug — hear them in isolation before combining into 7th chords.',
+    '7th Chords':'Identify maj7, m7, dom7, and half-dim chords by ear — the core vocabulary of jazz harmony.',
+    'Auto ear training':'Listen without scoring pressure — the app plays, speaks the answer, and moves on automatically.',
+    'Find Chord':'Tap any notes on the fretboard and instantly see what chord you\'re playing.',
+  };
+  // Map partial feature strings to a perk index (0-3) so that perk gets highlighted
+  const PERK_IDX={'Drop 2':0,'Drop 3':0,'Rootless':0,'drop2':0,'drop3':0,'rootless':0,
+    'minor II':1,'Jazz Blues':1,'Tritone':1,'Sec. Dom':1,'Tritone Sub':1,
+    'Triads':2,'7th Chords':2,'Auto ear':2,'auto ear':2,
+    '△':'3','ø':'3','9sus':'3'};
+  const featureKey=Object.keys(PERK_IDX).find(k=>feature&&feature.includes(k));
+  const highlightPerk=featureKey!==undefined?PERK_IDX[featureKey]:null;
+  const desc=feature&&FEATURE_DESC[feature];
   return e(React.Fragment,null,
     e('div',{onClick:onClose,style:{position:'fixed',inset:0,zIndex:299,background:'rgba(0,0,0,0.5)'}}),
     e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:300,
@@ -539,12 +603,18 @@ function UpgradeSheet({feature,onClose,onUnlock}){
       e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},'🔒'),
       e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
         color:'var(--scale-name)',textAlign:'center',marginBottom:4}},
-        feature+' is in Pro'),
-      e('div',{style:{fontSize:'0.8rem',color:HINT,textAlign:'center',
-        marginBottom:16,fontFamily:UI_FONT}},'Pro also includes:'),
+        feature+' is a Pro feature'),
+      desc?e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
+        marginBottom:16,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},desc):null,
+      e('div',{style:{fontSize:'0.75rem',color:HINT,
+        marginBottom:8,fontFamily:UI_FONT,fontWeight:600,letterSpacing:'0.05em',
+        textTransform:'uppercase'}},desc?'Pro also unlocks:':'Pro unlocks:'),
       e('ul',{style:{listStyle:'none',margin:'0 0 22px',padding:0}},
         PERKS.map((p,i)=>e('li',{key:i,style:{display:'flex',gap:9,padding:'6px 0',
-          fontSize:'0.82rem',color:'var(--txt)',fontFamily:UI_FONT,lineHeight:1.5}},
+          fontSize:'0.82rem',
+          color:highlightPerk===i?GOLD:'var(--txt)',
+          fontWeight:highlightPerk===i?700:400,
+          fontFamily:UI_FONT,lineHeight:1.5}},
           e('span',{style:{color:GOLD,flexShrink:0,marginTop:1}},'✦'),p))),
       e('button',{onClick:onUnlock,style:{
         width:'100%',padding:'15px',borderRadius:10,cursor:'pointer',
@@ -615,7 +685,7 @@ function ColorLegend(){
 // ── BpmKnob ───────────────────────────────────────────────────────────
 function BpmKnob({bpm,setBpm,onTap}){
   const dragRef=useRef(null);
-  const min=35,max=150;
+  const min=35,max=220;
   const pct=(bpm-min)/(max-min);
   const angle=-135+pct*270;
   const cx=30,cy=30,r=24;
@@ -734,12 +804,13 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const [harmonic,setHarmonic]=useState(false); // Full only: play both notes simultaneously
   const [autoMode,setAutoMode]=useState(false);
   const autoTimerRef=useRef(null);
+  const autoTimer2Ref=useRef(null);
 
   // Cancel timers and speech when auto mode turns off or component unmounts
   useEffect(()=>{
-    if(!autoMode){clearTimeout(autoTimerRef.current);window.speechSynthesis?.cancel();}
+    if(!autoMode){clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);window.speechSynthesis?.cancel();}
   },[autoMode]);
-  useEffect(()=>()=>{clearTimeout(autoTimerRef.current);window.speechSynthesis?.cancel();},[]);
+  useEffect(()=>()=>{clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);window.speechSynthesis?.cancel();},[]);
 
   // ── Data ──
   const IVALS=[
@@ -871,8 +942,10 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   useEffect(()=>{
     if(!autoMode||!current||revealed)return;
     clearTimeout(autoTimerRef.current);
-    autoTimerRef.current=setTimeout(autoReveal,3000);
-    return()=>clearTimeout(autoTimerRef.current);
+    clearTimeout(autoTimer2Ref.current);
+    autoTimer2Ref.current=setTimeout(replayCurrent,2000);
+    autoTimerRef.current=setTimeout(autoReveal,5000);
+    return()=>{clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);};
   },[current,autoMode,revealed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Round logic ──
@@ -940,7 +1013,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   // Register pedal handlers — overwrite on every render so closure is always current
   if(pedalRef) pedalRef.current={
     forward:autoMode
-      ?(()=>{clearTimeout(autoTimerRef.current);if(!revealed)autoReveal();else newRound();})
+      ?(()=>{clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);if(!revealed)autoReveal();else newRound();})
       :(()=>revealed?newRound():replayCurrent()),
     back:replayCurrent,
   };
@@ -1702,7 +1775,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   const [invIdxs,setInvIdxs]=useState([]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
   const [isPlaying,setIsPlaying]=useState(false);
-  const [bpm,setBpm]=useState(()=>Math.max(35,Math.min(150,parseInt(safeLS('jg-bpm','80'),10))));
+  const [bpm,setBpm]=useState(()=>Math.max(35,Math.min(220,parseInt(safeLS('jg-bpm','80'),10))));
   const [bassEnabled,setBassEnabled]=useState(()=>safeLS('jg-bass')!=='false');
   const [metronomeEnabled,setMetronomeEnabled]=useState(()=>safeLS('jg-met')==='true');
   const [form,setForm]=useState(()=>{
@@ -1911,6 +1984,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   const activeSS=activeVT==='shell'?null:activeDropD.sets[activeVTSI].s;
   const activeVoicings=useMemo(()=>{
     if(activeVT==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ac.tones,1));
+    if(activeVT==='rootless'){
+      if(!ROOTLESS_OK.has(ac.quality)) return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ac.tones,1));
+      const rl=[(ac.tones[0]+2)%12,ac.tones[1],ac.tones[2],ac.tones[3]];
+      return ROOTLESS.map(cfg=>calcVoicing(cfg.s,cfg.a,rl,1));
+    }
     return activeDropD.inv.map(inv=>calcVoicing(activeSS,inv.a,ac.tones));
   },[activeChordIdx,strSetIdx,keyIdx,form,customProg,vType,barVTypes]);
   // Restore per-quality scale choice when chord quality changes; default to first option on first visit
@@ -2234,7 +2312,6 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       nextTimeRef.current=ctx.currentTime+0.05;
       beatRef.current=0;
       loopCountRef.current=0;
-      barPatternRef.current={};
       setLoopCount(0);
       const gen=++genRef.current;
       setIsPlaying(true);
@@ -2260,7 +2337,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       const intervals=[];
       for(let i=1;i<recent.length;i++) intervals.push(recent[i]-recent[i-1]);
       const avg=intervals.reduce((s,v)=>s+v,0)/intervals.length;
-      setBpm(Math.max(35,Math.min(150,Math.round(60000/avg))));
+      setBpm(Math.max(35,Math.min(220,Math.round(60000/avg))));
     }
   }
 
@@ -2289,6 +2366,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
     setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
     setActiveChordIdx(0);
+    barPatternRef.current={};
   },[keyIdx,form]);
 
   function computeAllVoicings(cs,brs,bvts){
@@ -2298,6 +2376,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       const bt=bvt?bvt.vType:vType;
       const bsi=bvt?bvt.strSetIdx:strSetIdx;
       if(bt==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1));
+      if(bt==='rootless'){
+        if(!ROOTLESS_OK.has(chord.quality)) return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1));
+        const rl=[(chord.tones[0]+2)%12,chord.tones[1],chord.tones[2],chord.tones[3]];
+        return ROOTLESS.map(cfg=>calcVoicing(cfg.s,cfg.a,rl,1));
+      }
       const dD=DROP_DATA[bt]||DROP_DATA.drop2;
       const sIdx=Math.min(bsi,dD.sets.length-1);
       return dD.inv.map(inv=>calcVoicing(dD.sets[sIdx].s,inv.a,chord.tones));
@@ -2765,7 +2848,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
         ?e('div',{style:{display:'flex',alignItems:'center',gap:6}},
             e('span',{style:{fontSize:'0.68rem',color:LBL}},'Voicing'),
             e('span',{style:{fontSize:'0.68rem',color:GOLD,fontWeight:600}},
-              activeVT==='shell'?'Shell':(activeVT==='drop3'?'Drop 3':'Drop 2')
+              activeVT==='shell'?'Shell':activeVT==='drop3'?'Drop 3':activeVT==='rootless'?'Rootless':'Drop 2'
               +(vType!=='shell'&&dropD.sets[ssIdx]?' · '+dropD.sets[ssIdx].lbl:'')
             )
           )
@@ -2774,7 +2857,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
               e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'},title:'Global voicing style applied to all bars — can be overridden per-chord below'},'Voicing'),
               (level==='essentials'
                 ?[{id:'drop2',lbl:'Drop 2'},{id:'shell',lbl:'Shell'}]
-                :[{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},{id:'shell',lbl:'Shell'}]
+                :[{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},{id:'rootless',lbl:'Rootless'},{id:'shell',lbl:'Shell'}]
               ).map(({id,lbl})=>e('button',{key:id,onClick:()=>setVType(id),style:mkSsBtn(vType===id)},lbl))
             ),
             vType!=='shell'?e('div',{key:'ssg',style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
@@ -2866,6 +2949,10 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
 function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey,vType,setVType,onUpgrade}){
   dotMode=dotMode||'interval';
   const isEss=level==='essentials';
+  const [detectMode,setDetectMode]=useState(false);
+  const [selectedFrets,setSelectedFrets]=useState({}); // {stringIdx: fretNum}
+  const detectFretPos=5; // how many frets shown at once
+  const [fretOffset,setFretOffset]=useState(0);
   const [ssIdx,setSsIdx]=useState(2);
   const [invIdx,setInvIdx]=useState(0);
   const [shellIdx,setShellIdx]=useState(0);
@@ -2874,8 +2961,10 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     if(isEss&&(vType==='drop3'||vType==='drop24'||vType==='drop23'||vType==='drop2'))setVType('shell');
     if(isEss)setExtOpt(null);
   },[level]);
-  useEffect(()=>{setExtOpt(null);setInvIdx(0);},[customTypeIdx,customRoot]);
+  useEffect(()=>{setExtOpt(null);setInvIdx(0);setScaleHintCustom(null);},[customTypeIdx,customRoot]);
 
+  const [scaleHintCustom,setScaleHintCustom]=useState(null);
+  const scaleHintQKey={'maj7':'maj7','m7':'m7','dom7':'dom7','m7b5':'m7b5','maj9':'maj7','m9':'m7','dom9':'dom7','7alt':'dom7','7b9':'dom7','9sus':'dom7'};
   const baseType=EXT_TYPES[customTypeIdx];
   const availExts=CHORD_EXTS[customTypeIdx]||[];
   const extDef=extOpt?availExts.find(e=>e.id===extOpt):null;
@@ -2884,6 +2973,11 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   const degNames=extDef?baseType.dn.map((x,i)=>i===2?extDef.dn:x):baseType.dn;
   const tones=useMemo(()=>effectiveIv.map(i=>(customRoot+i)%12),[customRoot,customTypeIdx,extOpt]);
   const arpPos=useMemo(()=>getArpPos(tones),[tones]);
+  const customScaleKey=scaleHintQKey[baseType&&baseType.id]||null;
+  const customScaleOpts=(customScaleKey&&SCALE_HINTS[customScaleKey])||[];
+  const customActiveScale=scaleHintCustom?customScaleOpts.find(s=>s.name===scaleHintCustom):null;
+  const customScalePos=useMemo(()=>customActiveScale?getScalePos(customRoot,customActiveScale.iv,tones):[]
+    ,[scaleHintCustom,customRoot,customTypeIdx,extOpt]); // eslint-disable-line react-hooks/exhaustive-deps
   // Build chord name using enharmonic spelling matching the root (Ab not G#, Bb not A#)
   const chordName=nn(customRoot,customRoot)+baseType.sym+(extDef?extDef.sym:'');
 
@@ -2935,7 +3029,110 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   const shellsA=SHELLS.map((sh,i)=>({sh,i,v:allVoicings[i]})).filter(x=>x.sh.form==='A');
   const shellsB=SHELLS.map((sh,i)=>({sh,i,v:allVoicings[i]})).filter(x=>x.sh.form==='B');
 
+  const detectPcs=Object.entries(selectedFrets).map(([s,f])=>(OPEN_PC[parseInt(s)]+parseInt(f))%12);
+  const detectedChords=detectPcs.length>=2?detectChords(detectPcs):[];
+  const DETECT_NOTE_NAMES=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
+
+  const modeToggleRow=e('div',{style:{display:'flex',gap:8,marginBottom:14}},
+    e('button',{onClick:()=>{setDetectMode(false);},style:{
+      flex:1,padding:'8px',borderRadius:8,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.82rem',
+      fontWeight:!detectMode?700:400,border:'1px solid '+(!detectMode?GOLD:BTN_BRD),
+      background:!detectMode?ACT_GOLD:'transparent',color:!detectMode?GOLD:BTN_OFF,minHeight:40}},
+      'Build a Chord'),
+    e('button',{onClick:()=>{if(isEss){onUpgrade('Find Chord');return;}setDetectMode(true);setSelectedFrets({});setFretOffset(0);},style:{
+      flex:1,padding:'8px',borderRadius:8,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.82rem',
+      fontWeight:detectMode?700:400,border:'1px solid '+(detectMode?GOLD:BTN_BRD),
+      background:detectMode?ACT_GOLD:'transparent',color:detectMode?GOLD:BTN_OFF,minHeight:40,
+      opacity:isEss?0.7:1}},
+      'Find Chord',(isEss?e('span',{style:{fontSize:'0.6rem',marginLeft:3}},'🔒'):null))
+  );
+
+  if(detectMode) return e('div',null,
+    modeToggleRow,
+    // Fret position navigator
+    e('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
+      e('span',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT}},'Tap notes you\'re playing'),
+      e('div',{style:{display:'flex',gap:6,alignItems:'center'}},
+        e('button',{onClick:()=>setFretOffset(f=>Math.max(0,f-5)),disabled:fretOffset===0,style:{
+          padding:'4px 10px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
+          border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,opacity:fretOffset===0?0.4:1}},
+          '↑'),
+        e('span',{style:{fontSize:'0.72rem',color:HINT,minWidth:60,textAlign:'center'}},
+          fretOffset===0?'Open + 1–5':'Frets '+(fretOffset+1)+'–'+(fretOffset+5)),
+        e('button',{onClick:()=>setFretOffset(f=>Math.min(7,f+5)),disabled:fretOffset>=7,style:{
+          padding:'4px 10px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
+          border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,opacity:fretOffset>=7?0.4:1}},
+          '↓')
+      )
+    ),
+    // Fretboard grid: strings as columns, frets as rows
+    e('div',{style:{display:'grid',gridTemplateColumns:'20px repeat(6,1fr)',gap:2,marginBottom:12,
+      userSelect:'none',WebkitUserSelect:'none'}},
+      // Header row: string names
+      e('div',{style:{fontSize:'0.6rem',color:HINT,display:'flex',alignItems:'center',justifyContent:'center'}},''),
+      ['E','A','D','G','B','E'].map((s,si)=>
+        e('div',{key:si,style:{fontSize:'0.65rem',color:selectedFrets[si]!==undefined?GOLD:HINT,
+          textAlign:'center',fontFamily:UI_FONT,fontWeight:700,padding:'2px 0'}},s)
+      ),
+      // Open string row
+      e('div',{style:{fontSize:'0.6rem',color:HINT,display:'flex',alignItems:'center',justifyContent:'center',height:36}},'0'),
+      [0,1,2,3,4,5].map(si=>{
+        const isSelected=selectedFrets[si]===0;
+        const pc=(OPEN_PC[si]+0)%12;
+        return e('div',{key:si,
+          onClick:()=>setSelectedFrets(sf=>isSelected?Object.fromEntries(Object.entries(sf).filter(([k])=>k!=si)):({...sf,[si]:0})),
+          style:{display:'flex',alignItems:'center',justifyContent:'center',
+            height:36,borderRadius:4,cursor:'pointer',border:'1px solid '+(isSelected?GOLD:BTN_BRD),
+            background:isSelected?ACT_GOLD:BG2,
+            color:isSelected?GOLD:HINT,fontSize:'0.65rem',fontFamily:UI_FONT,fontWeight:isSelected?700:400}},
+          isSelected?DETECT_NOTE_NAMES[pc]:'○');
+      }),
+      // Fret rows 1..5 (offset by fretOffset)
+      ...[1,2,3,4,5].map(fretOff=>{
+        const fret=fretOff+fretOffset;
+        return [
+          e('div',{key:'lbl'+fretOff,style:{fontSize:'0.6rem',color:HINT,display:'flex',alignItems:'center',justifyContent:'center',height:36}},fret),
+          ...[0,1,2,3,4,5].map(si=>{
+            const isSelected=selectedFrets[si]===fret;
+            const pc=(OPEN_PC[si]+fret)%12;
+            return e('div',{key:si,
+              onClick:()=>setSelectedFrets(sf=>isSelected?Object.fromEntries(Object.entries(sf).filter(([k])=>k!=si)):({...sf,[si]:fret})),
+              style:{display:'flex',alignItems:'center',justifyContent:'center',
+                height:36,borderRadius:4,cursor:'pointer',border:'1px solid '+(isSelected?GOLD:BTN_BRD),
+                background:isSelected?ACT_GOLD:BG2,
+                color:isSelected?GOLD:HINT,fontSize:'0.65rem',fontFamily:UI_FONT,fontWeight:isSelected?700:400}},
+              isSelected?DETECT_NOTE_NAMES[pc]:'·');
+          })
+        ];
+      }).flat()
+    ),
+    // Clear button
+    Object.keys(selectedFrets).length>0?e('button',{onClick:()=>setSelectedFrets({}),style:{
+      width:'100%',padding:'6px',background:'transparent',border:'1px solid '+BTN_BRD,
+      borderRadius:6,color:BTN_OFF,fontFamily:UI_FONT,fontSize:'0.78rem',cursor:'pointer',minHeight:36,marginBottom:12}},
+      'Clear all'):null,
+    // Results
+    detectedChords.length>0
+      ?e('div',null,
+        e('div',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,marginBottom:8}},
+          detectedChords[0].exact?'Exact match:':'Possible matches (incomplete voicing):'),
+        e('div',{style:{display:'flex',flexWrap:'wrap',gap:8}},
+          detectedChords.map((ch,i)=>e('div',{key:i,style:{
+            padding:'8px 14px',borderRadius:8,
+            border:'1px solid '+(ch.exact&&i===0?GOLD:BTN_BRD),
+            background:ch.exact&&i===0?ACT_GOLD:BG2}},
+            e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,
+              color:ch.exact&&i===0?GOLD:'var(--txt)'}},ch.name),
+            e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT}},ch.quality)
+          ))
+        )
+      )
+      :detectPcs.length>=2?e('div',{style:{fontSize:'0.8rem',color:HINT,textAlign:'center',padding:'12px 0'}},'No chord found — try adding or removing a note')
+      :e('div',{style:{fontSize:'0.8rem',color:HINT,textAlign:'center',padding:'12px 0'}},'Select 2 or more notes to identify the chord')
+  );
+
   return e('div',null,
+    modeToggleRow,
     // Root + type selectors
     e('div',{style:{display:'flex',gap:10,flexWrap:'wrap',marginBottom:12,alignItems:'flex-start'}},
       e('div',null,
@@ -2967,6 +3164,18 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         e('div',{style:{fontSize:'0.62rem',color:HINT,fontFamily:UI_FONT,lineHeight:1.4}},baseType.ctx)
       )
     ),
+    // Scale overlay selector — Pro only, when scale hints exist for this chord type
+    !isEss&&customScaleOpts.length>0?e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8,alignItems:'center'}},
+      e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Scale'),
+      customScaleOpts.map(sc=>
+        e('button',{key:sc.name,
+          onClick:()=>setScaleHintCustom(scaleHintCustom===sc.name?null:sc.name),
+          style:{padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
+            border:'1px solid '+(scaleHintCustom===sc.name?GOLD:BTN_BRD),
+            background:scaleHintCustom===sc.name?ACT_GOLD:BG2,
+            color:scaleHintCustom===sc.name?GOLD:BTN_OFF,minHeight:36}},sc.name)
+      )
+    ):null,
     // Extension row — Full mode only
     availExts.length>0&&!isEss?e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12,alignItems:'center'}},
       e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Extension'),
@@ -3017,7 +3226,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     ),
     // Neck (with dot-mode toggle inside)
     e('div',{style:{border:'1px solid '+BORDER,borderRadius:6,overflow:'hidden',marginBottom:10}},
-      e(ScrollNeck,{arpPos,highlight,scalePos:[],degNames,dotMode,dotKeyIdx:customRoot}),
+      e(ScrollNeck,{arpPos,highlight,scalePos:customScalePos,degNames,dotMode,dotKeyIdx:customRoot}),
       setDotMode?e('div',{style:{borderTop:'1px solid '+BORDER,padding:'4px 10px',background:BG2}},
         e(DotModeToggle,{dotMode,setDotMode})
       ):null
@@ -3383,6 +3592,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
       p('The only thing this guide assumes is that you can play guitar chords — open chords, barre chords, however you\'ve learned them. If you know that some chords sound bright and happy while others sound dark or tense, you already have the ear for this. No other music theory background is required.'),
       p('What you\'ll learn here: jazz uses ',e('b',{style:HL},'four-note chords'),' where most styles use three-note chords. The extra note is what gives jazz its characteristic richness. You\'ll learn to recognize these chord types by ear, play them in multiple positions, and connect them smoothly — the skills that make jazz harmony feel natural rather than academic.'),
       p('Every term that might be unfamiliar — ',term('inv','inversion'),', ',term('modes','mode'),', ',term('guide','guide tone'),', ',term('vl','voice leading'),' — is defined in plain English in the Glossary at the bottom of this page. You do not need to know them before you start. Meet them as they come up.'),
+      callout(e('b',null,'Coming from rock? '),'Jazz uses the same I–IV–V relationships you already know — just with four-note chords instead of three, and more intentional movement between them. The dominant 7 (V7) you already bend notes over is the engine of everything here. Drop 2 voicings (Stage 2) will feel awkward at first and then click fast — most rock players are through the first two stages in a few weeks.'),
       callout(e('b',null,'How to use this page: '),'Tap a stage to expand it. Check off each practice step as you nail it — the gold "◆ You\'ve got it when…" line is your mastery target for that stage. When it feels solid, tap "I\'ve got this" to mark it done and jump to the next. The buttons open the app already set up, so you can start playing immediately. Honest timing: shells take 2–4 months to feel natural, Drop 2 takes 6+ months to connect — the goal is playing your guitar, not racing a checklist.')
     ),
     e('div',{style:S},
