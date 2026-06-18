@@ -592,7 +592,7 @@ function UpgradeSheet({feature,onClose,onUnlock}){
   };
   // Map partial feature strings to a perk index (0-3) so that perk gets highlighted
   const PERK_IDX={'Drop 2':0,'Drop 3':0,'Rootless':0,'drop2':0,'drop3':0,'rootless':0,
-    'minor II':1,'Jazz Blues':1,'Tritone':1,'Sec. Dom':1,'Tritone Sub':1,
+    'minor II':1,'Jazz Blues':1,'Tritone':1,'Sec. Dom':1,'Tritone Sub':1,'Turnaround':1,
     'Triads':2,'7th Chords':2,'Auto ear':2,'auto ear':2,
     '△':'3','ø':'3','9sus':'3'};
   const featureKey=Object.keys(PERK_IDX).find(k=>feature&&feature.includes(k));
@@ -795,10 +795,22 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
 
   // Modes: intervals always visible; triads + 7th chords are Full only
   const [mode,setMode]=useState('intervals');
-  // Per-mode scores
-  const [scores,setScores]=useState({intervals:{r:0,w:0},triads:{r:0,w:0},chords:{r:0,w:0},cadences:{r:0,w:0}});
-  // Per-item breakdown: {intervals:{1:{r,w},...}, triads:{major:{r,w},...}, chords:{...}, cadences:{...}}
-  const [detail,setDetail]=useState({intervals:{},triads:{},chords:{},cadences:{}});
+  // Per-mode scores — persisted so progress survives app restarts
+  const [scores,setScores]=useState(()=>{
+    try{const s=JSON.parse(safeLS('jg-ear-scores','{}'));
+      return {intervals:{r:s.intervals?.r||0,w:s.intervals?.w||0},
+        triads:{r:s.triads?.r||0,w:s.triads?.w||0},
+        chords:{r:s.chords?.r||0,w:s.chords?.w||0},
+        cadences:{r:s.cadences?.r||0,w:s.cadences?.w||0}};}
+    catch(ex){return {intervals:{r:0,w:0},triads:{r:0,w:0},chords:{r:0,w:0},cadences:{r:0,w:0}};}
+  });
+  // Per-item breakdown — persisted for spaced-repetition weighting
+  const [detail,setDetail]=useState(()=>{
+    try{return JSON.parse(safeLS('jg-ear-detail','{}'));}
+    catch(ex){return {intervals:{},triads:{},chords:{},cadences:{}};}
+  });
+  useEffect(()=>{safeLSSet('jg-ear-scores',JSON.stringify(scores));},[scores]);
+  useEffect(()=>{safeLSSet('jg-ear-detail',JSON.stringify(detail));},[detail]);
   // Intro gate — shown once, persisted to localStorage
   const [seenIntro,setSeenIntro]=useState(()=>!!safeLS('jg-ear-intro'));
   // Round state
@@ -3474,7 +3486,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
      body:['Ear training is the feedback loop that makes everything else stick. When you can hear a II–V–I by ear, every recording you listen to becomes active practice. When you can identify a major 7th interval, you hear it in melodies you already know. Without ear training, you\'re memorizing shapes in isolation from sound.',
            'The Ear tab has two modes: Interval recognition (melodic and harmonic — identify the distance between two notes) and Cadence recognition (identify chord progressions by ear). Start with intervals: Perfect 4th, 5th, and Octave first. Then add the intervals that define the chord qualities you already know — Major 7th (the sound of maj7), Minor 7th (the sound of dom7 and m7). Cadences: the II–V pattern is the most valuable. You\'ve been playing it for weeks; now identify it by ear without looking.',
            'Song mnemonics are provided for every interval — they work because your brain already knows the feeling of that distance. Major 7th: "Take On Me" chorus. Tritone: "The Simpsons" theme. Octave: "Somewhere Over the Rainbow." Use what sticks.'],
-     items:['Ear tab → Intervals: practice Perfect 4th, 5th, and Octave first — the most common in jazz','Add Major 7th and Minor 7th — these are the defining intervals of maj7 and m7/dom7 chords','Ear tab → Cadences: listen for II–V and V–I — you\'ve been playing these, now identify them cold','Pro unlocks all 12 intervals and the complete cadence suite (II–V–I, I–VI, iv–I)','10–15 min of ear training per session accelerates everything else faster than extra shape drilling']},
+     items:['Ear tab → Intervals: practice Perfect 4th, 5th, and Octave first — the most common in jazz','Add Major 7th and Minor 7th — these are the defining intervals of maj7 and m7/dom7 chords','Ear tab → Cadences: listen for II–V and V–I — you\'ve been playing these, now identify them cold','Pro unlocks all 12 intervals and the complete cadence suite (II–V–I, I–VI, iv–I)','10–15 min of ear training per session accelerates everything else faster than extra shape drilling','Done when: you can reliably identify a Perfect 4th, 5th, and Octave by ear, and a II–V cadence from sound alone']},
     {id:'turnaround',phase:'Forms',fullPreset:true,
      title:'The turnaround — I–vi–ii–V',
      time:'2–4 weeks',
@@ -3490,7 +3502,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
      preset:{view:'iivi',key:5,form:'blues',bpm:66},
      body:['The 12-bar blues is one of the most-played forms in all of music. Jazz transformed it with richer chords and a II–V–I in bars 9–10. The result — jazz blues — sounds unmistakably jazz while keeping the familiar 12-bar architecture.',
            'Jazz blues in F: bars 1–4 on F7 (I), bars 5–6 on B♭7 (IV), bar 7 back to F7, bar 8 adds D7 (a secondary dominant — V7/ii), bars 9–10 are a II–V (Gm7–C7), bar 11 returns to F7, bar 12 is a V7 turnaround. F is the traditional jazz-blues key — "Now\'s the Time," "Billie\'s Bounce," "Blues for Alice" are all in F.'],
-     items:['Loop the Jazz Blues form with shells only — one chord per bar, any inversion','Identify the II–V–I in bars 9–11 — it\'s the same progression you already know','Listen to Billie\'s Bounce or Now\'s the Time: can you follow the 12-bar form and hear the II–V coming?','Then upgrade: try Drop 2 on bars 1 and 5 first, then gradually through the rest of the form']},
+     items:['Loop the Jazz Blues form with shells only — one chord per bar, any inversion','Identify the II–V–I in bars 9–11 — it\'s the same progression you already know','Listen to Billie\'s Bounce or Now\'s the Time: can you follow the 12-bar form and hear the II–V coming?','Then upgrade: try Drop 2 on bars 1 and 5 first, then gradually through the rest of the form','Done when: you can play all 12 bars of a jazz blues in F from memory at a steady tempo, shells all the way through']},
     {id:'minor',phase:'Forms',fullPreset:true,
      title:'The minor II–V–I',
      time:'3–4 weeks',
@@ -3498,21 +3510,21 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
      body:['The minor II–V–I uses the same structural logic as the major version with different harmonic color: IIm7♭5 (half-diminished) – V7 – Im7. The half-diminished chord has a flattened 5th, adding instability beyond a regular minor 7 — it has more pull than a plain m7.',
            'The V7 in a minor context often uses an altered dominant (♭9 or ♯9). The altered scale — the 7th mode of melodic minor, where every extension is altered (♭9, ♯9, ♯11, ♭13) — provides all these tensions naturally. "Autumn Leaves" alternates major and minor II–V–Is back to back — the most-studied standard for learning this distinction.',
            'Loop major then minor II–V–I back to back in the same key and listen to the contrast. The half-diminished chord has a specific "searching" quality that ear training makes immediately recognizable.'],
-     items:['Loop major then minor II–V–I in the same key — hear the contrast in the IIø vs. IIm7','Listen for how the ♭5 of the IIø pulls downward into the V7 root','Ear training → Cadences: try to distinguish major vs. minor II–V by sound alone — the half-diminished is the tell']},
+     items:['Loop major then minor II–V–I in the same key — hear the contrast in the IIø vs. IIm7','Listen for how the ♭5 of the IIø pulls downward into the V7 root','Ear training → Cadences: try to distinguish major vs. minor II–V by sound alone — the half-diminished is the tell','Done when: you can play a minor II–V–I from memory and hear the difference from the major version without looking at the chord names']},
     {id:'tritone_sub',phase:'Forms',fullPreset:true,
      title:'Tritone substitution — same destination, different road',
      time:'3–5 weeks',
      preset:{view:'iivi',key:0,form:'tritone',bpm:60},
      body:[['The ',term('tritone_sub','tritone substitution'),' replaces the V7 chord with another dominant 7 a ',term('tritone','tritone'),' (6 semitones) away. In C: G7 can be replaced by D♭7. Both chords share the same tritone — B and F — so both resolve identically to Cmaj7. The difference is the bass: G7 drops a 5th (G→C), D♭7 slides a half-step (D♭→C). That chromatic bass descent is the signature sound.'],
            ['The ',term('guide','guide tones'),' do the same job either way; only the bass and outer color change. Tap the Tritone Sub form to hear both approaches back to back.']],
-     items:['Bars 1–4: standard V7 (bass drops a 4th G→C). Bars 5–8: tritone sub (bass slides D♭→C) — hear the difference','On the D♭7 bar, try a Drop 2 D♭7 — root on string 5, fret 9 (same shape as G7 but 6 frets higher)',['Wherever you see a V7 resolving to I in a standard, try the tritone sub — "Autumn Leaves," "All The Things You Are," and most bebop heads use them']]},
+     items:['Bars 1–4: standard V7 (bass drops a 4th G→C). Bars 5–8: tritone sub (bass slides D♭→C) — hear the difference','On the D♭7 bar, try a Drop 2 D♭7 — root on string 5, fret 9 (same shape as G7 but 6 frets higher)',['Wherever you see a V7 resolving to I in a standard, try the tritone sub — "Autumn Leaves," "All The Things You Are," and most bebop heads use them'],'Done when: you can play both the standard ii–V–I and the tritone-subbed version in C, and hear the bass-motion difference without the screen']},
     {id:'secdom',phase:'Forms',fullPreset:true,
      title:'Secondary dominants — borrowing V7 for any chord',
      time:'4–6 weeks',
      preset:{view:'iivi',key:0,form:'secdom',bpm:60},
      body:[['A ',term('sec_dom','secondary dominant'),' is any dominant 7 chord temporarily acting as V7 to a chord other than I. In C, A7 isn\'t diatonic — but it pulls to Dm7 (ii) because A7 is V7/ii (the dominant a fifth above D). You can build a secondary dominant to any chord in the key.'],
            ['Secondary dominants are often tritone-substituted: E♭7 moving to Dm7 is just A7 (V7/ii) with a tritone sub — same function, chromatically recolored. The Sec. Dom. form in Play chains them into a cascade of chromatic bass resolutions.']],
-     items:['In C: A7 → Dm7 is V7/ii — hear the pull in the Sec. Dom. form','Look for them in standards: the D7 in bar 8 of an F jazz blues (V7/ii in F), or E7 → Am7 (V7/vi) in a I–VI7–ii–V turnaround',['Secondary dominants are often tritone-subbed: E♭7→Dm7 is A7 (V7/ii) ',term('tritone_sub','tritone-subbed'),' — same function, different color']]},
+     items:['In C: A7 → Dm7 is V7/ii — hear the pull in the Sec. Dom. form','Look for them in standards: the D7 in bar 8 of an F jazz blues (V7/ii in F), or E7 → Am7 (V7/vi) in a I–VI7–ii–V turnaround',['Secondary dominants are often tritone-subbed: E♭7→Dm7 is A7 (V7/ii) ',term('tritone_sub','tritone-subbed'),' — same function, different color'],'Done when: you can hear a secondary dominant in a progression and name which chord it\'s pulling toward']},
     // ── PHASE 4: APPLICATION ─────────────────────────────────────────────
     {id:'keys',phase:'Application',phaseLabel:'Phase 4 — Application',fullPreset:true,
      title:'Take it around the keys',
@@ -3529,7 +3541,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
      playPreset:{view:'iivi',key:0,form:'major',bpm:60,vType:'drop2'},
      body:['A ',term('approach_note','chromatic approach note'),' is played a half-step above or below a chord tone on the last beat before the chord changes. You land on the target when the new chord arrives. This lean-and-land motion is the signature of bebop melody — phrases feel like they\'re pulled toward their destination.',
            ['The best targets are ',term('guide','"guide tones"'),' — 3rd and 7th — because they move most dramatically between chords. Approach from below (natural, pulls up), from above (tenser, falls down), or double chromatic: one above then one below, landing on beat 1. Even one approach note per chord change starts to sound like bebop.']],
-     items:['Pick the 3rd of each chord as your target — on beat 4 of the previous bar, play a half-step below, land on beat 1','Use Arpeggio view in Keys to locate all chord tones — those are your landing points','Double chromatic into the 3rd of G7 (B): play B♭ then C♯ on beats 3–4, land on B on beat 1 — a bebop staple']},
+     items:['Pick the 3rd of each chord as your target — on beat 4 of the previous bar, play a half-step below, land on beat 1','Use Arpeggio view in Keys to locate all chord tones — those are your landing points','Double chromatic into the 3rd of G7 (B): play B♭ then C♯ on beats 3–4, land on B on beat 1 — a bebop staple','Done when: you can add a chromatic approach note into each chord change of a ii–V–I consistently, landing on a guide tone on beat 1']},
     {id:'standard',phase:'Application',fullPreset:true,
      title:'Play a jazz standard',
      time:'An arrival, not a finish line',
@@ -3578,8 +3590,13 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
         e('div',{style:{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap'}},
           (()=>{
             const gated=st.fullPreset&&level==='essentials';
+            // Derive feature name so UpgradeSheet highlights the right perk
+            const FORM_FEAT={turn:'Turnaround form',blues:'Jazz Blues',minor:'minor II–V–I',tritone:'Tritone Sub',secdom:'Sec. Dom.'};
+            const stageFeature=st.preset?.vType==='drop2'?'Drop 2 voicings':
+              st.preset?.vType==='drop3'?'Drop 3 voicings':
+              FORM_FEAT[st.playPreset?.form]||FORM_FEAT[st.preset?.form]||'Play forms';
             const presetLbl='▶ Open in '+({diatonic:'Keys',iivi:'Play',custom:'Chords',quiz:'Ear Training'}[st.preset.view]||'app');
-            return e('button',{onClick:gated?()=>onUpgrade?.('Play forms'):()=>openPreset(st.preset),style:{
+            return e('button',{onClick:gated?()=>onUpgrade?.(stageFeature):()=>openPreset(st.preset),style:{
               padding:'5px 16px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',
               border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,fontWeight:700,minHeight:44,
               opacity:gated?0.7:1}},
@@ -3587,7 +3604,9 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
           })(),
           st.playPreset?(()=>{
             const gated=st.fullPreset&&level==='essentials';
-            return e('button',{onClick:gated?()=>onUpgrade?.('Play forms'):()=>openPreset(st.playPreset),style:{
+            const FORM_FEAT={turn:'Turnaround form',blues:'Jazz Blues',minor:'minor II–V–I',tritone:'Tritone Sub',secdom:'Sec. Dom.'};
+            const playFeature=FORM_FEAT[st.playPreset?.form]||'Play forms';
+            return e('button',{onClick:gated?()=>onUpgrade?.(playFeature):()=>openPreset(st.playPreset),style:{
               padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',
               border:'1px solid #74C0FC',background:'#0a1520',color:'#74C0FC',fontWeight:700,minHeight:44,
               opacity:gated?0.7:1}},
