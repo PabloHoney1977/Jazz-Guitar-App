@@ -11,6 +11,40 @@ function localDateStr(ts=Date.now()){const d=new Date(ts);return d.getFullYear()
 // Streak milestone check — [3,7,14] + every 30 days + 365
 function isStreakMilestone(n){return [3,7,14].includes(n)||(n>0&&n%30===0)||n===365;}
 
+// ── Capacitor Local Notifications ─────────────────────────────────────
+// All calls are silent no-ops in the browser (Capacitor bridge not present).
+// In the native iOS/Android app, schedules a daily 7 pm reminder that
+// automatically reschedules each time the user practices.
+const Notif=(()=>{
+  const ID=42;           // stable notification ID — always cancel/replace this slot
+  const CH='jgl_streak'; // Android channel (ignored on iOS)
+  function plug(){return window?.Capacitor?.Plugins?.LocalNotifications||null;}
+  async function requestPermission(){
+    const P=plug();if(!P)return false;
+    try{const{display}=await P.requestPermissions();return display==='granted';}catch(ex){return false;}
+  }
+  async function schedule(streak){
+    const P=plug();if(!P)return;
+    try{
+      // Android channel creation (no-op on iOS)
+      await P.createChannel?.({id:CH,name:'Practice reminders',importance:3});
+      // Replace any existing reminder
+      await P.cancel({notifications:[{id:ID}]});
+      // Fire at 7 pm today; if already past 7 pm, fire tomorrow
+      const at=new Date();at.setHours(19,0,0,0);
+      if(at<=new Date())at.setDate(at.getDate()+1);
+      const body=streak>0?`${streak}-day streak — practice today to keep it going`:'Your daily jazz practice is waiting';
+      await P.schedule({notifications:[{id:ID,title:'🎸 Jazz Guitar Lab',body,
+        schedule:{at,allowWhileIdle:true},channelId:CH}]});
+    }catch(ex){}
+  }
+  async function cancel(){
+    const P=plug();if(!P)return;
+    try{await P.cancel({notifications:[{id:ID}]});}catch(ex){}
+  }
+  return{requestPermission,schedule,cancel};
+})();
+
 // ── Tuning ───────────────────────────────────────────────────────────
 const OPEN_MIDI=[40,45,50,55,59,64];
 const OPEN_PC  =[4, 9, 2, 7,11, 4];
@@ -4057,7 +4091,19 @@ function App(){
       setStreakAnim(true);
       setTimeout(()=>setStreakAnim(false),900);
     }
+    // Schedule tomorrow's reminder (request permission at day 3 when user is invested)
+    if(newStreak===3){Notif.requestPermission().then(()=>Notif.schedule(newStreak));}
+    else{Notif.schedule(newStreak);}
   }
+
+  // On mount: ensure reminder is queued if streak is at risk, or cancel if already practiced
+  useEffect(()=>{
+    const today=localDateStr();
+    const practiced=safeLS('jg-last-practice','')=== today;
+    const s=parseInt(safeLS('jg-streak','0'),10);
+    if(practiced){Notif.cancel();}
+    else if(s>0){Notif.schedule(s);}
+  },[]);
 
   // Bluetooth page-turner pedal support
   // Pedals appear as keyboard events (AirTurn: Space/Backspace or Arrow keys;
