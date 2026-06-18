@@ -861,6 +861,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const autoTimerRef=useRef(null);
   const autoTimer2Ref=useRef(null);
   const bestVoiceRef=useRef(null);
+  const audioClipsRef=useRef({});
 
   // Load best available TTS voice; prefer enhanced/neural en-US voices
   useEffect(()=>{
@@ -878,6 +879,21 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     pickVoice();
     window.speechSynthesis?.addEventListener('voiceschanged',pickVoice);
     return()=>window.speechSynthesis?.removeEventListener('voiceschanged',pickVoice);
+  },[]);
+
+  // Preload Google TTS audio clips; falls back to browser TTS if files absent
+  useEffect(()=>{
+    const keys=[
+      'minor-second','major-second','minor-third','major-third',
+      'perfect-fourth','tritone','perfect-fifth','minor-sixth',
+      'major-sixth','minor-seventh','major-seventh','octave',
+      'major-triad','minor-triad','augmented-triad','diminished-triad',
+      'major-seven','minor-seven','dominant-seven','half-diminished',
+      'two-five','five-one','two-five-one','one-six','four-minor-one',
+    ];
+    const clips={};
+    keys.forEach(k=>{const a=new Audio('./audio/'+k+'.mp3');a.preload='auto';clips[k]=a;});
+    audioClipsRef.current=clips;
   },[]);
 
   // Cancel timers and speech when auto mode turns off or component unmounts
@@ -989,7 +1005,6 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     let spk='';
     if(mode==='intervals'){
       const iv=IVALS.find(x=>x.s===current.semitones);
-      // Ordinal → word for natural TTS ("2nd" → "second")
       const ORD={'2nd':'second','3rd':'third','4th':'fourth','5th':'fifth','6th':'sixth','7th':'seventh','8th':'octave'};
       spk=iv?iv.name.replace(/\b(\d+(?:st|nd|rd|th))\b/g,m=>ORD[m]||m):'';
     } else if(mode==='triads'){spk=(TRIAD_LBL[current.quality]||'')+' triad';}
@@ -1001,20 +1016,33 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
       spk=m[current.quality]||QLABELS[current.quality]||'';
     }
     setRevealed(true);
-    if(window.speechSynthesis&&spk){
-      window.speechSynthesis.cancel();
-      const utt=new SpeechSynthesisUtterance(spk);
-      if(bestVoiceRef.current) utt.voice=bestVoiceRef.current;
-      utt.rate=0.82;
-      utt.pitch=0.9;
+    if(!spk){autoTimerRef.current=setTimeout(newRound,2600);return;}
+    // TTS fallback used when MP3 clip is unavailable
+    function speakTTS(){
+      if(window.speechSynthesis){
+        window.speechSynthesis.cancel();
+        const utt=new SpeechSynthesisUtterance(spk);
+        if(bestVoiceRef.current) utt.voice=bestVoiceRef.current;
+        utt.rate=0.82;utt.pitch=0.9;
+        let done=false;
+        function adv(){if(done)return;done=true;autoTimerRef.current=setTimeout(newRound,1600);}
+        utt.onend=adv;utt.onerror=adv;
+        autoTimerRef.current=setTimeout(adv,Math.max(3000,spk.length*80));
+        window.speechSynthesis.speak(utt);
+      } else {autoTimerRef.current=setTimeout(newRound,2600);}
+    }
+    const clip=audioClipsRef.current[spk.toLowerCase().replace(/\s+/g,'-')];
+    if(clip){
+      clip.currentTime=0;
       let done=false;
-      function advance(){if(done)return;done=true;autoTimerRef.current=setTimeout(newRound,1600);}
-      utt.onend=advance;utt.onerror=advance;
-      // Fallback: WebKit sometimes drops onend
-      autoTimerRef.current=setTimeout(advance,Math.max(3000,spk.length*80));
-      window.speechSynthesis.speak(utt);
+      function advance(){if(done)return;done=true;autoTimerRef.current=setTimeout(newRound,1400);}
+      clip.onended=advance;
+      clip.onerror=()=>{clip.onerror=null;clip.onended=null;speakTTS();};
+      // Safety: if onended never fires (e.g. browser quirk), fall through after 4s
+      autoTimerRef.current=setTimeout(advance,4000);
+      clip.play().catch(speakTTS);
     } else {
-      autoTimerRef.current=setTimeout(newRound,2600);
+      speakTTS();
     }
   }
 
@@ -1187,8 +1215,10 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   function toggleAuto(){
     if(!autoMode&&isEss){onUpgrade('Auto ear training');return;}
     if(!autoMode){
-      // iOS requires speak() inside a user gesture before it works from setTimeout callbacks
+      // iOS requires both speech and Audio.play() to be called inside a user gesture
       if(window.speechSynthesis){window.speechSynthesis.cancel();window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));}
+      const clips=Object.values(audioClipsRef.current);
+      if(clips[0]){clips[0].play().then(()=>{clips[0].pause();clips[0].currentTime=0;}).catch(()=>{});}
       // Batch with newRound so mode + fresh question land in a single render (no intermediate flash)
       setAutoMode(true);
       newRound();
