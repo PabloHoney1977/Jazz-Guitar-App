@@ -843,7 +843,10 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   });
   // Per-item breakdown — persisted for spaced-repetition weighting
   const [detail,setDetail]=useState(()=>{
-    try{return JSON.parse(safeLS('jg-ear-detail','{}'));}
+    try{
+      const s=JSON.parse(safeLS('jg-ear-detail','{}'));
+      return {intervals:s.intervals||{},triads:s.triads||{},chords:s.chords||{},cadences:s.cadences||{}};
+    }
     catch(ex){return {intervals:{},triads:{},chords:{},cadences:{}};}
   });
   useEffect(()=>{if(skipSaveRef.current>0){skipSaveRef.current--;return;}safeLSSet('jg-ear-scores',JSON.stringify(scores));},[scores]);
@@ -1132,7 +1135,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const pct=total>0?Math.round(100*sc.r/total):0;
   // Find the weakest item (min r/(r+w) with at least 2 attempts)
   const weakest=(()=>{
-    const dm=detail[mode];
+    const dm=detail[mode]||{};
     let worst=null,worstRate=1;
     Object.entries(dm).forEach(([k,v])=>{
       const t=v.r+v.w;if(t<2) return;
