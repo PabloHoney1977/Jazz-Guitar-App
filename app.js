@@ -422,6 +422,7 @@ function playRide(ctx,buf,startTime,eqGains,vol){
     g.connect(ctx.destination);
   }
   src.start(startTime);
+  src.stop(startTime+buf.duration+0.1); // release the node when done
 }
 
 // KS synthesis — kept as fast fallback while guitar samples load
@@ -826,6 +827,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const isEss=level==='essentials';
   const practicedRef=useRef(false);
   const answerCountRef=useRef(0);
+  const skipSaveRef=useRef(0); // suppresses localStorage write during level-change score reset
 
   // Modes: intervals always visible; triads + 7th chords are Full only
   const [mode,setMode]=useState('intervals');
@@ -843,8 +845,8 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     try{return JSON.parse(safeLS('jg-ear-detail','{}'));}
     catch(ex){return {intervals:{},triads:{},chords:{},cadences:{}};}
   });
-  useEffect(()=>{safeLSSet('jg-ear-scores',JSON.stringify(scores));},[scores]);
-  useEffect(()=>{safeLSSet('jg-ear-detail',JSON.stringify(detail));},[detail]);
+  useEffect(()=>{if(skipSaveRef.current>0){skipSaveRef.current--;return;}safeLSSet('jg-ear-scores',JSON.stringify(scores));},[scores]);
+  useEffect(()=>{if(skipSaveRef.current>0){skipSaveRef.current--;return;}safeLSSet('jg-ear-detail',JSON.stringify(detail));},[detail]);
   // Intro gate — shown once, persisted to localStorage
   const [seenIntro,setSeenIntro]=useState(()=>!!safeLS('jg-ear-intro'));
   // Round state
@@ -1045,6 +1047,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   useEffect(()=>{
     if(!seenIntro) return;
     if(isEss) setHarmonic(false);
+    skipSaveRef.current+=2; // suppress the upcoming score+detail saves so Pro history survives
     setScores(s=>({...s,intervals:{r:0,w:0}}));
     setDetail(d=>({...d,intervals:{}}));
     newRound();
@@ -1928,6 +1931,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   const [scaleHint,setScaleHint]=useState(null); // name of active scale suggestion
   const [countIn,setCountIn]=useState(0); // 0=off, 1-4=counting
   const [starting,setStarting]=useState(false); // true between play-press and isPlaying
+  const startingRef=useRef(false); // sync guard against double-tap — React state is async
+  const countInTimersRef=useRef([]); // clearable handles for count-in display timeouts
   const [loopCount,setLoopCount]=useState(0);
   const [rideEnabled,setRideEnabled]=useState(()=>safeLS('jg-ride')!=='false');
   const [showGTLine,setShowGTLine]=useState(false);
@@ -2189,6 +2194,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       try{return{midi:+midi,buf:await ctx.decodeAudioData(arr.slice(0))};}
       catch(e){return null;}
     })).then(res=>{
+      if(ctx!==audioCtxRef.current) return; // playback restarted with a new context
       const map={};
       res.forEach(r=>{if(r)map[r.midi]=r.buf;});
       bassSamplesRef.current=map;
@@ -2203,6 +2209,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       try{return{midi:+midi,buf:await ctx.decodeAudioData(arr.slice(0))};}
       catch(e){return null;}
     })).then(res=>{
+      if(ctx!==audioCtxRef.current) return; // playback restarted with a new context
       const map={};
       res.forEach(r=>{if(r)map[r.midi]=r.buf;});
       guitarSamplesRef.current=map;
@@ -2307,7 +2314,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   function tick(gen,ctx){
     if(!audioCtxRef.current) return;
     const beatDur=60/bpmRef.current;
-    while(nextTimeRef.current < audioCtxRef.current.currentTime+0.12){
+    while(audioCtxRef.current&&nextTimeRef.current < audioCtxRef.current.currentTime+0.12){
       const bars=barsRef.current;
       const rawBeat=beatRef.current;
       const beat=rawBeat%(bars.length*4);
@@ -2419,7 +2426,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   }
 
   function startPlayback(){
-    if(countIn>0||starting) return; // prevent double-start
+    if(countIn>0||startingRef.current) return; // sync guard — starting state is async
+    startingRef.current=true;
     setStarting(true);
     setEditingBar(-1);
     const beatDur=60/bpmRef.current;
@@ -2434,16 +2442,25 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     compRef.current=comp;
     ksBufsRef.current=precomputeKS(ctx);
     clickBufsRef.current={accent:makeClickBuf(ctx,1400,1.0),normal:makeClickBuf(ctx,900,0.65)};
-    clickBufsRef.current.rideAccent=preRideRef.current.accent||makeRideBuf(ctx,1,true);
-    clickBufsRef.current.rideNorm=preRideRef.current.norm||makeRideBuf(ctx,1,false);
+    // Use pre-rendered ride if sample rate matches playback context; otherwise fall
+    // back to the synchronous version and re-render async for the next session.
+    const preA=preRideRef.current.accent,preN=preRideRef.current.norm;
+    const rideOk=preA?.sampleRate===ctx.sampleRate;
+    clickBufsRef.current.rideAccent=rideOk?preA:makeRideBuf(ctx,1,true);
+    clickBufsRef.current.rideNorm=rideOk?preN:makeRideBuf(ctx,1,false);
+    if(!rideOk){
+      makeRideBufAsync(ctx.sampleRate,1,true).then(b=>{preRideRef.current.accent=b;}).catch(()=>{});
+      makeRideBufAsync(ctx.sampleRate,1,false).then(b=>{preRideRef.current.norm=b;}).catch(()=>{});
+    }
     if(bassRef.current) decodeBassRaw(ctx);
     if(guitarEnabledRef.current) decodeGuitarRaw(ctx);
     // Schedule 4 count-in clicks, then begin real playback
+    countInTimersRef.current=[];
     for(let i=0;i<4;i++){
       const t=ctx.currentTime+0.05+i*beatDur;
       playClick(ctx,i===0?clickBufsRef.current.accent:clickBufsRef.current.normal,t);
       const delay=Math.max(0,(t-ctx.currentTime)*1000);
-      setTimeout(()=>{setCountIn(3-i);},delay);
+      countInTimersRef.current.push(setTimeout(()=>{setCountIn(3-i);},delay));
     }
     const startDelay=Math.max(0,(ctx.currentTime+0.05+4*beatDur-ctx.currentTime)*1000);
     setTimeout(()=>{
@@ -2459,15 +2476,19 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       const gen=++genRef.current;
       setIsPlaying(true);
       setStarting(false);
+      startingRef.current=false;
       tick(gen,ctx);
     },startDelay);
   }
 
   function stopPlayback(){
+    countInTimersRef.current.forEach(clearTimeout);
+    countInTimersRef.current=[];
+    startingRef.current=false;
     genRef.current++;
     clearTimeout(timerRef.current);
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}compRef.current=null;
-    setIsPlaying(false);setStarting(false);setPlayingChordIdx(null);setPlayingBar(null);
+    setIsPlaying(false);setStarting(false);setCountIn(0);setPlayingChordIdx(null);setPlayingBar(null);
   }
 
   function handleTap(){
@@ -3194,12 +3215,12 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     e('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
       e('span',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT}},'Tap the notes you\'re playing'),
       e('div',{style:{display:'flex',gap:6,alignItems:'center'}},
-        e('button',{onClick:()=>setFretOffset(f=>Math.max(0,f-5)),disabled:fretOffset===0,style:{
+        e('button',{onClick:()=>{setFretOffset(f=>Math.max(0,f-5));setSelectedFrets({});},disabled:fretOffset===0,style:{
           padding:'4px 10px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,opacity:fretOffset===0?0.4:1}},'↑'),
         e('span',{style:{fontSize:'0.72rem',color:HINT,minWidth:50,textAlign:'center'}},
           fretOffset===0?'Open':'+'+(fretOffset)),
-        e('button',{onClick:()=>setFretOffset(f=>Math.min(7,f+5)),disabled:fretOffset>=7,style:{
+        e('button',{onClick:()=>{setFretOffset(f=>Math.min(7,f+5));setSelectedFrets({});},disabled:fretOffset>=7,style:{
           padding:'4px 10px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,opacity:fretOffset>=7?0.4:1}},'↓')
       )
@@ -3462,7 +3483,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
      preset:{view:'diatonic',key:0,deg:0,vType:'shell'},
      body:['The most important contrast to hear first: ',e('b',null,'Major 7'),' (lush, settled — the "home" chord) versus ',e('b',null,'Dominant 7'),' (tense, pulling — wants to resolve). Once you can tell those two apart by ear, add ',e('b',null,'Minor 7'),' (smooth, floating — darker than major but not tense) and ',e('b',null,'Half-diminished'),' (unstable, searching — the most urgent). These four qualities are the building blocks of all jazz harmony.',
            'The colored dots label each note in the app: red = root, teal = 3rd, blue = 5th, gold = 7th. The 3rd and 7th are the notes that define each quality — learn to hear them first.'],
-     items:['Open in Keys (C major) and tap Imaj7 — then tap V7. Which one "leans"? Which one feels settled?','Set dot mode to "Interval" to see the chord tones labeled (R, 3, 5, 7) — these colors appear everywhere in the app','Don\'t memorize names yet — just build the habit of identifying settled vs. tense by sound']},
+     items:['Open in Keys (C major) and tap Imaj7 — then tap V7. Which one "leans"? Which one feels settled?','Set dot mode to "Interval" to see the chord tones labeled (R, 3, 5, 7) — these colors appear everywhere in the app','Don\'t memorize names yet — just build the habit of identifying settled vs. tense by sound','Done when: you can hear the difference between a major 7 (settled) and a dominant 7 (tense) without reading the chord name']},
     {id:'shells',phase:'Foundation',
      title:'Shell voicings — your first jazz grips',
      time:'2–4 months to feel natural',
@@ -4361,9 +4382,7 @@ function App(){
     // ── IIVI VIEW ────────────────────────────────────────────────────
     viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level,onPlayStateChange:setIiviPlaying,pedalRef:iiviPedalRef,onUpgrade:showUpgrade,
       onPracticed:()=>{
-        const ns=playSessions+1;
-        setPlaySessions(ns);
-        safeLSSet('jg-play-sessions',ns);
+        setPlaySessions(s=>{const ns=s+1;safeLSSet('jg-play-sessions',ns);return ns;});
         markPracticed();
       }}):null,
 
