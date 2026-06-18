@@ -6,6 +6,11 @@ const {useState, useMemo, useEffect, useRef} = React;
 const safeLS=(key,fb='')=>{try{const v=localStorage.getItem(key);return v!==null?v:fb;}catch(ex){return fb;}};
 const safeLSSet=(key,val)=>{try{localStorage.setItem(key,val);}catch(ex){}};
 
+// Local date string (YYYY-MM-DD) using device timezone — avoids UTC midnight rollover bug
+function localDateStr(ts=Date.now()){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+// Streak milestone check — [3,7,14] + every 30 days + 365
+function isStreakMilestone(n){return [3,7,14].includes(n)||(n>0&&n%30===0)||n===365;}
+
 // ── Tuning ───────────────────────────────────────────────────────────
 const OPEN_MIDI=[40,45,50,55,59,64];
 const OPEN_PC  =[4, 9, 2, 7,11, 4];
@@ -786,6 +791,7 @@ const GLOSS_DEFS={
 function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const isEss=level==='essentials';
   const practicedRef=useRef(false);
+  const answerCountRef=useRef(0);
 
   // Modes: intervals always visible; triads + 7th chords are Full only
   const [mode,setMode]=useState('intervals');
@@ -983,7 +989,8 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     else{correct=answer===current.quality;key=current.quality;}
     setRevealed(true);setLastResult(correct?'right':'wrong');
     if(!correct) setWrongGuess(answer);
-    if(!practicedRef.current){practicedRef.current=true;onPracticed?.();}
+    answerCountRef.current++;
+    if(!practicedRef.current&&answerCountRef.current>=5){practicedRef.current=true;onPracticed?.();}
     setScores(s=>({...s,[mode]:{r:s[mode].r+(correct?1:0),w:s[mode].w+(correct?0:1)}}));
     setDetail(d=>{const m={...d[mode]},e={...m[key]||{r:0,w:0}};
       e[correct?'r':'w']++;m[key]=e;return{...d,[mode]:m};});
@@ -1932,6 +1939,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   const bassSamplesRef=useRef(null); // decoded AudioBuffers for current AudioContext
   const tapTimesRef=useRef([]);
   const loopCountRef=useRef(0);
+  const playPracticedRef=useRef(false);
   const rideRef=useRef(rideEnabled); rideRef.current=rideEnabled;
   const preRideRef=useRef({accent:null,norm:null}); // async-rendered ride buffers
   const eqRef=useRef([0,0,0,0,0]); eqRef.current=eqGains;
@@ -2265,6 +2273,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
         const lc=loopCountRef.current;
         setTimeout(()=>{if(genRef.current===gen)setLoopCount(lc);},
           Math.max(0,(nextTimeRef.current-audioCtxRef.current.currentTime)*1000));
+        if(lc>=4&&!playPracticedRef.current){playPracticedRef.current=true;onPracticed&&onPracticed();}
       }
       const delay=Math.max(0,(nextTimeRef.current-audioCtxRef.current.currentTime)*1000);
       setTimeout(()=>{if(genRef.current===gen){setPlayingChordIdx(ci);setPlayingBar(bar);setActiveChordIdx(bar);}},delay);
@@ -2399,11 +2408,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       nextTimeRef.current=ctx.currentTime+0.05;
       beatRef.current=0;
       loopCountRef.current=0;
+      playPracticedRef.current=false;
       setLoopCount(0);
       const gen=++genRef.current;
       setIsPlaying(true);
       setStarting(false);
-      onPracticed&&onPracticed();
       tick(gen,ctx);
     },startDelay);
   }
@@ -3992,6 +4001,10 @@ function App(){
   const [streakAnim,setStreakAnim]=useState(false);
   const [streakAnimPending,setStreakAnimPending]=useState(false);
   const [streakMilestone,setStreakMilestone]=useState(null); // day count at which milestone fires
+  const practicedToday=lastPracticeDay===localDateStr();
+  const appDaysSince=lastPracticeDay?Math.round((Date.now()-new Date(lastPracticeDay+'T00:00:00'))/86400000):0;
+  const nextMil=[3,7,14,30,60,100,180,365].find(m=>m>streak)||(Math.floor(streak/30)+1)*30;
+  const daysToNextMil=nextMil-streak;
 
   // Fire deferred streak animation when play stops
   useEffect(()=>{
@@ -4002,18 +4015,20 @@ function App(){
     }
   },[iiviPlaying,streakAnimPending]);
 
-  const STREAK_MILESTONES=[3,7,14,30];
   function markPracticed(){
-    const today=new Date().toISOString().slice(0,10);
+    const today=localDateStr();
     if(lastPracticeDay===today) return;
-    const yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);
-    const newStreak=lastPracticeDay===yesterday?streak+1:1;
+    const yesterday=localDateStr(Date.now()-86400000);
+    const twoDaysAgo=localDateStr(Date.now()-2*86400000);
+    // Grace day: one missed day doesn't break the streak when streak >= 3
+    const graceDay=lastPracticeDay===twoDaysAgo&&streak>=3;
+    const newStreak=(lastPracticeDay===yesterday||graceDay)?streak+1:1;
     setStreak(newStreak);
     setLastPracticeDay(today);
     safeLSSet('jg-streak',newStreak);
     safeLSSet('jg-last-practice',today);
     if(newStreak>bestStreak){setBestStreak(newStreak);safeLSSet('jg-best-streak',newStreak);}
-    if(STREAK_MILESTONES.includes(newStreak)){
+    if(isStreakMilestone(newStreak)){
       setStreakMilestone(newStreak);
       setTimeout(()=>setStreakMilestone(null),5400);
     }
@@ -4219,7 +4234,7 @@ function App(){
           border:'1px solid '+GOLD+'66',borderRadius:10,padding:'3px 10px',cursor:'pointer',
           background:ACT_GOLD,flexShrink:0}},'Pro ✦'):null,
       streak>0?e('div',{
-        title:'Practice streak — '+streak+' day'+(streak!==1?'s':'')+'! Play or practice ear training daily to keep it going.',
+        title:'Practice streak — '+streak+' day'+(streak!==1?'s':'')+'. Next badge at day '+nextMil+' ('+daysToNextMil+' day'+(daysToNextMil===1?'':'s')+' away). Practice daily to keep it going.',
         style:{display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:10,
         border:'1px solid var(--btn-brd)',background:'var(--bg2)',flexShrink:0,cursor:'default',
         animation:streakAnim?'streakPop 0.9s ease-out':'none',transformOrigin:'center'}},
@@ -4246,6 +4261,22 @@ function App(){
           '···')
       ),
     ),
+
+    // Loss-aversion / welcome-back banner — shows when streak is at risk or user returning after absence
+    !iiviPlaying&&!practicedToday&&streak>0?e('div',{style:{
+      margin:'-2px 0 10px',padding:'8px 12px',
+      background:'rgba(251,191,36,0.07)',border:'1px solid rgba(251,191,36,0.22)',
+      borderRadius:8,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',justifyContent:'space-between'
+    }},
+      e('span',{style:{fontSize:'0.73rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT}},
+        appDaysSince>=2
+          ?'⚠️ '+streak+'-day streak — '+appDaysSince+' days since last practice'
+          :'🔥 '+streak+'-day streak — practice today to keep it'
+      ),
+      daysToNextMil<=7?e('span',{style:{fontSize:'0.68rem',color:'var(--hint)',fontFamily:UI_FONT}},
+        daysToNextMil===1?'1 day to '+nextMil+'d badge':daysToNextMil+'d to '+nextMil+'d badge'
+      ):null
+    ):null,
 
     // Key chip (hidden in custom/guide/quiz/playing modes)
     viewMode!=='custom'&&viewMode!=='guide'&&viewMode!=='quiz'&&!iiviPlaying?e('div',{'data-tour':'key-chip',style:{marginBottom:10}},
@@ -4488,7 +4519,7 @@ function App(){
           background:`linear-gradient(135deg,#1a1000 0%,#0d0d1e 100%)`,
           border:'1px solid '+GOLD+'80',borderRadius:16,padding:'22px 24px 18px'}},
           e('div',{style:{fontSize:'2.4rem',textAlign:'center',marginBottom:8}},
-            streakMilestone===3?'🔥':streakMilestone===7?'⭐':'🏆'),
+            streakMilestone===3?'🔥':streakMilestone===7?'⭐':streakMilestone===14?'🌟':streakMilestone===365?'💎':'🏆'),
           e('div',{style:{fontFamily:SERIF,fontSize:'1.6rem',fontWeight:700,color:GOLD,
             textAlign:'center',marginBottom:6}},
             streakMilestone+'-day streak'),
@@ -4497,7 +4528,12 @@ function App(){
             streakMilestone===3?'Three days in a row — the habit is forming. Most people quit before this.':
             streakMilestone===7?'One full week. That\'s more consistent practice than most guitarists manage. Keep it going.':
             streakMilestone===14?'Two weeks straight. You\'re past the "getting started" phase — this is real progress.':
-            'Thirty days. That\'s commitment. Jazz takes time to absorb; you\'re giving it that time.'),
+            streakMilestone===30?'Thirty days. That\'s commitment. Jazz takes time to absorb; you\'re giving it that time.':
+            streakMilestone===60?'Sixty days. Two months of daily practice — your ear is catching things it couldn\'t before.':
+            streakMilestone===100?'One hundred days. This is exceptional. Most players plateau; you\'re still showing up.':
+            streakMilestone===180?'Six months of daily practice. Your hands know things your brain hasn\'t named yet.':
+            streakMilestone===365?'Three hundred sixty-five days. One full year. This is rare. You\'re a jazz guitarist.':
+            streakMilestone%30===0?streakMilestone+' days and counting. Consistency is the rarest skill there is.':''),
           e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT,
             textAlign:'center',marginTop:12}},'Tap to dismiss')
         )
