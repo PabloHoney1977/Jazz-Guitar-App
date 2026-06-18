@@ -761,7 +761,7 @@ function GuidePlayBtn({quality}){
 // ── Glossary definitions (used in Guide; also available to any tab) ───
 const GLOSS_DEFS={
   '7th':{term:'7th chord',short:'A 4-note chord (root–3–5–7) — the extra note gives jazz its richness.',detail:'Jazz chords almost always include the 7th. It\'s the note that distinguishes a plain major triad (C–E–G) from a jazz Cmaj7 (C–E–G–B). The flavor of the 7th — major, minor, or diminished — is what creates the four chord qualities: maj7 (lush), m7 (floating), dom7 (tense), ø7 (searching).'},
-  'maj7':{term:'Major 7 (maj7)',short:'Stable and lush — the "home" chord. 7th sits a half-step below the octave.',detail:'Spelled root–3–5–Δ7. In C: C–E–G–B. The major 7th (B) is a half-step below the octave — close to resolution but not quite there, which gives it a gentle, suspended beauty. This is the I and IV chord in major keys. In jazz ballads and bossa nova, maj7 is the most "at rest" sound.'},
+  'maj7':{term:'Major 7 (△7)',short:'Stable and lush — the "home" chord. Written △7 in jazz charts (triangle = major 7th). The 7th sits a half-step below the octave.',detail:'Spelled root–3–5–Δ7. In C: C–E–G–B. The major 7th (B) is a half-step below the octave — close to resolution but not quite there, which gives it a gentle, suspended beauty. This is the I and IV chord in major keys. In jazz ballads and bossa nova, maj7 is the most "at rest" sound.'},
   'dom7':{term:'Dominant 7 (7)',short:'The tension chord — its tritone (3rd + ♭7) pulls strongly toward resolution.',detail:'Spelled root–3–5–♭7. In G: G–B–D–F. The 3rd (B) and ♭7 (F) are a tritone apart — the most dissonant interval. Both notes want to resolve: B moves up a half-step to C, F moves down to E. Those are the root and 3rd of Cmaj7. This is the V chord — the engine of all tonal resolution.'},
   'm7':{term:'Minor 7 (m7)',short:'Smooth and floating — neither fully resolved nor urgently tense.',detail:'Spelled root–♭3–5–♭7. In D: D–F–A–C. The flat 3rd darkens the quality; the flat 7th (shared with dominant 7) prevents it from settling. It\'s the II, III, and VI chord in major keys. Because it lacks the tritone of a dominant chord, it doesn\'t pull hard toward anything — it floats. Play Dm7 → G7 → Cmaj7 to hear it act as tension-before-the-tension.'},
   'halfdim':{term:'Half-diminished (ø7)',short:'m7 with a flattened 5th — more tense and searching than a regular minor 7.',detail:'Spelled root–♭3–♭5–♭7. In B: B–D–F–A. The flattened 5th (F instead of F#) adds instability. This chord naturally occurs on the VII degree of major keys and on the II degree of minor keys (where it\'s written IIø or IIm7♭5). In C major, Bm7♭5 is the viiø7 — it shares G7\'s guide tones (B, D, F), so it acts as a rootless dominant that resolves to the I with extra darkness.'},
@@ -1487,6 +1487,85 @@ const NeckSVG=React.memo(function NeckSVG({arpPos,highlight,scalePos,extraDots,d
     })
   );
 });
+
+// ── DetectNeckSVG ─────────────────────────────────────────────────────
+// Interactive fretboard for Find Chord mode. Tap any position to toggle
+// note selection; shows 5 frets at once, navigated via fretOffset.
+function DetectNeckSVG({selectedFrets,fretOffset,onToggle}){
+  const FW=52,SH=38,PL=38,PT=26,PB=26;
+  const NF=5;
+  const W=PL+NF*FW+24,H=PT+5*SH+PB;
+  const showOpen=fretOffset===0;
+  const DN=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
+  const nx=wf=>PL+(wf-0.5)*FW;
+  const OPEN_X=PL-15;
+  const sy=si=>PT+(5-si)*SH;
+
+  function tap(si,fret){
+    try{const ctx=_getPreviewCtx();if(ctx){const midi=OPEN_MIDI[si]+fret;if(_guitarBufs)_playSampledNote(ctx,midi,ctx.currentTime+0.04,0.5,1.6);else _playKSNote(ctx,midi,ctx.currentTime+0.04,0.45);}}catch(ex){}
+    onToggle(si,fret);
+  }
+
+  return e('svg',{width:'100%',viewBox:`0 0 ${W} ${H}`,style:{display:'block',WebkitTapHighlightColor:'transparent'}},
+    e('defs',null,
+      e('filter',{id:'dng',x:'-60%',y:'-60%',width:'220%',height:'220%'},
+        e('feGaussianBlur',{stdDeviation:'3',result:'b'}),
+        e('feMerge',null,e('feMergeNode',{in:'b'}),e('feMergeNode',{in:'SourceGraphic'}))
+      ),
+      e('linearGradient',{id:'dnBg',x1:'0',y1:'0',x2:'1',y2:'0'},
+        e('stop',{offset:'0%',style:{stopColor:'var(--neck-wood1)'}}),
+        e('stop',{offset:'60%',style:{stopColor:'var(--neck-wood2)'}}),
+        e('stop',{offset:'100%',style:{stopColor:'var(--neck-wood3)'}})
+      ),
+      e('linearGradient',{id:'dnNut',x1:'0',y1:'0',x2:'0',y2:'1'},
+        e('stop',{offset:'0%',stopColor:'#e8c870'}),
+        e('stop',{offset:'100%',stopColor:'#b8922a'})
+      )
+    ),
+    e('rect',{x:PL-22,y:PT-13,width:NF*FW+28,height:5*SH+26,rx:7,fill:'url(#dnBg)'}),
+    e('rect',{x:PL-22,y:PT-13,width:NF*FW+28,height:5*SH+26,rx:7,fill:'none',style:{stroke:'var(--neck-edge)'},strokeWidth:1}),
+    showOpen
+      ?e('rect',{x:PL-9,y:PT-11,width:8,height:5*SH+22,fill:'url(#dnNut)',rx:2})
+      :e('text',{x:3,y:PT+2.5*SH,dominantBaseline:'middle',style:{fill:'var(--neck-lbl)'},fontSize:10,fontFamily:UI_FONT},(fretOffset+1)+'fr'),
+    ...Array.from({length:NF},(_,k)=>e('line',{key:'dfl'+k,
+      x1:PL+(k+1)*FW,y1:PT-10,x2:PL+(k+1)*FW,y2:PT+5*SH+10,
+      style:{stroke:'var(--neck-fret)'},strokeWidth:1.5})),
+    ...Array.from({length:6},(_,si)=>e('line',{key:'dsl'+si,
+      x1:PL-22,y1:sy(si),x2:PL+NF*FW+8,y2:sy(si),
+      stroke:`rgba(220,195,130,${0.30+si*0.09})`,strokeWidth:0.4+si*0.26})),
+    ...Array.from({length:NF},(_,k)=>e('text',{key:'dfn'+k,
+      x:nx(k+1),y:H-6,textAnchor:'middle',style:{fill:'var(--neck-lbl)'},fontSize:11,fontFamily:UI_FONT},fretOffset+(k+1))),
+    ...STR_NAMES.map((n,si)=>e('text',{key:'dsn'+si,x:PL-26,y:sy(si),
+      textAnchor:'end',dominantBaseline:'middle',style:{fill:'var(--neck-lbl)'},fontSize:9.5,fontFamily:UI_FONT},n)),
+    ...(showOpen?Array.from({length:6},(_,si)=>{
+      const isSel=selectedFrets[si]===0;
+      const pc=OPEN_PC[si];
+      return e('g',{key:'dop'+si,onClick:()=>tap(si,0),style:{cursor:'pointer'}},
+        e('circle',{cx:OPEN_X,cy:sy(si),r:isSel?13:8,
+          fill:isSel?'var(--gold)':'transparent',
+          stroke:isSel?'var(--hi-dot-str)':'rgba(255,255,255,0.25)',strokeWidth:isSel?1.8:1}),
+        isSel?e('text',{x:OPEN_X,y:sy(si),textAnchor:'middle',dominantBaseline:'middle',
+          fill:'var(--dot-lbl)',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT,pointerEvents:'none'},DN[pc]):null
+      );
+    }):[]),
+    ...Array.from({length:NF},(_,wf)=>Array.from({length:6},(_,si)=>{
+      const actF=fretOffset+wf+1;
+      const isSel=selectedFrets[si]===actF;
+      const pc=(OPEN_PC[si]+actF)%12;
+      const cx=nx(wf+1),cy=sy(si);
+      return e('g',{key:'dfp'+wf+'-'+si,onClick:()=>tap(si,actF),style:{cursor:'pointer'}},
+        e('rect',{x:cx-FW*0.48,y:cy-SH*0.48,width:FW*0.96,height:SH*0.96,fill:'transparent',pointerEvents:'all'}),
+        isSel
+          ?e('g',{filter:'url(#dng)'},
+            e('circle',{cx,cy,r:13,fill:'var(--gold)',stroke:'var(--hi-dot-str)',strokeWidth:1.8}),
+            e('text',{x:cx,y:cy,textAnchor:'middle',dominantBaseline:'middle',
+              fill:'var(--dot-lbl)',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT,pointerEvents:'none'},DN[pc])
+          )
+          :e('circle',{cx,cy,r:7,fill:'transparent',stroke:'rgba(255,255,255,0.2)',strokeWidth:1})
+      );
+    })).flat()
+  );
+}
 
 // ── ScrollNeck ────────────────────────────────────────────────────────
 // Full-width neck that scrolls only when the active voicing would be off-screen.
@@ -3057,63 +3136,21 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
 
   if(detectMode) return e('div',null,
     modeToggleRow,
-    // Fret position navigator
     e('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
-      e('span',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT}},'Tap notes you\'re playing'),
+      e('span',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT}},'Tap the notes you\'re playing'),
       e('div',{style:{display:'flex',gap:6,alignItems:'center'}},
         e('button',{onClick:()=>setFretOffset(f=>Math.max(0,f-5)),disabled:fretOffset===0,style:{
           padding:'4px 10px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
-          border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,opacity:fretOffset===0?0.4:1}},
-          '↑'),
-        e('span',{style:{fontSize:'0.72rem',color:HINT,minWidth:60,textAlign:'center'}},
-          fretOffset===0?'Open + 1–5':'Frets '+(fretOffset+1)+'–'+(fretOffset+5)),
+          border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,opacity:fretOffset===0?0.4:1}},'↑'),
+        e('span',{style:{fontSize:'0.72rem',color:HINT,minWidth:50,textAlign:'center'}},
+          fretOffset===0?'Open':'+'+(fretOffset)),
         e('button',{onClick:()=>setFretOffset(f=>Math.min(7,f+5)),disabled:fretOffset>=7,style:{
           padding:'4px 10px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
-          border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,opacity:fretOffset>=7?0.4:1}},
-          '↓')
+          border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,opacity:fretOffset>=7?0.4:1}},'↓')
       )
     ),
-    // Fretboard grid: strings as columns, frets as rows
-    e('div',{style:{display:'grid',gridTemplateColumns:'20px repeat(6,1fr)',gap:2,marginBottom:12,
-      userSelect:'none',WebkitUserSelect:'none'}},
-      // Header row: string names
-      e('div',{style:{fontSize:'0.6rem',color:HINT,display:'flex',alignItems:'center',justifyContent:'center'}},''),
-      ['E','A','D','G','B','E'].map((s,si)=>
-        e('div',{key:si,style:{fontSize:'0.65rem',color:selectedFrets[si]!==undefined?GOLD:HINT,
-          textAlign:'center',fontFamily:UI_FONT,fontWeight:700,padding:'2px 0'}},s)
-      ),
-      // Open string row
-      e('div',{style:{fontSize:'0.6rem',color:HINT,display:'flex',alignItems:'center',justifyContent:'center',height:36}},'0'),
-      [0,1,2,3,4,5].map(si=>{
-        const isSelected=selectedFrets[si]===0;
-        const pc=(OPEN_PC[si]+0)%12;
-        return e('div',{key:si,
-          onClick:()=>setSelectedFrets(sf=>isSelected?Object.fromEntries(Object.entries(sf).filter(([k])=>k!=si)):({...sf,[si]:0})),
-          style:{display:'flex',alignItems:'center',justifyContent:'center',
-            height:36,borderRadius:4,cursor:'pointer',border:'1px solid '+(isSelected?GOLD:BTN_BRD),
-            background:isSelected?ACT_GOLD:BG2,
-            color:isSelected?GOLD:HINT,fontSize:'0.65rem',fontFamily:UI_FONT,fontWeight:isSelected?700:400}},
-          isSelected?DETECT_NOTE_NAMES[pc]:'○');
-      }),
-      // Fret rows 1..5 (offset by fretOffset)
-      ...[1,2,3,4,5].map(fretOff=>{
-        const fret=fretOff+fretOffset;
-        return [
-          e('div',{key:'lbl'+fretOff,style:{fontSize:'0.6rem',color:HINT,display:'flex',alignItems:'center',justifyContent:'center',height:36}},fret),
-          ...[0,1,2,3,4,5].map(si=>{
-            const isSelected=selectedFrets[si]===fret;
-            const pc=(OPEN_PC[si]+fret)%12;
-            return e('div',{key:si,
-              onClick:()=>setSelectedFrets(sf=>isSelected?Object.fromEntries(Object.entries(sf).filter(([k])=>k!=si)):({...sf,[si]:fret})),
-              style:{display:'flex',alignItems:'center',justifyContent:'center',
-                height:36,borderRadius:4,cursor:'pointer',border:'1px solid '+(isSelected?GOLD:BTN_BRD),
-                background:isSelected?ACT_GOLD:BG2,
-                color:isSelected?GOLD:HINT,fontSize:'0.65rem',fontFamily:UI_FONT,fontWeight:isSelected?700:400}},
-              isSelected?DETECT_NOTE_NAMES[pc]:'·');
-          })
-        ];
-      }).flat()
-    ),
+    e(DetectNeckSVG,{selectedFrets,fretOffset,
+      onToggle:(si,fret)=>setSelectedFrets(sf=>sf[si]===fret?Object.fromEntries(Object.entries(sf).filter(([k])=>parseInt(k)!==si)):({...sf,[si]:fret}))}),
     // Clear button
     Object.keys(selectedFrets).length>0?e('button',{onClick:()=>setSelectedFrets({}),style:{
       width:'100%',padding:'6px',background:'transparent',border:'1px solid '+BTN_BRD,
