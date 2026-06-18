@@ -828,6 +828,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const practicedRef=useRef(false);
   const answerCountRef=useRef(0);
   const skipSaveRef=useRef(0); // suppresses localStorage write during level-change score reset
+  const levelInitRef=useRef(false); // skip level-change effect on first mount
 
   // Modes: intervals always visible; triads + 7th chords are Full only
   const [mode,setMode]=useState('intervals');
@@ -1070,6 +1071,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   }
   useEffect(()=>{if(seenIntro) newRound();},[mode,seenIntro]);
   useEffect(()=>{
+    if(!levelInitRef.current){levelInitRef.current=true;return;} // skip initial mount
     if(!seenIntro) return;
     if(isEss) setHarmonic(false);
     skipSaveRef.current+=2; // suppress the upcoming score+detail saves so Pro history survives
@@ -1089,8 +1091,6 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
         background:GOLD,color:'#000',border:'none',cursor:'pointer'}},
       'Start Training →')
   );
-  if(!current) return null;
-
   // Register pedal handlers — overwrite on every render so closure is always current
   if(pedalRef) pedalRef.current={
     forward:autoMode
@@ -1186,17 +1186,18 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
 
   function toggleAuto(){
     if(!autoMode&&isEss){onUpgrade('Auto ear training');return;}
-    // Unlock speech synthesis during user gesture — iOS requires speak() from a tap before
-    // it will work from setTimeout callbacks.
-    if(!autoMode&&window.speechSynthesis){
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+    if(!autoMode){
+      // iOS requires speak() inside a user gesture before it works from setTimeout callbacks
+      if(window.speechSynthesis){window.speechSynthesis.cancel();window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));}
+      // Batch with newRound so mode + fresh question land in a single render (no intermediate flash)
+      setAutoMode(true);
+      newRound();
+    } else {
+      clearTimeout(autoTimerRef.current);
+      clearTimeout(autoTimer2Ref.current);
+      window.speechSynthesis?.cancel();
+      setAutoMode(false);
     }
-    setAutoMode(m=>{
-      if(!m&&revealed){setTimeout(newRound,80);}
-      if(m){clearTimeout(autoTimerRef.current);window.speechSynthesis?.cancel();}
-      return!m;
-    });
   }
 
   return e('div',{style:{padding:'0 0 20px'}},
@@ -1280,9 +1281,9 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
           )
         )
       ):null,
-      e('div',{'data-tour':'ear-choices',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:revealed?12:0}},
+      current?e('div',{'data-tour':'ear-choices',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:revealed?12:0}},
         renderChoices()
-      ),
+      ):null,
       !autoMode&&revealed?e('button',{onClick:newRound,style:{
         width:'100%',padding:'12px',background:GOLD,border:'none',borderRadius:8,
         color:'#07070f',fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:'bold',
