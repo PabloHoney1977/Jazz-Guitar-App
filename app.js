@@ -358,6 +358,7 @@ function playClick(ctx,buf,startTime){
   const g=ctx.createGain();g.gain.value=1;
   src.connect(g);g.connect(ctx.destination);
   src.start(startTime);
+  src.stop(startTime+buf.duration+0.05);
 }
 
 // Sync fallback ride (used if async render not yet ready)
@@ -629,8 +630,8 @@ function UpgradeSheet({feature,onClose,onUnlock}){
   const PERK_IDX={'Drop 2':0,'Drop 3':0,'Rootless':0,'drop2':0,'drop3':0,'rootless':0,
     'minor II':1,'Jazz Blues':1,'Tritone':1,'Sec. Dom':1,'Tritone Sub':1,'Turnaround':1,
     'Triads':2,'7th Chords':2,'Auto ear':2,'auto ear':2,
-    '△':'3','ø':'3','9sus':'3'};
-  const featureKey=Object.keys(PERK_IDX).find(k=>feature&&feature.includes(k));
+    '△':3,'ø':3,'9sus':3};
+  const featureKey=Object.keys(PERK_IDX).find(k=>feature&&feature.toLowerCase().includes(k.toLowerCase()));
   const highlightPerk=featureKey!==undefined?PERK_IDX[featureKey]:null;
   const desc=feature&&FEATURE_DESC[feature];
   return e(React.Fragment,null,
@@ -865,6 +866,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const autoTimer2Ref=useRef(null);
   const bestVoiceRef=useRef(null);
   const audioClipsRef=useRef({});
+  const autoModeRef=useRef(false);
 
   // Load best available TTS voice; prefer enhanced/neural en-US voices
   useEffect(()=>{
@@ -899,6 +901,8 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     audioClipsRef.current=clips;
   },[]);
 
+  // Keep autoModeRef in sync so advance/adv callbacks can bail if mode was turned off
+  useEffect(()=>{autoModeRef.current=autoMode;},[autoMode]);
   // Cancel timers and speech when auto mode turns off or component unmounts
   useEffect(()=>{
     if(!autoMode){clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);window.speechSynthesis?.cancel();}
@@ -1028,7 +1032,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
         if(bestVoiceRef.current) utt.voice=bestVoiceRef.current;
         utt.rate=0.82;utt.pitch=0.9;
         let done=false;
-        function adv(){if(done)return;done=true;autoTimerRef.current=setTimeout(newRound,1600);}
+        function adv(){if(done||!autoModeRef.current)return;done=true;autoTimerRef.current=setTimeout(newRound,1600);}
         utt.onend=adv;utt.onerror=adv;
         autoTimerRef.current=setTimeout(adv,Math.max(3000,spk.length*80));
         window.speechSynthesis.speak(utt);
@@ -1038,7 +1042,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     if(clip){
       clip.currentTime=0;
       let done=false;
-      function advance(){if(done)return;done=true;autoTimerRef.current=setTimeout(newRound,1400);}
+      function advance(){if(done||!autoModeRef.current)return;done=true;autoTimerRef.current=setTimeout(newRound,1400);}
       clip.onended=advance;
       clip.onerror=()=>{clip.onerror=null;clip.onended=null;speakTTS();};
       // Safety: if onended never fires (e.g. browser quirk), fall through after 4s
@@ -1076,7 +1080,8 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     } else if(mode==='cadences'){
       const cadencePool=isEss?CADENCES.slice(0,2):CADENCES;
       const correct=cadencePool[Math.floor(Math.random()*cadencePool.length)];
-      const others=cadencePool.filter(x=>x.id!==correct.id).sort(()=>Math.random()-0.5).slice(0,3);
+      // Use full CADENCES as distractor pool so Essentials always shows 4 choices
+      const others=CADENCES.filter(x=>x.id!==correct.id).sort(()=>Math.random()-0.5).slice(0,3);
       setChoices([correct,...others].sort(()=>Math.random()-0.5));
       setCurrent({root,cadence:correct});
       setTimeout(()=>playCadence(root,correct),150);
@@ -1228,7 +1233,8 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     } else {
       clearTimeout(autoTimerRef.current);
       clearTimeout(autoTimer2Ref.current);
-      window.speechSynthesis?.cancel();
+      window.speechSynthesis?.cancel(); // may synchronously trigger utt.onerror → adv, which writes autoTimerRef
+      clearTimeout(autoTimerRef.current); // clear any timer written by the onerror callback above
       setAutoMode(false);
     }
   }
@@ -2132,8 +2138,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
 
   // Pre-render high-quality ride buffers asynchronously (before user hits play)
   useEffect(()=>{
-    makeRideBufAsync(44100,1,true).then(b=>{preRideRef.current.accent=b;}).catch(()=>{});
-    makeRideBufAsync(44100,1,false).then(b=>{preRideRef.current.norm=b;}).catch(()=>{});
+    // Probe actual device sample rate via a throwaway context so the buffer matches
+    const tmp=new (window.AudioContext||window.webkitAudioContext)();
+    const sr=tmp.sampleRate;tmp.close();
+    makeRideBufAsync(sr,1,true).then(b=>{preRideRef.current.accent=b;}).catch(()=>{});
+    makeRideBufAsync(sr,1,false).then(b=>{preRideRef.current.norm=b;}).catch(()=>{});
   },[]);
 
   const def=form==='custom'?null:FORM_DEFS[form];
@@ -2172,9 +2181,12 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     const bsi=bvt?bvt.strSetIdx:strSetIdx;
     const bD=DROP_DATA[bt]||DROP_DATA.drop2;
     const bsIdx=Math.min(bsi,bD.sets.length-1);
-    const vx=bt==='shell'
-      ?SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1))
-      :bD.inv.map(inv=>calcVoicing(bD.sets[bsIdx].s,inv.a,chord.tones));
+    let vx;
+    if(bt==='shell'){vx=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1));}
+    else if(bt==='rootless'){
+      if(!ROOTLESS_OK.has(chord.quality)){vx=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1));}
+      else{const rl=[(chord.tones[0]+2)%12,chord.tones[1],chord.tones[2],chord.tones[3]];vx=ROOTLESS.map(cfg=>calcVoicing(cfg.s,cfg.a,rl,1));}
+    } else {vx=bD.inv.map(inv=>calcVoicing(bD.sets[bsIdx].s,inv.a,chord.tones));}
     const maxI=vx.length-1;
     const v=vx[Math.min(invIdxs[barIdx]||0,maxI)];
     return v?[...v.midis].sort((a,b)=>a-b):[];
@@ -2354,7 +2366,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       src.connect(bLowBoost);bLowBoost.connect(bThump);bThump.connect(bMidCut);bMidCut.connect(bHiCut);
       bHiCut.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);
       gain.connect(compRef.current||ctx.destination);
-      src.start(startTime);src.stop(startTime+beatDur+0.1);
+      src.start(startTime);src.stop(startTime+beatDur*1.65+0.05);
       return;
     }
     // Fallback: KS at half speed (will be replaced once samples decode)
@@ -2589,6 +2601,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     setIsPlaying(false);setPlayingChordIdx(null);setPlayingBar(null);
     setActiveChordIdx(0);
     barPatternRef.current={};
+    // Reset count-in state so the play button never stays permanently locked
+    startingRef.current=false;setStarting(false);setCountIn(0);
+    countInTimersRef.current.forEach(clearTimeout);countInTimersRef.current=[];
   },[keyIdx,form]);
 
   function computeAllVoicings(cs,brs,bvts){
@@ -3123,18 +3138,18 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
             if(cs&&brs&&brs.length>=2) setInvIdxs(runVL(computeAllVoicings(cs,brs,newBVTs),newIdxs,newPinned));
             else setInvIdxs(newIdxs);
           };
-          const typeBtn=(t,label)=>e('button',{key:t,onClick:()=>pickType(t),style:{
+          const typeBtn=(t,label,locked)=>e('button',{key:t,onClick:locked?()=>onUpgrade('Drop 3'):()=>pickType(t),style:{
             padding:'2px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.7rem',
             border:'1px solid '+(activeVT===t?GOLD:BTN_BRD),
             background:activeVT===t?ACT_GOLD:'transparent',
-            color:activeVT===t?GOLD:BTN_OFF,minHeight:0,
-          }},label);
+            color:activeVT===t?GOLD:BTN_OFF,minHeight:0,opacity:locked?0.6:1,
+          }},label,(locked?e('span',{style:{fontSize:'0.55rem',marginLeft:2}},'🔒'):null));
           return e(React.Fragment,null,
             e('div',{style:{width:'100%',display:'flex',alignItems:'center',gap:5,marginBottom:6}},
               e('span',{style:{fontSize:'0.65rem',color:HINT,fontFamily:UI_FONT,letterSpacing:'0.3px'},title:'Override voicing for this bar only — other bars keep the global setting. ↺ resets to default.'},'Type'),
               typeBtn('shell','Shell'),
               typeBtn('drop2','Drop 2'),
-              typeBtn('drop3','Drop 3'),
+              typeBtn('drop3','Drop 3',isEss),
               barVT?e('button',{onClick:clearBarType,style:{
                 marginLeft:4,padding:'2px 7px',borderRadius:4,cursor:'pointer',
                 fontFamily:UI_FONT,fontSize:'0.65rem',
