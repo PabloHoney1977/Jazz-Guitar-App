@@ -859,6 +859,25 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const [autoMode,setAutoMode]=useState(false);
   const autoTimerRef=useRef(null);
   const autoTimer2Ref=useRef(null);
+  const bestVoiceRef=useRef(null);
+
+  // Load best available TTS voice; prefer enhanced/neural en-US voices
+  useEffect(()=>{
+    function pickVoice(){
+      const vs=window.speechSynthesis?.getVoices()||[];
+      if(!vs.length) return;
+      bestVoiceRef.current=
+        vs.find(v=>/enhanced|premium/i.test(v.name)&&/en[-_]/i.test(v.lang))
+        ||vs.find(v=>/google.*en.*us|en.*us.*google/i.test(v.name))
+        ||vs.find(v=>v.lang==='en-US'&&v.localService)
+        ||vs.find(v=>v.lang==='en-US')
+        ||vs.find(v=>/^en/i.test(v.lang))
+        ||null;
+    }
+    pickVoice();
+    window.speechSynthesis?.addEventListener('voiceschanged',pickVoice);
+    return()=>window.speechSynthesis?.removeEventListener('voiceschanged',pickVoice);
+  },[]);
 
   // Cancel timers and speech when auto mode turns off or component unmounts
   useEffect(()=>{
@@ -967,8 +986,12 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   function autoReveal(){
     if(!current) return;
     let spk='';
-    if(mode==='intervals'){const iv=IVALS.find(x=>x.s===current.semitones);spk=iv?iv.name:'';}
-    else if(mode==='triads'){spk=(TRIAD_LBL[current.quality]||'')+' triad';}
+    if(mode==='intervals'){
+      const iv=IVALS.find(x=>x.s===current.semitones);
+      // Ordinal → word for natural TTS ("2nd" → "second")
+      const ORD={'2nd':'second','3rd':'third','4th':'fourth','5th':'fifth','6th':'sixth','7th':'seventh','8th':'octave'};
+      spk=iv?iv.name.replace(/\b(\d+(?:st|nd|rd|th))\b/g,m=>ORD[m]||m):'';
+    } else if(mode==='triads'){spk=(TRIAD_LBL[current.quality]||'')+' triad';}
     else if(mode==='cadences'){
       const m={'ii-V':'Two five','V-I':'Five one','ii-V-I':'Two five one','I-VI':'One six','iv-I':'Four minor one'};
       spk=m[current.cadence.id]||current.cadence.name;
@@ -980,12 +1003,14 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     if(window.speechSynthesis&&spk){
       window.speechSynthesis.cancel();
       const utt=new SpeechSynthesisUtterance(spk);
-      utt.rate=0.88;
+      if(bestVoiceRef.current) utt.voice=bestVoiceRef.current;
+      utt.rate=0.82;
+      utt.pitch=0.9;
       let done=false;
-      function advance(){if(done)return;done=true;autoTimerRef.current=setTimeout(newRound,1400);}
+      function advance(){if(done)return;done=true;autoTimerRef.current=setTimeout(newRound,1600);}
       utt.onend=advance;utt.onerror=advance;
       // Fallback: WebKit sometimes drops onend
-      autoTimerRef.current=setTimeout(advance,Math.max(2800,spk.length*75));
+      autoTimerRef.current=setTimeout(advance,Math.max(3000,spk.length*80));
       window.speechSynthesis.speak(utt);
     } else {
       autoTimerRef.current=setTimeout(newRound,2600);
