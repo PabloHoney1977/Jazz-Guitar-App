@@ -1272,7 +1272,7 @@ const PAGE_TOURS={
     {target:'guide-stage-0',  title:'Stage cards',
      text:'Each card explains one concept. "Open in app" switches to the right view already set up for that lesson.'},
     {target:'guide-progress', title:'Track your progress',
-     text:'Mark stages done as you finish them — one concept a week is a solid pace.'},
+     text:'Mark stages done as you finish them. Go at whatever pace your practice time allows — there\'s no clock here.'},
     {target:'guide-glossary', title:'The Glossary',
      text:'Every term in the app is defined here. Tap any underlined term in the stage text to see its definition instantly.'},
   ],
@@ -3637,8 +3637,9 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
       p('The only thing this guide assumes is that you can play guitar chords — open chords, barre chords, however you\'ve learned them. If you know that some chords sound bright and happy while others sound dark or tense, you already have the ear for this. No other music theory background is required.'),
       p('What you\'ll learn here: jazz uses ',e('b',{style:HL},'four-note chords'),' where most styles use three-note chords. The extra note is what gives jazz its characteristic richness. You\'ll learn to recognize these chord types by ear, play them in multiple positions, and connect them smoothly — the skills that make jazz harmony feel natural rather than academic.'),
       p('Every term that might be unfamiliar — ',term('inv','inversion'),', ',term('modes','mode'),', ',term('guide','guide tone'),', ',term('vl','voice leading'),' — is defined in plain English in the Glossary at the bottom of this page. You do not need to know them before you start. Meet them as they come up.'),
-      callout(e('b',null,'Coming from rock? '),'Jazz uses the same I–IV–V relationships you already know — just with four-note chords instead of three, and more intentional movement between them. The dominant 7 (V7) you already bend notes over is the engine of everything here. Drop 2 voicings (Stage 2) will feel awkward at first and then click fast — most rock players are through the first two stages in a few weeks.'),
-      callout(e('b',null,'How to use this page: '),'Tap a stage to expand it. Check off each practice step as you nail it — the gold "◆ You\'ve got it when…" line is your mastery target for that stage. When it feels solid, tap "I\'ve got this" to mark it done and jump to the next. The buttons open the app already set up, so you can start playing immediately. Honest timing: shells take 2–4 months to feel natural, Drop 2 takes 6+ months to connect — the goal is playing your guitar, not racing a checklist.')
+      callout(e('b',null,'Coming from rock? '),'Jazz uses the same I–IV–V relationships you already know — just with four-note chords instead of three, and more intentional movement between them. The dominant 7 (V7) you already bend notes over is the engine of everything here. Drop 2 voicings (Stage 2) will feel awkward at first and then start to click — your fretting hand already has the strength and independence, so the shapes tend to come faster than the theory.'),
+      callout(e('b',null,'How long will this take? '),'The estimate under each stage assumes roughly 15–20 minutes of practice on most days. Practice twice a week and the timelines roughly double; bring a serious musical background and they shrink. Treat them as loose guides, not deadlines — how long anything takes varies enormously from person to person, and falling outside a range says nothing about whether you\'ll get there. One thing is well established, though: short and frequent beats long and occasional. Fifteen minutes a day will take you further than a two-hour session every couple of weeks — which is exactly what the 🔥 streak is built to encourage.'),
+      callout(e('b',null,'How to use this page: '),'Tap a stage to expand it. Check off each practice step as you nail it — the gold "◆ You\'ve got it when…" line is your mastery target for that stage. When it feels solid, tap "I\'ve got this" to mark it done and jump to the next. The buttons open the app already set up, so you can start playing immediately. The goal is playing your guitar, not racing a checklist.')
     ),
     e('div',{style:S},
       e('div',{style:{...H,display:'flex',justifyContent:'space-between',alignItems:'baseline',flexWrap:'wrap',gap:8}},
@@ -3646,7 +3647,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
         e('span',{'data-tour':'guide-progress',style:{fontSize:'0.72rem',fontFamily:UI_FONT,fontWeight:allDone?700:400,color:allDone?GOLD:HINT}},
           allDone?'Complete ✓':'Phase '+phaseNum+' of 4 · '+doneCount+'/'+stages.length)
       ),
-      p('Work top to bottom. Tap a stage to see what to practice and open the right tool. Stages vary in depth — some are a week, some are months. The Path covers everything — some steps use Full-tier features, which you can unlock anytime.'),
+      p('Work top to bottom. Tap a stage to see what to practice and open the right tool. Stages vary in depth — some take a few sessions, some take months, and the time under each one is a rough guide, not a target to hit. The Path covers everything — some steps use Full-tier features, which you can unlock anytime.'),
       stages.flatMap((st,i)=>{
         const out=[];
         if(st.phaseLabel) out.push(e('div',{key:'ph_'+st.id,style:{padding:'12px 2px 4px'}},
