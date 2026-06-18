@@ -1802,9 +1802,9 @@ const FORM_DEFS={
     bars:[0,1,2,2,0,3,2,2],
     tip:'Bars 1–4: standard IIm7–V7–Imaj7. Bars 5–8: the V7 is replaced by ♭II7 — a dominant 7 a tritone away. G7 and D♭7 share the same tritone (B/C♭ and F), so both resolve identically to Cmaj7. Listen for the chromatic bass motion D♭→C vs. the 4th-down G→C. Set key to C.'},
   secdom:{lbl:'SEC. DOM.',col:'#F4A261',bg:ACT_GOLD,
-    chords:[[0,'maj7','maj7','Imaj7'],[4,'dom7','7','V/vi'],[9,'m7','m7','VIm7'],[2,'dom7','7','V/ii'],[2,'m7','m7','IIm7'],[7,'dom7','7','V7']],
+    chords:[[0,'maj7','maj7','Imaj7'],[4,'dom7','7','V/vi'],[9,'m7','m7','VIm7'],[9,'dom7','7','V/ii'],[2,'m7','m7','IIm7'],[7,'dom7','7','V7']],
     bars:[0,1,2,2,3,4,5,0],
-    tip:'Secondary dominants: E7 (V7/vi) temporarily acts as V of Am7; D7 (V7/ii) acts as V of Dm7 — each creates a mini II–V pull before the main II–V–I. Any chord in the key can be preceded by its own V7. Set key to C.'},
+    tip:'Secondary dominants: E7 (V7/vi) temporarily acts as V of Am7; A7 (V7/ii) acts as V of Dm7 — each creates a mini II–V pull before the main II–V–I. Any chord in the key can be preceded by its own V7. Set key to C.'},
   custom:{lbl:'CUSTOM',col:'#9CA3AF',bg:'transparent',chords:[],bars:[],tip:''},
 };
 
@@ -3501,9 +3501,9 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
      title:'Secondary dominants — borrowing V7 for any chord',
      time:'4–6 weeks',
      preset:{view:'iivi',key:0,form:'secdom',bpm:60},
-     body:[['A ',term('sec_dom','secondary dominant'),' is any dominant 7 chord temporarily acting as V7 to a chord other than I. In C, D7 isn\'t diatonic — but it pulls to Gm7 (ii) because D7 is V7/ii. You can build a secondary dominant to any chord in the key.'],
-           ['Secondary dominants are often tritone-substituted: A♭7 moving to Gm7 is just D7 (V7/ii) with a tritone sub — same function, chromatically recolored. The Sec. Dom. form in Play chains them into a cascade of chromatic bass resolutions.']],
-     items:['In C: D7 → Gm7 is V7/ii — hear the pull in the Sec. Dom. form','Look for them in standards: the D7 in bar 8 of the jazz blues, the A7 before Am7 in "Autumn Leaves"',['Secondary dominants are often tritone-subbed: A♭7→Gm7 is D7 (V7/ii) ',term('tritone_sub','tritone-subbed'),' — same function, different color']]},
+     body:[['A ',term('sec_dom','secondary dominant'),' is any dominant 7 chord temporarily acting as V7 to a chord other than I. In C, A7 isn\'t diatonic — but it pulls to Dm7 (ii) because A7 is V7/ii (the dominant a fifth above D). You can build a secondary dominant to any chord in the key.'],
+           ['Secondary dominants are often tritone-substituted: E♭7 moving to Dm7 is just A7 (V7/ii) with a tritone sub — same function, chromatically recolored. The Sec. Dom. form in Play chains them into a cascade of chromatic bass resolutions.']],
+     items:['In C: A7 → Dm7 is V7/ii — hear the pull in the Sec. Dom. form','Look for them in standards: the D7 in bar 8 of an F jazz blues (V7/ii in F), or E7 → Am7 (V7/vi) in a I–VI7–ii–V turnaround',['Secondary dominants are often tritone-subbed: E♭7→Dm7 is A7 (V7/ii) ',term('tritone_sub','tritone-subbed'),' — same function, different color']]},
     // ── PHASE 4: APPLICATION ─────────────────────────────────────────────
     {id:'keys',phase:'Application',phaseLabel:'Phase 4 — Application',fullPreset:true,
      title:'Take it around the keys',
@@ -3710,7 +3710,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
         'Find it everywhere in standards: any ♭II7 moving to I, or any chord that slides down a half-step into a target chord. The substitution also works on secondary dominants — a V7/ii can be tritone-subbed, creating a ♭VI7 → IIm7 motion. Because D♭7 is a tritone from G7, and both resolve to C, players can freely swap them without the ear complaining.'
       ),
       gloss('sec_dom','Secondary dominant','A V7 chord pointing to a chord other than I — creates a temporary key shift.',null,
-        'Any diatonic chord can be temporarily treated as a local I, and the chord that is a fifth above it becomes its secondary dominant (V7/x). In C major: D7 is not in the key, but it pulls to Gm7 (ii) just as G7 pulls to Cmaj7. Writing it V7/ii names the relationship. Common secondary dominants: V7/ii (D7), V7/iii (E7), V7/IV (F#7 or Gb7), V7/V (A7), V7/vi (B7).',
+        'Any diatonic chord can be temporarily treated as a local I, and the chord a fifth above it becomes its secondary dominant (V7/x). In C major: A7 is not in the key, but it pulls to Dm7 (ii) just as G7 pulls to Cmaj7. Writing it V7/ii names the relationship. Common secondary dominants in C: V7/ii (A7), V7/iii (B7), V7/IV (C7), V7/V (D7), V7/vi (E7) — each built a fifth above its target chord.',
         'The secondary dominant creates a brief detour into the tonal orbit of the target chord — the ear hears a tritone resolving, then snaps back to the main key center. Jazz blues makes heavy use of them: the VI7 in bar 8 (D7 in F) acts as V7/ii before the II–V turnaround. In standards, they appear as chromatic chords that briefly intensify motion toward the next chord in the progression.'
       ),
       gloss('diat','Diatonic','Using only the 7 notes of the key — playing "inside."',null,
