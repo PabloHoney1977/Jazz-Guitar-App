@@ -133,14 +133,14 @@ function detectChords(pitchClasses){
     for(const sh of DETECT_SHAPES){
       const shNorm=[...sh.iv].sort((a,b)=>a-b);
       if(normStr===shNorm.join(','))
-        results.push({root,sym:sh.sym,name:nn(root,root)+sh.sym,quality:sh.name,exact:true});
+        results.push({root,sym:sh.sym,name:nn(root,root)+sh.sym,quality:sh.name,exact:true,iv:sh.iv});
     }
     // Subset: user's notes are all contained in a known chord shape
     if(pcs.length>=2&&pcs.length<5){
       for(const sh of DETECT_SHAPES){
         const shSet=new Set(sh.iv);
         if(norm.every(n=>shSet.has(n))&&norm.length<sh.iv.length)
-          results.push({root,sym:sh.sym,name:nn(root,root)+sh.sym,quality:sh.name,exact:false,matched:norm.length,total:sh.iv.length});
+          results.push({root,sym:sh.sym,name:nn(root,root)+sh.sym,quality:sh.name,exact:false,matched:norm.length,total:sh.iv.length,iv:sh.iv});
       }
     }
   }
@@ -149,6 +149,13 @@ function detectChords(pitchClasses){
   const seen=new Set();
   return results.filter(r=>{if(seen.has(r.name))return false;seen.add(r.name);return true;}).slice(0,6);
 }
+
+// Interval names by semitone distance (0..12) — for 2-note identification.
+const INTERVAL_NAMES=['Unison','Minor 2nd','Major 2nd','Minor 3rd','Major 3rd','Perfect 4th','Tritone','Perfect 5th','Minor 6th','Major 6th','Minor 7th','Major 7th','Octave'];
+// Ordinal inversion names, keyed by the bass note's position in the (sorted) chord shape.
+const INV_ORD=['Root position','1st inversion','2nd inversion','3rd inversion','4th inversion'];
+// Detected-chord symbols that have a Build-page (Chords) equivalent → EXT_TYPES index.
+const DETECT_TO_EXT={'△7':0,'m7':1,'7':2,'ø7':3,'△9':4,'m9':5,'9':6};
 
 // ── Chord-scale data ─────────────────────────────────────────────────
 const PARENT_SC={major:[0,2,4,5,7,9,11],melmin:[0,2,3,5,7,9,11]};
@@ -3270,6 +3277,23 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   const detectPcs=Object.entries(selectedFrets).map(([s,f])=>(OPEN_PC[parseInt(s)]+parseInt(f))%12);
   const detectedChords=detectPcs.length>=2?detectChords(detectPcs):[];
   const DETECT_NOTE_NAMES=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
+  // Lowest-pitched selected note → bass pitch-class, used to label inversion.
+  const detectEntries=Object.entries(selectedFrets);
+  const bassPc=detectEntries.length
+    ?((Math.min(...detectEntries.map(([s,f])=>OPEN_MIDI[parseInt(s)]+parseInt(f)))%12)+12)%12
+    :null;
+  // Exactly two notes → identify the interval instead of a chord.
+  let detectInterval=null;
+  if(detectEntries.length===2){
+    const midis=detectEntries.map(([s,f])=>OPEN_MIDI[parseInt(s)]+parseInt(f)).sort((a,b)=>a-b);
+    const semi=midis[1]-midis[0], within=semi%12, octs=Math.floor(semi/12);
+    const base=semi===0?'Unison':(within===0?'Octave':INTERVAL_NAMES[within]);
+    detectInterval={
+      name:base+(octs>0&&within!==0?' + '+octs+' oct':''),
+      notes:nn(((midis[0]%12)+12)%12,0)+' → '+nn(((midis[1]%12)+12)%12,0),
+      semi,
+    };
+  }
 
   const modeToggleRow=e('div',{style:{display:'flex',gap:8,marginBottom:14}},
     e('button',{onClick:()=>{setDetectMode(false);},style:{
@@ -3308,19 +3332,42 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       borderRadius:6,color:BTN_OFF,fontFamily:UI_FONT,fontSize:'0.78rem',cursor:'pointer',minHeight:36,marginBottom:12}},
       'Clear all'):null,
     // Results
-    detectedChords.length>0
+    detectInterval
+      ?e('div',null,
+        e('div',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,marginBottom:8}},'Interval:'),
+        e('div',{style:{padding:'8px 14px',borderRadius:8,border:'1px solid '+GOLD,background:ACT_GOLD,display:'inline-block'}},
+          e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:GOLD}},detectInterval.name),
+          e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT}},detectInterval.notes+'  ·  '+detectInterval.semi+' semitones')
+        )
+      )
+      :detectedChords.length>0
       ?e('div',null,
         e('div',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,marginBottom:8}},
           detectedChords[0].exact?'Exact match:':'Possible matches (incomplete voicing):'),
         e('div',{style:{display:'flex',flexWrap:'wrap',gap:8}},
-          detectedChords.map((ch,i)=>e('div',{key:i,style:{
-            padding:'8px 14px',borderRadius:8,
-            border:'1px solid '+(ch.exact&&i===0?GOLD:BTN_BRD),
-            background:ch.exact&&i===0?ACT_GOLD:BG2}},
-            e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,
-              color:ch.exact&&i===0?GOLD:'var(--txt)'}},ch.name),
-            e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT}},ch.quality)
-          ))
+          detectedChords.map((ch,i)=>{
+            const extIdx=DETECT_TO_EXT[ch.sym];
+            const clickable=ch.exact&&extIdx!==undefined;
+            const bassInt=bassPc!=null?((bassPc-ch.root+12)%12):null;
+            const invPos=(bassInt!=null&&ch.iv)?ch.iv.indexOf(bassInt):-1;
+            const invLbl=invPos>=0?(INV_ORD[invPos]||null):null;
+            return e('div',{key:i,
+              onClick:clickable?()=>{setDetectMode(false);setCustomRoot(ch.root);setCustomTypeIdx(extIdx);setInvIdx(0);window.scrollTo(0,0);}:null,
+              title:clickable?'Open '+ch.name+' on the Chords page':null,
+              style:{
+                padding:'8px 14px',borderRadius:8,
+                border:'1px solid '+(ch.exact&&i===0?GOLD:BTN_BRD),
+                background:ch.exact&&i===0?ACT_GOLD:BG2,
+                cursor:clickable?'pointer':'default'}},
+              e('div',{style:{display:'flex',alignItems:'baseline',gap:6}},
+                e('span',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,
+                  color:ch.exact&&i===0?GOLD:'var(--txt)'}},ch.name),
+                clickable?e('span',{style:{fontSize:'0.62rem',color:GOLD,fontFamily:UI_FONT}},'open ↗'):null
+              ),
+              e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT}},
+                ch.quality+(invLbl?'  ·  '+invLbl:'')+(ch.exact?'':'  ·  '+ch.matched+'/'+ch.total+' notes'))
+            );
+          })
         )
       )
       :detectPcs.length>=2?e('div',{style:{fontSize:'0.8rem',color:HINT,textAlign:'center',padding:'12px 0'}},'No chord found — try adding or removing a note')
