@@ -1979,6 +1979,7 @@ function LedToggle({label,enabled,onToggle,color,compact}){
 
 function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,onPracticed,onUpgrade}){
   dotMode=dotMode||'interval';
+  const isEss=level==='essentials';
   const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(safeLS('jg-strSet','2'),10));
   const [invIdxs,setInvIdxs]=useState([]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
