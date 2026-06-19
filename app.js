@@ -1227,6 +1227,9 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const [wrongGuess,setWrongGuess]=useState(null);
   const [choices,setChoices]=useState([]); // random 4-of-12 for intervals mode
   const [harmonic,setHarmonic]=useState(false); // Full only: play both notes simultaneously
+  // Interval difficulty tier — gentle progression instead of all 12 at once
+  const [ivalTier,setIvalTier]=useState(()=>{const v=parseInt(safeLS('jg-ear-ival-tier','1'),10);return v>=1&&v<=3?v:1;});
+  useEffect(()=>{safeLSSet('jg-ear-ival-tier',String(ivalTier));},[ivalTier]);
   const [autoMode,setAutoMode]=useState(false);
   const autoTimerRef=useRef(null);
   const autoTimer2Ref=useRef(null);
@@ -1290,10 +1293,16 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     {s:11,name:'Major 7th', feel:'"Take On Me" (A-ha) chorus · "Don\'t Know Why" by Norah Jones'},
     {s:12,name:'Octave',    feel:'"Somewhere Over the Rainbow" (Some-WHERE) · "Singin\' in the Rain"'},
   ];
-  // Consonant-first interval pool gated by level
-  const activeIvals=isEss
-    ? IVALS.filter(x=>[3,4,5,7,12].includes(x.s))
-    : IVALS;
+  // Interval pool grows with the chosen tier: start with octave + perfects,
+  // add 3rds/6ths, then all 12. Tier 3 (all 12) stays Pro-gated.
+  const IVAL_TIERS=[
+    {lbl:'Octave & Perfects', ivals:[5,7,12]},
+    {lbl:'+ 3rds & 6ths',     ivals:[3,4,5,7,8,9,12]},
+    {lbl:'All 12',            ivals:[1,2,3,4,5,6,7,8,9,10,11,12]},
+  ];
+  const maxTier=isEss?2:3;
+  const effTier=Math.min(ivalTier,maxTier);
+  const activeIvals=IVALS.filter(x=>IVAL_TIERS[effTier-1].ivals.includes(x.s));
 
   const CADENCES=[
     {id:'ii-V',   name:'II–V',             chords:[{r:2,q:'m7'},{r:7,q:'dom7'}],             feel:'The most common jazz movement — minor pulling to dominant'},
@@ -1471,7 +1480,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     setDetail(d=>{const m={...d[mode]},e={...m[key]||{r:0,w:0}};
       e[correct?'r':'w']++;m[key]=e;return{...d,[mode]:m};});
   }
-  useEffect(()=>{if(seenIntro) newRound();},[mode,seenIntro]);
+  useEffect(()=>{if(seenIntro) newRound();},[mode,seenIntro,ivalTier]);
   useEffect(()=>{
     if(!levelInitRef.current){levelInitRef.current=true;return;} // skip initial mount
     if(!seenIntro) return;
@@ -1654,8 +1663,17 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
           color:harmonic?GOLD:BTN_OFF,minHeight:30
         }},'♪♪ Harmonic')
       ):mode==='intervals'?e('div',{style:{marginBottom:10}}):null,
-      mode==='intervals'&&isEss?e('div',{style:{fontSize:'0.7rem',color:HINT,textAlign:'center',marginBottom:14}},
-        'Essentials: 5 consonant intervals  →  Pro: all 12'
+      mode==='intervals'?e('div',{style:{marginBottom:14}},
+        e('div',{style:{fontSize:'0.66rem',color:HINT,textAlign:'center',marginBottom:6,letterSpacing:'0.3px'}},'Difficulty — add intervals as your ear grows'),
+        e('div',{style:{display:'flex',gap:6,justifyContent:'center',flexWrap:'wrap'}},
+          IVAL_TIERS.map((t,i)=>{const tn=i+1,locked=isEss&&tn>2,active=effTier===tn;
+            return e('button',{key:tn,onClick:locked?()=>onUpgrade('All 12 intervals'):()=>setIvalTier(tn),style:{
+              padding:'4px 10px',borderRadius:6,cursor:'pointer',fontSize:'0.7rem',fontWeight:active?700:400,
+              border:'1px solid '+(active?GOLD:BTN_BRD),background:active?ACT_YEL:'transparent',
+              color:active?GOLD:BTN_OFF,minHeight:30,opacity:locked?0.6:1}},
+              'Lv'+tn+' · '+t.lbl,(locked?e('span',{style:{fontSize:'0.58rem',marginLeft:2}},'🔒'):null));
+          })
+        )
       ):null,
       mode==='cadences'&&isEss?e('div',{style:{fontSize:'0.7rem',color:HINT,textAlign:'center',marginBottom:14}},
         'Essentials: II–V and V–I  →  Pro unlocks II–V–I, I–VI, and iv–I'
