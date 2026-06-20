@@ -3602,7 +3602,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
   const [expanded,setExpanded]=useState({});
   function tog(id){setExpanded(s=>({...s,[id]:!s[id]?true:undefined}));}
   const [popTerm,setPopTerm]=useState(null);
-  const STAGE_IDS=['qualities','shells','iivi','drop2a','drop2b','modes','play','ear','turnaround','blues','minor','tritone_sub','secdom','keys','approach','standard'];
+  const STAGE_IDS=['qualities','shells','iivi','ear','drop2a','drop2b','modes','play','turnaround','blues','minor','tritone_sub','secdom','keys','approach','standard'];
   // Path progress, persisted
   const [done,setDone]=useState(()=>{try{return JSON.parse(safeLS('jg-path','{}'));}catch(ex){return{};}});
   useEffect(()=>{safeLSSet('jg-path',JSON.stringify(done));},[done]);
@@ -3691,7 +3691,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
   const stages=[
     // ── PHASE 1: FOUNDATION ──────────────────────────────────────────────
     {id:'qualities',phase:'Foundation',phaseLabel:'Phase 1 — Foundation',
-     phaseNote:'These three stages run together over roughly two months — practice shells daily while you learn the II–V–I and start training your ear. They reinforce each other; don\'t wait to "finish" one before starting the next.',
+     phaseNote:'These four stages run together over roughly two months — practice shells daily while you learn the II–V–I, and start ear training in parallel from Stage 4 onward. They reinforce each other; don\'t wait to "finish" one before starting the next.',
      title:'The four chord qualities — hear the difference',
      time:'1–2 weeks',
      preset:{view:'diatonic',key:0,deg:0,vType:'shell'},
@@ -3714,7 +3714,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
      body:['Three chords that appear in virtually every jazz standard: a ',term('m7','minor 7'),' chord (II), a ',term('dom7','dominant 7'),' chord (V), and a ',term('maj7','major 7'),' chord (I). In C: Dm7 → G7 → Cmaj7. The ',term('roman','Roman numerals'),' indicate position in the key — the same pattern works in every key. Learn it once, use it everywhere.',
            ['Why does it work? The V7 chord contains a ',term('tritone','tritone'),' between its 3rd and 7th (B and F in G7). Both notes want to resolve by half-step: B moves up to C, F moves down to E — exactly the root and 3rd of Cmaj7. The resolution is built into the physics of the interval.'],
            ['The ',term('guide','guide tones'),' swap roles on each chord: the 7th of G7 (F) resolves to the 3rd of Cmaj7 (E), and the 3rd of G7 (B) approaches the root. This guide tone chain is the engine of jazz ',term('vl','voice leading'),'.']],
-     items:['Slow the Play tab to 55 BPM and comp shells through the II–V–I — listen for how the V "leans" into the I',['Pick a different II ',term('inv','inversion'),' — the app voice-leads the V and I to follow automatically'],'Ear training: open the Ear tab → Cadences → listen for the II–V pattern — you\'ve been playing it, now hear it cold','Done when: you can play a ii–V–I from memory in C, F, and G without looking']},
+     items:['Slow the Play tab to 55 BPM and comp shells through the II–V–I — listen for how the V "leans" into the I',['Pick a different II ',term('inv','inversion'),' — the app voice-leads the V and I to follow automatically'],'Done when: you can play a ii–V–I from memory in C, F, and G without looking']},
     // ── PHASE 2: VOICINGS ────────────────────────────────────────────────
     {id:'drop2a',phase:'Voicings',phaseLabel:'Phase 2 — Voicings & Texture',fullPreset:true,
      phaseNote:'The voicing family, simplest to richest: Shells (root-3-7) → Drop 2 (add the 5th back for a full 4-note grip) → Rootless (drop the root, add the 9th — for playing over a bassist) → Drop 3 (a wider spread). Each one builds on the shapes before it.',
@@ -3750,15 +3750,15 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
            'The Charleston rhythm (beat 1 + the "and" of 2) is the core jazz comping pattern. Start slow. 60 BPM is not embarrassingly slow — it\'s where control develops. Four consecutive choruses without stopping is the real milestone.'],
      items:['Strum on beats 1 and 3 first — the strongest beats, lowest risk','Then try the Charleston: beat 1 and the "and" of 2','4 choruses without stopping = move up 5 BPM','Done when: you can play 4 choruses without stopping, listening to the bass line instead of hunting for shapes']},
     // ── PHASE 3: FORMS & EAR ─────────────────────────────────────────────
-    {id:'ear',phase:'Forms',phaseLabel:'Phase 3 — Forms & Ear',
-     title:'Train your ear — intervals and cadences',
-     time:'10–15 min/session, ongoing',
+    {id:'ear',phase:'Foundation',
+     title:'Train your ear — start now, not later',
+     time:'10–15 min/session, runs alongside every stage from here',
      preset:{view:'quiz'},
-     body:['Ear training is the feedback loop that makes everything else stick. When you can hear a II–V–I by ear, every recording you listen to becomes active practice. When you can identify a major 7th interval, you hear it in melodies you already know. Without ear training, you\'re memorizing shapes in isolation from sound.',
-           'The Ear tab has two modes: Interval recognition (melodic and harmonic — identify the distance between two notes) and Cadence recognition (identify chord progressions by ear). Start with intervals: Perfect 4th, 5th, and Octave first. Then add the intervals that define the chord qualities you already know — Major 7th (the sound of maj7), Minor 7th (the sound of dom7 and m7). Cadences: the II–V pattern is the most valuable. You\'ve been playing it for weeks; now identify it by ear without looking.',
-           'Song mnemonics are provided for every interval — they work because your brain already knows the feeling of that distance. Major 7th: "Take On Me" chorus. Tritone: "The Simpsons" theme. Octave: "Somewhere Over the Rainbow." Use what sticks.'],
-     items:['Ear tab → Intervals: practice Perfect 4th, 5th, and Octave first — the most common in jazz','Add Major 7th and Minor 7th — these are the defining intervals of maj7 and m7/dom7 chords','Ear tab → Cadences: listen for II–V and V–I — you\'ve been playing these, now identify them cold','Pro unlocks all 12 intervals and the complete cadence suite (II–V–I, I–VI, iv–I)','10–15 min of ear training per session accelerates everything else faster than extra shape drilling','Done when: you can reliably identify a Perfect 4th, 5th, and Octave by ear, and a II–V cadence from sound alone']},
-    {id:'turnaround',phase:'Forms',fullPreset:true,
+     body:['Ear training is not a later phase — it runs in parallel from the beginning. You\'ve learned shell voicings and the II–V–I pattern. The next step is ',e('b',null,'hearing'),' them: being able to identify chord quality (major 7 vs. dominant 7 vs. minor 7) and the II–V cadence by ear, without seeing the chord name. Without this connection, you\'re building vocabulary in silence.',
+           ['The Ear tab has two modes: ',e('b',null,'Interval recognition'),' (identify the distance between two notes) and ',e('b',null,'Cadence recognition'),' (identify chord progressions). The most immediately useful free exercise is M3 vs m3 — the major vs. minor 3rd is the exact interval that makes a major chord sound major and a minor chord sound minor. From there, the major 7th interval is the "colour" of a maj7 chord; the minor 7th is the colour of both dom7 and m7. Cadence recognition (II–V and V–I) is Pro, but you\'ve been playing those patterns in the Play tab — recognising them by ear is the natural next step.'],
+           'Song mnemonics are provided for every interval. Major 3rd: "When the Saints Go Marching In." Minor 3rd: "Smoke on the Water" riff. Major 7th: "Take On Me" chorus. Perfect 5th: "Twinkle Twinkle." Tritone: "The Simpsons" theme. Octave: "Somewhere Over the Rainbow." Use what sticks. 10–15 minutes per session will accelerate everything else faster than extra shape drilling.'],
+     items:['Ear tab → Intervals → M3 (major 3rd — the "bright" quality) vs m3 (minor 3rd — "darker"): this is the free interval that most directly maps to chord quality','Close your eyes and play a maj7 shell, then a m7 shell — which one floats? Which one settles?','[Pro] Ear tab → 7th Chords: practice maj7 vs dom7 vs m7 — direct recognition of the chord qualities you\'ve been playing','[Pro] Ear tab → Cadences → II–V: you\'ve played this hundreds of times; now identify it cold from sound alone','10–15 min of ear training per practice session, from here through the end of the path','Done when: you can tell a maj7 from a dom7 by ear, and identify a II–V cadence without looking at the chord name']},
+    {id:'turnaround',phase:'Forms',phaseLabel:'Phase 3 — Forms',fullPreset:true,
      title:'The turnaround — I–vi–ii–V',
      time:'2–4 weeks',
      preset:{view:'diatonic',key:0,deg:5,vType:'shell'},
