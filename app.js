@@ -1046,7 +1046,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
       const m={'maj7':'Major seven','m7':'Minor seven','dom7':'Dominant seven','m7b5':'Half diminished'};
       spk=m[current.quality]||QLABELS[current.quality]||'';
     }
-    setRevealed(true);
+    setRevealed(true);setLastResult('auto');
     if(!spk){autoTimerRef.current=setTimeout(newRound,2600);return;}
     // TTS fallback used when MP3 clip is unavailable
     function speakTTS(){
@@ -1129,10 +1129,16 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     setDetail(d=>{const m={...d[mode]},e={...m[key]||{r:0,w:0}};
       e[correct?'r':'w']++;m[key]=e;return{...d,[mode]:m};});
   }
-  useEffect(()=>{if(seenIntro) newRound();},[mode,seenIntro,ivalTier]);
+  useEffect(()=>{
+    if(seenIntro){
+      clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);
+      newRound();
+    }
+  },[mode,seenIntro,ivalTier]);
   useEffect(()=>{
     if(!levelInitRef.current){levelInitRef.current=true;return;} // skip initial mount
     if(!seenIntro) return;
+    clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);
     if(isEss) setHarmonic(false);
     skipSaveRef.current+=2; // suppress the upcoming score+detail saves so Pro history survives
     setScores(s=>({...s,intervals:{r:0,w:0}}));
@@ -1216,6 +1222,13 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
       answerName=current.cadence.name;answerDesc=current.cadence.feel;
     } else {
       answerName=QLABELS[current.quality];answerDesc=QDESCS[current.quality];
+    }
+    if(lastResult==='auto'){
+      return e('div',{style:{textAlign:'center',marginBottom:14,padding:'12px 20px',
+        background:BG2,border:'1px solid '+BORDER,borderRadius:8}},
+        e('div',{style:{fontFamily:SERIF,fontSize:'1.1rem',color:GOLD,marginBottom:4}},answerName),
+        e('div',{style:{fontSize:'0.77rem',color:HINT}},answerDesc)
+      );
     }
     return e('div',{style:{textAlign:'center',marginBottom:14,padding:'12px 20px',
       background:lastResult==='right'?ACT_YEL:ACT_RED,
@@ -1335,7 +1348,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
           boxShadow:'0 0 16px '+GOLD+'44',transition:'box-shadow 0.15s'
         }},'♪'),
         e('div',{style:{fontSize:'0.72rem',color:HINT}},
-          autoMode&&!revealed?'Answer in 3 seconds…':autoMode&&revealed?'Next question coming…':'Tap to replay')
+          autoMode&&!revealed?'Listen… answer coming':autoMode&&revealed?'Next question coming…':'Tap to replay')
       ),
       renderReveal(),
       !revealed&&mode==='intervals'?e('div',{style:{marginBottom:12}},
