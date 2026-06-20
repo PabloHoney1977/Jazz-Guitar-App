@@ -3530,6 +3530,72 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   );
 }
 
+// ── VoiceLeadingDiagram ────────────────────────────────────────────────
+// Shows how guide tones move through a ii-V-I in C (shell voicings):
+// F path (3rd of ii → 7th of V stays, then drops ½ step to 3rd of I)
+// C/B path (7th of ii drops ½ step to 3rd of V, then stays as 7th of I)
+function VoiceLeadingDiagram(){
+  const W=340, H=195;
+  const cols=[65,170,275];
+  const rows=[88,145];
+  const R=19;
+  const AMB=TC[3]; // gold  — 7th
+  const TEA=TC[1]; // teal  — 3rd
+  const data=[
+    {name:'Dm7',  role:'ii', r0:{n:'F',c:TEA,l:'3rd'}, r1:{n:'C',c:AMB,l:'7th'}},
+    {name:'G7',   role:'V',  r0:{n:'F',c:AMB,l:'7th'}, r1:{n:'B',c:TEA,l:'3rd'}},
+    {name:'Cmaj7',role:'I',  r0:{n:'E',c:TEA,l:'3rd'}, r1:{n:'B',c:AMB,l:'7th'}},
+  ];
+  function dot(x,y,n,c,l){
+    return e('g',{key:'d'+x+y},
+      e('circle',{cx:x,cy:y,r:R,fill:c+'22',stroke:c,strokeWidth:1.8}),
+      e('text',{x,y,textAnchor:'middle',dominantBaseline:'middle',fill:c,fontSize:12,fontWeight:'bold',fontFamily:UI_FONT},n),
+      e('text',{x,y:y+R+8,textAnchor:'middle',fill:c+'bb',fontSize:9,fontFamily:UI_FONT},l)
+    );
+  }
+  function conn(x1,y,x2,half){
+    const mx=(x1+x2)/2;
+    return e('g',{key:'cn'+x1+x2+y},
+      e('line',{x1:x1+R,y1:y,x2:x2-R,y2:y,
+        stroke:half?AMB+'cc':'rgba(255,255,255,0.18)',
+        strokeWidth:half?2:1.5,
+        strokeDasharray:half?undefined:'5,3'}),
+      e('text',{x:mx,y:y-9,textAnchor:'middle',
+        fill:half?AMB:'rgba(255,255,255,0.3)',fontSize:9,
+        fontWeight:half?700:400,fontFamily:UI_FONT},
+        half?'½ step':'same note')
+    );
+  }
+  return e('div',{style:{margin:'14px 0 4px'}},
+    e('div',{style:{fontSize:'0.8rem',fontWeight:700,marginBottom:8,color:'var(--txt)'}},
+      'Guide tone movement — ii–V–I in C'),
+    e('div',{style:{overflowX:'auto',WebkitOverflowScrolling:'touch'}},
+      e('svg',{viewBox:`0 0 ${W} ${H}`,
+        style:{display:'block',width:'100%',minWidth:280,height:'auto',overflow:'visible'}},
+        ...data.map((d,i)=>[
+          e('text',{key:'cn'+i,x:cols[i],y:22,textAnchor:'middle',
+            fill:'var(--txt)',fontSize:13,fontWeight:'bold',fontFamily:SERIF},d.name),
+          e('text',{key:'rn'+i,x:cols[i],y:37,textAnchor:'middle',
+            fill:HINT,fontSize:10,fontFamily:UI_FONT},d.role),
+        ]).flat(),
+        e('line',{x1:24,y1:50,x2:W-24,y2:50,stroke:'rgba(255,255,255,0.12)',strokeWidth:1}),
+        conn(cols[0],rows[0],cols[1],false),
+        conn(cols[1],rows[0],cols[2],true),
+        conn(cols[0],rows[1],cols[1],true),
+        conn(cols[1],rows[1],cols[2],false),
+        ...data.map((d,i)=>[
+          dot(cols[i],rows[0],d.r0.n,d.r0.c,d.r0.l),
+          dot(cols[i],rows[1],d.r1.n,d.r1.c,d.r1.l),
+        ]).flat()
+      )
+    ),
+    e('div',{style:{fontSize:'0.76rem',color:HINT,marginTop:10,lineHeight:1.55,fontFamily:UI_FONT}},[
+      e('b',{key:'k1'},'The pattern: '),
+      'every transition has one common tone (same note, new role) and one half-step movement down. Roots jump by 4ths — the hand moves. Guide tones barely move — the harmony flows.'
+    ])
+  );
+}
+
 // ── GuideView — the Path + glossary ──────────────────────────────────
 function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade,onPracticed}){
   const daysSince=lastPracticeDay?Math.round((Date.now()-new Date(lastPracticeDay+'T00:00:00'))/86400000):0;
@@ -3664,7 +3730,8 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
      preset:{view:'diatonic',key:0,deg:0,vType:'drop2'},
      playPreset:{view:'iivi',key:0,form:'major',bpm:60,vType:'drop2'},
      body:[['Now put the shapes to work. ',term('vl','Voice leading'),' means finding the inversion of each next chord where each string moves the smallest distance. Instead of jumping shapes, you find the nearest neighbor. The Play tab auto-selects the best inversions — watch it, then replicate by hand.'],
-           ['Key insight: the 7th of G7 (F) and the 3rd of Cmaj7 (E) are a half-step apart. The 3rd of G7 (B) and the root of Cmaj7 (C) are also a half-step apart. Voice leading is built around these half-step guide tone movements. String set 2–5 gives you another register for the same shapes.']],
+           e(VoiceLeadingDiagram,null),
+           ['Key insight: the 7th of G7 (F) resolves down a half-step to the 3rd of Cmaj7 (E). The 3rd of G7 (B) resolves down a half-step to the 7th of Dm7 (C)... wait, run the pattern forward — the 7th of Dm7 (C) resolves to the 3rd of G7 (B), and the 3rd of Dm7 (F) stays as the 7th of G7 (F). ',e('b',null,'Every transition: one note holds still, one moves a half-step.'),' This is why smooth voice leading sounds inevitable rather than mechanical. String set 2–5 gives you another register for the same shapes.']],
      items:['Voice-lead a ii–V–I in C: find the V7 inversion closest to your II inversion, then the I closest to that V','Try the same on string set 2–5 — same concept, higher or lower register','Loop the Play tab (Drop 2, 60 BPM) and watch which inversions it chooses — replicate them','Add F major and G major — same logic, shifted on the neck','Done when: smooth ii–V–I with Drop 2 in C, F, G — no pauses between chords']},
     {id:'modes',phase:'Voicings',
      title:'Scales over chords — Dorian, Mixolydian, Ionian',
