@@ -1116,7 +1116,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     }
   }
   function guess(answer){
-    if(revealed||!current) return;
+    if(revealed||!current||autoMode) return;
     let correct,key;
     if(mode==='intervals'){correct=answer===current.semitones;key=current.semitones;}
     else if(mode==='cadences'){correct=answer===current.cadence.id;key=current.cadence.id;}
@@ -2658,6 +2658,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   useEffect(()=>()=>{
     genRef.current++;
     clearTimeout(timerRef.current);
+    countInTimersRef.current.forEach(clearTimeout);countInTimersRef.current=[];
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
   },[]);
 
@@ -3844,7 +3845,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
            ['Secondary dominants are often tritone-substituted: E♭7 moving to Dm7 is just A7 (V7/ii) with a tritone sub — same function, chromatically recolored. The Sec. Dom. form in Play chains them into a cascade of chromatic bass resolutions.']],
      items:['In C: A7 → Dm7 is V7/ii — hear the pull in the Sec. Dom. form','Look for them in standards: the D7 in bar 8 of an F jazz blues (V7/ii in F), or E7 → Am7 (V7/vi) in a I–VI7–ii–V turnaround',['Secondary dominants are often tritone-subbed: E♭7→Dm7 is A7 (V7/ii) ',term('tritone_sub','tritone-subbed'),' — same function, different color'],'Done when: you can hear a secondary dominant in a progression and name which chord it\'s pulling toward']},
     // ── PHASE 4: APPLICATION ─────────────────────────────────────────────
-    {id:'keys',phase:'Application',phaseLabel:'Phase 4 — Application',fullPreset:true,
+    {id:'keys',phase:'Application',phaseLabel:'Phase 4 — Application',
      title:'Take it around the keys',
      time:'3+ months to cover all 12',
      preset:{view:'diatonic',key:7,deg:0,vType:'shell'},
@@ -3852,7 +3853,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
      body:['Every concept so far works identically in all 12 keys — the interval relationships never change, only the pitch names do. Jazz musicians practice moving around the cycle of fourths (C → F → B♭ → E♭ → A♭ → D♭ → G♭ → B → E → A → D → G). Most standards modulate through multiple keys — knowing the patterns in each key is infrastructure, not optional.',
            'One new key per week = all 12 in three months. Don\'t move on from a key until the ii–V–I feels easy, not just possible. Priority order: G, F, B♭, E♭ (most common jazz keys), then the remaining flats, then sharps.'],
      items:['Shells in G major: use the Keys tab to find all 7 shells, then play the ii–V–I in Play at 60 BPM','Add F and B♭ — these come up constantly in standards and jazz blues','Work through the flat keys (E♭, A♭, D♭) — they appear more often than sharps in jazz','Done when: ii–V–I with shells in all 12 keys from memory, no chart needed']},
-    {id:'approach',phase:'Application',fullPreset:true,
+    {id:'approach',phase:'Application',playPresetFull:true,
      title:'Chromatic approaches — bebop\'s half-step glue',
      time:'6–12 months to feel natural',
      preset:{view:'diatonic',key:0,deg:4,vType:'arpeggio'},
@@ -3950,7 +3951,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
               presetLbl,(gated?e('span',{style:{fontSize:'0.65rem',marginLeft:4}},'🔒'):null));
           })(),
           st.playPreset?(()=>{
-            const gated=st.fullPreset&&level==='essentials';
+            const gated=(st.fullPreset||st.playPresetFull)&&level==='essentials';
             const FORM_FEAT={turn:'Turnaround form',blues:'Jazz Blues',minor:'minor II–V–I',tritone:'Tritone Sub',secdom:'Sec. Dom.'};
             const playFeature=FORM_FEAT[st.playPreset?.form]||'Play forms';
             return e('button',{onClick:gated?()=>onUpgrade?.(playFeature):()=>openPreset(st.playPreset),style:{
@@ -4368,10 +4369,11 @@ function App(){
   useEffect(()=>{ if(viewMode!=='iivi') setIiviPlaying(false); },[viewMode]);
 
   // Streak & practice tracking
-  const [streak,setStreak]=useState(()=>parseInt(safeLS('jg-streak','0'),10));
-  const [bestStreak,setBestStreak]=useState(()=>parseInt(safeLS('jg-best-streak','0'),10));
+  const safeInt=(v,def=0)=>{const n=parseInt(v,10);return Number.isFinite(n)?n:def;};
+  const [streak,setStreak]=useState(()=>safeInt(safeLS('jg-streak','0')));
+  const [bestStreak,setBestStreak]=useState(()=>safeInt(safeLS('jg-best-streak','0')));
   const [lastPracticeDay,setLastPracticeDay]=useState(()=>safeLS('jg-last-practice',''));
-  const [playSessions,setPlaySessions]=useState(()=>parseInt(safeLS('jg-play-sessions','0'),10));
+  const [playSessions,setPlaySessions]=useState(()=>safeInt(safeLS('jg-play-sessions','0')));
   const [streakAnim,setStreakAnim]=useState(false);
   const [streakAnimPending,setStreakAnimPending]=useState(false);
   const [streakMilestone,setStreakMilestone]=useState(null); // day count at which milestone fires
@@ -4477,7 +4479,7 @@ function App(){
   // Dropping to Essentials while on an advanced tab/chord type
   useEffect(()=>{
     if(isEss){
-      if(vType==='drop3'||vType==='drop24'||vType==='drop23'||vType==='rootless') setVType('shell');
+      if(vType==='drop2'||vType==='drop3'||vType==='drop24'||vType==='drop23'||vType==='rootless') setVType('shell');
       if(customTypeIdx>3) setCustomTypeIdx(2);
     }
   },[level]);
