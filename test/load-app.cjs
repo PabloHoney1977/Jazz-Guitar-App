@@ -21,6 +21,8 @@ const CAPTURE_NAMES = [
   'QTYPES', 'QSYMS', 'ROMAN', 'MAJOR_SCALE', 'OPEN_MIDI', 'OPEN_PC', 'STR_NAMES',
   'KEYS', 'FLAT_KEYS', 'N_SHARP', 'N_FLAT', 'PARENT_SC', 'ROOTLESS_OK',
   'SHELLS', 'D2_INV', 'D2_SETS', 'D3_INV', 'D3_SETS', 'ROOTLESS',
+  // progression / standard data
+  'FORM_DEFS', 'SCALE_HINTS',
 ];
 
 function noop() {}
