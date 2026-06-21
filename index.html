@@ -25,7 +25,10 @@
       --cb-bg: #09091a; --cb-sel: #09182a; --cb-str: #1e1e38;
       --scale-circ: rgba(255,255,255,0.04); --scale-circ-str: rgba(255,255,255,0.20);
       --scale-circ-txt: rgba(255,255,255,0.26); --hi-dot-str: rgba(255,255,255,0.85);
-      --dot-lbl: #ffffff;
+      /* Chord-tone dots are filled with the bright TC pastels in BOTH themes,
+         so the label must be dark for legible contrast (white-on-gold was ~1.4:1
+         and failed WCAG; dark-on-pastel is ~9-12:1). */
+      --dot-lbl: #14142a;
       --leg-circ: rgba(255,255,255,0.28); --leg-txt: rgba(255,255,255,0.45);
       --parent-key: #4ECDC4; --parent-key-brd: #4ECDC440; --parent-other: #9090c0;
       --parent-box-act: #0a1f1f;
@@ -103,6 +106,17 @@
       26%  { transform: translateY(0);     opacity: 1; }
       74%  { transform: translateY(0);     opacity: 1; }
       100% { transform: translateY(100%);  opacity: 0; }
+    }
+    /* Respect the OS "reduce motion" setting (vestibular accessibility):
+       collapse animations/transitions to near-instant but still let content
+       appear (milestone/tour panels remain functional, just without movement). */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
     }
   </style>
 </head>
