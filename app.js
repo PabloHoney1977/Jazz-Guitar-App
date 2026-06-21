@@ -2133,12 +2133,18 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
 
   useEffect(()=>{safeLSSet('jg-strSet',strSetIdx);},[strSetIdx]);
   useEffect(()=>{safeLSSet('jg-bpm',bpm);},[bpm]);
-  useEffect(()=>{safeLSSet('jg-bass',bassEnabled);},[bassEnabled]);
+  useEffect(()=>{
+    safeLSSet('jg-bass',bassEnabled);
+    if(bassEnabled&&audioCtxRef.current&&!bassSamplesRef.current) decodeBassRaw(audioCtxRef.current);
+  },[bassEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(()=>{safeLSSet('jg-met',metronomeEnabled);},[metronomeEnabled]);
   useEffect(()=>{safeLSSet('jg-ride',rideEnabled);},[rideEnabled]);
   useEffect(()=>{safeLSSet('jg-eq',JSON.stringify(eqGains));},[eqGains]);
   useEffect(()=>{onPlayStateChange?.(isPlaying);},[isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(()=>{safeLSSet('jg-guitar',guitarEnabled);},[guitarEnabled]);
+  useEffect(()=>{
+    safeLSSet('jg-guitar',guitarEnabled);
+    if(guitarEnabled&&audioCtxRef.current&&!guitarSamplesRef.current) decodeGuitarRaw(audioCtxRef.current);
+  },[guitarEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(()=>{safeLSSet('jg-geq',JSON.stringify(guitarEqGains));},[guitarEqGains]);
   useEffect(()=>{safeLSSet('jg-req',JSON.stringify(rideEqGains));},[rideEqGains]);
   useEffect(()=>{safeLSSet('jg-bvol',bassVolume);},[bassVolume]);
@@ -3969,8 +3975,11 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
         // "I've got this" — quieter, after the checklist (it's the last thing you do)
         e('button',{onClick:()=>{
           togDone(st.id);
-          if(!isDone&&nextSt){setStagesOpen(s=>({...s,[st.id]:false,[nextSt.id]:true}));
-            setTimeout(()=>{const el=document.getElementById('guide-stage-'+nextSt.id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},70);}
+          if(!isDone){
+            if(nextSt){setStagesOpen(s=>({...s,[st.id]:false,[nextSt.id]:true}));
+              setTimeout(()=>{const el=document.getElementById('guide-stage-'+nextSt.id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},70);}
+            else setStagesOpen(s=>({...s,[st.id]:false}));
+          }
         },style:{
           width:'100%',marginTop:12,padding:'9px 14px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',fontWeight:700,
           border:'1px solid '+(isDone?GOLD:BTN_BRD),background:isDone?ACT_GOLD:'transparent',
