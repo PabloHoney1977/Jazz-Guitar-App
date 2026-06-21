@@ -1479,16 +1479,21 @@ function TourOverlay({steps,step,onNext,onSkip}){
     }
     // Immediate + rAF attempt; if target isn't in DOM yet (view just switched),
     // retry at 150ms and 350ms to let React finish rendering the new view.
+    const vv=window.visualViewport;
     if(!measure()){
       let t2=null;
       const t1=setTimeout(()=>{if(!measure()) t2=setTimeout(measure,200);},150);
       const raf=requestAnimationFrame(measure);
       window.addEventListener('scroll',measure,{passive:true});
-      return ()=>{cancelAnimationFrame(raf);clearTimeout(t1);clearTimeout(t2);window.removeEventListener('scroll',measure);};
+      vv&&vv.addEventListener('resize',measure);vv&&vv.addEventListener('scroll',measure);
+      return ()=>{cancelAnimationFrame(raf);clearTimeout(t1);clearTimeout(t2);window.removeEventListener('scroll',measure);
+        vv&&vv.removeEventListener('resize',measure);vv&&vv.removeEventListener('scroll',measure);};
     }
     const raf=requestAnimationFrame(measure);
     window.addEventListener('scroll',measure,{passive:true});
-    return ()=>{cancelAnimationFrame(raf);window.removeEventListener('scroll',measure);};
+    vv&&vv.addEventListener('resize',measure);vv&&vv.addEventListener('scroll',measure);
+    return ()=>{cancelAnimationFrame(raf);window.removeEventListener('scroll',measure);
+      vv&&vv.removeEventListener('resize',measure);vv&&vv.removeEventListener('scroll',measure);};
   },[step,s&&s.target]);
 
   if(!s) return null;
@@ -1518,7 +1523,7 @@ function TourOverlay({steps,step,onNext,onSkip}){
   // Tooltip: place below target if it fits, else above; clamp horizontally
   let tipTop=null,tipBottom=null;
   if(rect){
-    const vp=window.innerHeight||600;
+    const vp=(window.visualViewport?.height||window.innerHeight)||600;
     const below=rect.top+rect.h+PAD+16;
     if(below+220<vp) tipTop=below;
     else tipBottom=vp-(rect.top-PAD-12);
