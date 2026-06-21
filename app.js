@@ -161,7 +161,7 @@ const DETECT_TO_EXT={'△7':0,'m7':1,'7':2,'ø7':3,'△9':4,'m9':5,'9':6};
 const PARENT_SC={major:[0,2,4,5,7,9,11],melmin:[0,2,3,5,7,9,11]};
 const PTYPE_NAME={major:'Major',melmin:'Mel. Minor',dim:'Diminished',wt:'Whole Tone'};
 // FIX: index 11 = 11 semitones = major 7th; was 'd7' (diminished 7), now 'Δ7'
-const INT_NAMES=['R','b2','2','b3','3','4','#4','5','b6','6','b7','Δ7'];
+const INT_NAMES=['R','b9','2','b3','3','4','#11','5','b13','6','b7','Δ7'];
 
 const CHORD_SCALES=[
   [{name:'Ionian',   abbr:'Ion',   iv:[0,2,4,5,7,9,11],pType:'major', mPos:0,avoid:[5], desc:'Home — fully inside the key'},
@@ -1787,7 +1787,7 @@ function calcFingering(allF){
     else groups[groups.length-1].strings.push(s);
   });
   const map={};
-  groups.forEach((g,gi)=>{if(gi<4) g.strings.forEach(s=>{map[s]=gi+1;});});
+  groups.forEach((g,gi)=>{g.strings.forEach(s=>{map[s]=Math.min(gi+1,4);});});
   return map;
 }
 const ChordBox=React.memo(function ChordBox({voicing,strings,tones,degNames,invLabel,bassLabel,selected,onClick,tcArr,dotMode,dotKeyIdx}){
@@ -2076,6 +2076,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   const [pinnedChords,setPinnedChords]=useState(()=>new Set());
   const [barVTypes,setBarVTypes]=useState(()=>[]);
   const pendingBarVTypesRef=useRef(null);
+  const skipVLRef=useRef(false); // set when a favorite restore drives both form+vType in one click
   const [vType,setVType]=useState(()=>{const v=safeLS('jg-vtype','shell');return safeLS('jg-level')==='essentials'&&v!=='shell'?'shell':v;});
   const [customProg,setCustomProg]=useState(()=>{
     try{return JSON.parse(safeLS('jg-cprog','null'))||DFLT_CPROG;}
@@ -2722,8 +2723,10 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     setInvIdxs(runVL(av,av.map(()=>0),null));
     setPinnedChords(new Set());
     setActiveChordIdx(0);
+    skipVLRef.current=true; // vType effect runs in same cycle — skip to avoid overwriting
   },[form,keyIdx,customProg]);
   useEffect(()=>{
+    if(skipVLRef.current){skipVLRef.current=false;return;}
     const cs=chordsRef.current,brs=barsRef.current;
     if(!cs||!brs||brs.length<2) return;
     // Keep bar-specific overrides; re-VL only unoverridden bars
