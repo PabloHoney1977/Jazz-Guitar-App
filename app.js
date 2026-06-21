@@ -3684,6 +3684,14 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
     setStagesOpen(s=>({...s,[id]:true}));
     setTimeout(()=>{const el=document.getElementById('guide-stage-'+id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},70);
   }
+  useEffect(()=>{
+    const first=firstIncomplete();
+    const t=setTimeout(()=>{
+      if(first){const el=document.getElementById('guide-stage-'+first);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+      else window.scrollTo(0,0);
+    },80);
+    return()=>clearTimeout(t);
+  },[]);// eslint-disable-line react-hooks/exhaustive-deps
   function togDone(id){
     setDone(s=>{
       const isNowDone=!s[id];
@@ -4963,7 +4971,7 @@ function App(){
         const act=viewMode===id;
         let tabLbl=lbl;
         if(id==='guide'){try{const d=JSON.parse(safeLS('jg-path','{}'));const n=Object.values(d).filter(Boolean).length;if(n>0) tabLbl='Guide·'+n+'✓';}catch(ex){}}
-        return e('button',{key:id,'data-tour':'nav-'+id,onClick:()=>{setViewMode(id);window.scrollTo(0,0);},style:{
+        return e('button',{key:id,'data-tour':'nav-'+id,onClick:()=>{setViewMode(id);if(id!=='guide')window.scrollTo(0,0);},style:{
           flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:1,
           padding:'7px 0 5px',background:'transparent',border:'none',
           borderTop:'2px solid '+(act?'var(--txt)':'transparent'),
