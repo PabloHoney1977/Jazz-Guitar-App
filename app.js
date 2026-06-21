@@ -1139,7 +1139,11 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     if(!levelInitRef.current){levelInitRef.current=true;return;} // skip initial mount
     if(!seenIntro) return;
     clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);
-    if(isEss) setHarmonic(false);
+    if(isEss){
+      setHarmonic(false);
+      setAutoMode(false);
+      if(mode==='triads'||mode==='chords'||mode==='cadences') setMode('intervals');
+    }
     skipSaveRef.current+=2; // suppress the upcoming score+detail saves so Pro history survives
     setScores(s=>({...s,intervals:{r:0,w:0}}));
     setDetail(d=>({...d,intervals:{}}));
@@ -1254,7 +1258,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     {id:'intervals',lbl:'Intervals',locked:false},
     {id:'triads',lbl:'Triads',locked:isEss},
     {id:'chords',lbl:'7th Chords',locked:isEss},
-    {id:'cadences',lbl:'Cadences',locked:false},
+    {id:'cadences',lbl:'Cadences',locked:isEss},
   ];
 
   function toggleAuto(){
@@ -1475,10 +1479,11 @@ function TourOverlay({steps,step,onNext,onSkip}){
     // Immediate + rAF attempt; if target isn't in DOM yet (view just switched),
     // retry at 150ms and 350ms to let React finish rendering the new view.
     if(!measure()){
-      const t1=setTimeout(()=>{if(!measure()){const t2=setTimeout(measure,200);return()=>clearTimeout(t2);}},150);
+      let t2=null;
+      const t1=setTimeout(()=>{if(!measure()) t2=setTimeout(measure,200);},150);
       const raf=requestAnimationFrame(measure);
       window.addEventListener('scroll',measure,{passive:true});
-      return ()=>{cancelAnimationFrame(raf);clearTimeout(t1);window.removeEventListener('scroll',measure);};
+      return ()=>{cancelAnimationFrame(raf);clearTimeout(t1);clearTimeout(t2);window.removeEventListener('scroll',measure);};
     }
     const raf=requestAnimationFrame(measure);
     window.addEventListener('scroll',measure,{passive:true});
@@ -2071,7 +2076,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   const [pinnedChords,setPinnedChords]=useState(()=>new Set());
   const [barVTypes,setBarVTypes]=useState(()=>[]);
   const pendingBarVTypesRef=useRef(null);
-  const [vType,setVType]=useState(()=>safeLS('jg-vtype','drop2'));
+  const [vType,setVType]=useState(()=>{const v=safeLS('jg-vtype','shell');return safeLS('jg-level')==='essentials'&&v!=='shell'?'shell':v;});
   const [customProg,setCustomProg]=useState(()=>{
     try{return JSON.parse(safeLS('jg-cprog','null'))||DFLT_CPROG;}
     catch(ex){return DFLT_CPROG;}
@@ -2082,8 +2087,13 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     catch{return [];}
   });
 
-  // If user switches back to Basic while a non-major form is active, reset to major
-  useEffect(()=>{if(level==='essentials'&&form!=='major'){setForm('major');setIsPlaying(false);}},[level]);
+  // If user switches back to Basic while a non-major form or Pro vType is active, reset
+  useEffect(()=>{
+    if(level==='essentials'){
+      if(form!=='major'){setForm('major');setIsPlaying(false);}
+      if(vType!=='shell') setVType('shell');
+    }
+  },[level]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const audioCtxRef=useRef(null);
   const compRef=useRef(null);
@@ -2274,7 +2284,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     const selIdx=Math.min(invIdxs[safeBarIdx]||0,maxIdx);
     const v=activeVoicings[selIdx];
     if(!v) return null;
-    const strSet=activeVT==='shell'?SHELLS[selIdx].s:activeSS;
+    const strSet=activeVT==='shell'||(!ROOTLESS_OK.has(ac.quality)&&activeVT==='rootless')
+      ?SHELLS[selIdx]?.s||SHELLS[0].s
+      :activeVT==='rootless'?ROOTLESS[selIdx].s:activeSS;
     return v.frets.map((f,i)=>{
       const si=strSet[i],ti=ac.tones.indexOf((OPEN_PC[si]+f)%12);
       return{s:si,f,ti,dl:ti>=0?ac.dnames[ti]:''};
@@ -2606,6 +2618,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     genRef.current++;
     clearTimeout(timerRef.current);
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}compRef.current=null;
+    barPatternRef.current={};
     setIsPlaying(false);setStarting(false);setCountIn(0);setPlayingChordIdx(null);setPlayingBar(null);
   }
 
@@ -2626,7 +2639,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   useEffect(()=>{
     function onVisible(){
       if(document.visibilityState==='visible'&&audioCtxRef.current?.state==='suspended'){
-        audioCtxRef.current.resume();
+        audioCtxRef.current.resume().then(()=>{
+          if(audioCtxRef.current) nextTimeRef.current=audioCtxRef.current.currentTime+0.05;
+        });
       }
     }
     document.addEventListener('visibilitychange',onVisible);
@@ -2637,7 +2652,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   useEffect(()=>()=>{
     genRef.current++;
     clearTimeout(timerRef.current);
-    if(audioCtxRef.current)audioCtxRef.current.close();
+    if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}
   },[]);
 
   // stop when key or mode changes
@@ -2780,7 +2795,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
                 border:'1px solid '+GOLD+'55',borderRadius:5,overflow:'hidden'}},
                 e('button',{
                   onClick:()=>{pendingBarVTypesRef.current=fav.barVTypes||null;
-                    setForm(fav.form);setBpm(fav.bpm);setVType(fav.vType);
+                    setForm(fav.form);setBpm(fav.bpm);
+                    const safeVT=(level==='essentials'&&fav.vType!=='shell')?'shell':fav.vType;
+                    setVType(safeVT);
                     if(fav.prog&&fav.form==='custom') setCustomProg(fav.prog);},
                   title:'Restore: '+fav.lbl,
                   style:{padding:'3px 8px',cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.68rem',
@@ -3140,7 +3157,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
             e('div',{style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
               e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'},title:'Global voicing style applied to all bars — can be overridden per-chord below'},'Voicing'),
               (level==='essentials'
-                ?[{id:'drop2',lbl:'Drop 2'},{id:'shell',lbl:'Shell'}]
+                ?[{id:'shell',lbl:'Shell'}]
                 :[{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},{id:'rootless',lbl:'Rootless'},{id:'shell',lbl:'Shell'}]
               ).map(({id,lbl})=>e('button',{key:id,onClick:()=>setVType(id),style:mkSsBtn(vType===id)},lbl))
             ),
@@ -3211,15 +3228,25 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
                     dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,onClick:()=>pick(ii)
                   })
                 )
-              :activeDropD.inv.map((inv,ii)=>
-                  e(ChordBox,{key:ii,voicing:activeVoicings[ii],strings:activeSS,tones:ac.tones,
-                    degNames:ac.dnames,
-                    invLabel:ii===0?'Root pos.':ac.dnames[inv.bassIdx]+' bass',
-                    bassLabel:ii===0?'bass: '+ac.dnames[inv.bassIdx]:null,
-                    selected:invIdxs[safeBarIdx]===ii,dotMode,
-                    dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,onClick:()=>pick(ii)
-                  })
-                )
+              :activeVT==='rootless'
+                ?(ROOTLESS_OK.has(ac.quality)?ROOTLESS:SHELLS).map((cfg,ii)=>
+                    e(ChordBox,{key:ii,voicing:activeVoicings[ii],strings:cfg.s,tones:ac.tones,
+                      degNames:ac.dnames,
+                      invLabel:ROOTLESS_OK.has(ac.quality)?cfg.lbl+' ('+cfg.strs+')':cfg.lbl+' ('+cfg.root+')',
+                      bassLabel:ROOTLESS_OK.has(ac.quality)?'no root':'bass: R',
+                      selected:invIdxs[safeBarIdx]===ii,dotMode,
+                      dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,onClick:()=>pick(ii)
+                    })
+                  )
+                :activeDropD.inv.map((inv,ii)=>
+                    e(ChordBox,{key:ii,voicing:activeVoicings[ii],strings:activeSS,tones:ac.tones,
+                      degNames:ac.dnames,
+                      invLabel:ii===0?'Root pos.':ac.dnames[inv.bassIdx]+' bass',
+                      bassLabel:ii===0?'bass: '+ac.dnames[inv.bassIdx]:null,
+                      selected:invIdxs[safeBarIdx]===ii,dotMode,
+                      dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,onClick:()=>pick(ii)
+                    })
+                  )
           );
         })()
       )
@@ -4291,11 +4318,14 @@ function App(){
 
   function pageTourNext(){
     const steps=PAGE_TOURS[pageTourId]||[];
-    if(pageTourStep>=steps.length-1){
-      setPageTourStep(null);
-      safeLSSet('jg-toured-'+pageTourId,'1');
-      setPageTourId(null);
-    } else setPageTourStep(s=>s+1);
+    setPageTourStep(s=>{
+      if(s===null||s>=steps.length-1){
+        safeLSSet('jg-toured-'+pageTourId,'1');
+        setPageTourId(null);
+        return null;
+      }
+      return s+1;
+    });
   }
   function pageTourSkip(){
     if(pageTourId) safeLSSet('jg-toured-'+pageTourId,'1');
@@ -4403,7 +4433,7 @@ function App(){
       if(viewMode==='diatonic'){
         setDeg(d=>fwd?(d+1)%7:(d+6)%7);
       } else if(viewMode==='custom'){
-        const len=EXT_TYPES.length;
+        const len=safeLS('jg-level')==='essentials'?4:EXT_TYPES.length;
         setCustomTypeIdx(i=>fwd?(i+1)%len:(i-1+len)%len);
       } else if(viewMode==='guide'){
         window.scrollBy({top:fwd?350:-350,behavior:'smooth'});
