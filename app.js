@@ -3686,8 +3686,9 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
   }
   useEffect(()=>{
     const first=firstIncomplete();
+    const anyDone=Object.values(done).some(Boolean);
     const t=setTimeout(()=>{
-      if(first){const el=document.getElementById('guide-stage-'+first);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+      if(first&&anyDone){const el=document.getElementById('guide-stage-'+first);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
       else window.scrollTo(0,0);
     },80);
     return()=>clearTimeout(t);
