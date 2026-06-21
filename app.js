@@ -3900,7 +3900,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
                      e('td',{style:{padding:'5px 8px',color:'var(--hint)'}},'Bar '+bar),
                      e('td',{style:{padding:'5px 8px',fontWeight:700,letterSpacing:'0.3px'}},chord),
                      e('td',{style:{padding:'5px 8px',color:'var(--txt)'}},shape),
-                     e('td',{style:{padding:'5px 8px',color:'var(--hint)',fontSize:'0.74rem'}},role))))))),
+                     e('td',{style:{padding:'5px 8px',color:'var(--hint)',fontSize:'0.74rem'}},role)))))),
            e('div',{style:{marginTop:10,fontSize:'0.8rem',color:'var(--hint)',lineHeight:1.5}},'You\'ve played these ii–V–Is dozens of times in the Play tab — Autumn Leaves is just two of them chained together in a 32-bar form. The moment they connect to a real melody is the moment everything clicks.'),
            e('div',{style:{marginTop:14,padding:'10px 12px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,fontSize:'0.82rem',lineHeight:1.5}},[
              e('b',null,'Use iReal Pro for backing tracks. '),'It\'s a separate app ($21.99, the jazz musician\'s standard tool) with 3,000+ chord charts and playable backing tracks. Jazz Guitar Lab teaches the harmony — iReal Pro is where you apply it to real tunes. Get it, search "Autumn Leaves," set the tempo to 80 BPM, and comp through the changes with what you\'ve learned here. These two apps are designed to work together.',
