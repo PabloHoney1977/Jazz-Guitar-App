@@ -3787,7 +3787,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
      body:['Three chords that appear in virtually every jazz standard: a ',term('m7','minor 7'),' chord (ii), a ',term('dom7','dominant 7'),' chord (V), and a ',term('maj7','major 7'),' chord (I). In C: Dm7 → G7 → Cmaj7. The ',term('roman','Roman numerals'),' indicate position in the key — the same pattern works in every key. Learn it once, use it everywhere.',
            ['Why does it work? The V7 chord contains a ',term('tritone','tritone'),' between its 3rd and 7th (B and F in G7). Both notes want to resolve by half-step: B moves up to C, F moves down to E — exactly the root and 3rd of Cmaj7. The resolution is built into the physics of the interval.'],
            ['The ',term('guide','guide tones'),' swap roles on each chord: the 7th of G7 (F) resolves to the 3rd of Cmaj7 (E), and the 3rd of G7 (B) approaches the root. This guide tone chain is the engine of jazz ',term('vl','voice leading'),'.']],
-     items:['Slow the Play tab to 55 BPM and comp shells through the ii–V–I — listen for how the V "leans" into the I',['Pick a different ii ',term('inv','inversion'),' — the app voice-leads the V and I to follow automatically'],'Done when: you can play a ii–V–I from memory in C, F, and G without looking']},
+     items:['Slow the Play tab to 55 BPM and comp shells through the ii–V–I — listen for how the V "leans" into the I',['Change the key to F: Gm7→C7→Fmaj7 — same relationship, different starting point'],'Done when: you can play a ii–V–I from memory in C, F, and G without looking']},
     {id:'ear',phase:'Foundation',
      title:'Train your ear — start now, not later',
      time:'10–15 min/session, runs alongside every stage from here',
