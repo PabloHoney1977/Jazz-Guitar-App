@@ -1,9 +1,15 @@
 # Tests
 
-Run with:
+Run unit/theory/gating tests:
 
 ```
 npm test        # or: node --test
+```
+
+Run DOM smoke tests (requires Playwright Chromium):
+
+```
+npm run test:smoke    # or: PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node test/smoke.cjs
 ```
 
 ## What this covers
@@ -33,8 +39,35 @@ file — nothing is exported from or modified in the app itself.
 If a captured symbol is renamed in `app.js`, its test fails with `undefined`;
 update the `CAPTURE_NAMES` list in `load-app.cjs` to match.
 
+## Smoke tests (`smoke.cjs`)
+
+`smoke.cjs` drives the app in a real headless Chromium browser with an iPhone 14
+viewport (390×844, Safari UA) using Playwright. This catches layout/render bugs
+that the vm sandbox can't see — including the class of `visualViewport` misalignment
+the iOS tour-spotlight fix addressed.
+
+What it covers (25 checks across 13 test blocks):
+- App bootstraps without JS errors
+- All 5 nav tabs render with correct labels
+- Guide tab renders ≥10 stages; scrolls to top when nothing done; auto-scrolls
+  when progress exists (`jg-path`)
+- Tour spotlight rectangle aligns within 60px of its nav target
+- Keys (Diatonic) tab: 7 chord buttons with correct Roman numeral casing
+  (uppercase I/IV/V, lowercase ii/iii/vi/vii)
+- Play tab: BPM in range, Start/Stop button present
+- Ear Training tab renders without error
+- Dark/light theme toggle flips `data-theme`
+- `prefers-reduced-motion` collapses `animation-duration` to ≤1ms
+- Viewport meta present with `user-scalable=no`
+- PWA manifest linked
+
+**Note:** WebKit binary is blocked in this CI environment, so Chromium is used
+instead. For true iOS Safari fidelity, test on a physical device via TestFlight.
+
+CDN React is intercepted and served from local copies in `test/react*.js`
+(copied from npm at setup time; not committed to git).
+
 ## What this does NOT cover
 
-UI rendering, audio playback/scheduling, localStorage persistence flows, the
-freemium paywall, and anything iOS/WebKit-specific. Those need a real device or
-a DOM-driving harness and are tracked separately.
+Audio playback/scheduling, RevenueCat IAP flow, Bluetooth pedal events, and
+true iOS WebKit rendering quirks. Those need a physical device via TestFlight.
