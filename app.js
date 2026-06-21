@@ -325,7 +325,7 @@ function getArpPos(tones){
 function getScalePos(rootPC,scaleIv,chordTones){
   const out=[];
   for(let s=0;s<6;s++)
-    for(let f=1;f<=15;f++){
+    for(let f=0;f<=15;f++){
       const pc=(OPEN_PC[s]+f)%12;
       const interval=(pc-rootPC+12)%12;
       if(scaleIv.indexOf(interval)>=0 && chordTones.indexOf(pc)<0)
@@ -2220,7 +2220,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     :customProg.map(({root,q})=>{
         const tones=getChordTones(root,q);
         const qt=EXT_TYPES.find(t=>t.id===q)||EXT_TYPES[0];
-        return{rootPC:root,quality:q,tones,dnames:DNAMES[q],name:nn(root,0)+qt.sym,roman:qt.sym};
+        return{rootPC:root,quality:q,tones,dnames:DNAMES[q],name:nn(root,root)+qt.sym,roman:qt.sym};
       });
   const bars=def?def.bars:customProg.map((_,i)=>i);
   chordsRef.current=chords;
@@ -2262,12 +2262,15 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   const activeVTSI=barVT?Math.min(barVT.strSetIdx,(DROP_DATA[barVT.vType]||DROP_DATA.drop2).sets.length-1):ssIdx;
   const activeDropD=DROP_DATA[activeVT]||DROP_DATA.drop2;
   const activeSS=activeVT==='shell'?null:activeDropD.sets[activeVTSI].s;
+  // Rootless tones: replace root with 9th; null when quality doesn't support rootless
+  const activeRlTones=ROOTLESS_OK.has(ac.quality)
+    ?[(ac.tones[0]+2)%12,ac.tones[1],ac.tones[2],ac.tones[3]]
+    :null;
   const activeVoicings=useMemo(()=>{
     if(activeVT==='shell') return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ac.tones,1));
     if(activeVT==='rootless'){
-      if(!ROOTLESS_OK.has(ac.quality)) return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ac.tones,1));
-      const rl=[(ac.tones[0]+2)%12,ac.tones[1],ac.tones[2],ac.tones[3]];
-      return ROOTLESS.map(cfg=>calcVoicing(cfg.s,cfg.a,rl,1));
+      if(!activeRlTones) return SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ac.tones,1));
+      return ROOTLESS.map(cfg=>calcVoicing(cfg.s,cfg.a,activeRlTones,1));
     }
     return activeDropD.inv.map(inv=>calcVoicing(activeSS,inv.a,ac.tones));
   },[activeChordIdx,strSetIdx,keyIdx,form,customProg,vType,barVTypes]);
@@ -2293,9 +2296,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     const strSet=activeVT==='shell'||(!ROOTLESS_OK.has(ac.quality)&&activeVT==='rootless')
       ?SHELLS[selIdx]?.s||SHELLS[0].s
       :activeVT==='rootless'?ROOTLESS[selIdx].s:activeSS;
+    const hlTones=activeVT==='rootless'&&activeRlTones?activeRlTones:ac.tones;
+    const hlDnames=activeVT==='rootless'&&activeRlTones?RL_DNAMES[ac.quality]:ac.dnames;
     return v.frets.map((f,i)=>{
-      const si=strSet[i],ti=ac.tones.indexOf((OPEN_PC[si]+f)%12);
-      return{s:si,f,ti,dl:ti>=0?ac.dnames[ti]:''};
+      const si=strSet[i],ti=hlTones.indexOf((OPEN_PC[si]+f)%12);
+      return{s:si,f,ti,dl:ti>=0?hlDnames[ti]:''};
     });
   },[activeVoicings,invIdxs,safeBarIdx,strSetIdx,form,vType,barVTypes]);
 
@@ -3237,10 +3242,12 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
                 )
               :activeVT==='rootless'
                 ?(ROOTLESS_OK.has(ac.quality)?ROOTLESS:SHELLS).map((cfg,ii)=>
-                    e(ChordBox,{key:ii,voicing:activeVoicings[ii],strings:cfg.s,tones:ac.tones,
-                      degNames:ac.dnames,
-                      invLabel:ROOTLESS_OK.has(ac.quality)?cfg.lbl+' ('+cfg.strs+')':cfg.lbl+' ('+cfg.root+')',
-                      bassLabel:ROOTLESS_OK.has(ac.quality)?'no root':'bass: R',
+                    e(ChordBox,{key:ii,voicing:activeVoicings[ii],strings:cfg.s,
+                      tones:activeRlTones||ac.tones,
+                      degNames:activeRlTones?RL_DNAMES[ac.quality]:ac.dnames,
+                      tcArr:activeRlTones?TC_RL:undefined,
+                      invLabel:activeRlTones?cfg.lbl+' ('+cfg.strs+')':cfg.lbl+' ('+cfg.root+')',
+                      bassLabel:activeRlTones?'no root':'bass: R',
                       selected:invIdxs[safeBarIdx]===ii,dotMode,
                       dotKeyIdx:form==='custom'?ac.rootPC:keyIdx,onClick:()=>pick(ii)
                     })
