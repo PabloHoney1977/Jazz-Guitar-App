@@ -3674,6 +3674,16 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
   useEffect(()=>{safeLSSet('jg-path-items',JSON.stringify(doneItems));},[doneItems]);
   function toggleItem(stId,i){setDoneItems(s=>{const k=stId+':'+i;const wasUnchecked=!s[k];if(wasUnchecked)onPracticed?.();return {...s,[k]:wasUnchecked?true:undefined};});}
   const [justDone,setJustDone]=useState(null);
+  const prevStreakRef=useRef(streak);
+  const [streakBump,setStreakBump]=useState(false);
+  useEffect(()=>{
+    if(streak>prevStreakRef.current){
+      setStreakBump(true);
+      const t=setTimeout(()=>setStreakBump(false),2500);
+      return()=>clearTimeout(t);
+    }
+    prevStreakRef.current=streak;
+  },[streak]);
   const firstIncomplete=()=>{try{const d=JSON.parse(safeLS('jg-path','{}'));return STAGE_IDS.find(id=>!d[id]);}catch(ex){return null;}};
   const [stagesOpen,setStagesOpen]=useState(()=>{
     const first=firstIncomplete();
@@ -3700,6 +3710,15 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
       return {...s,[id]:isNowDone?true:undefined};
     });
   }
+  useEffect(()=>{
+    const first=firstIncomplete();
+    const anyDone=Object.values(done).some(Boolean)||Object.values(doneItems).some(Boolean);
+    const t=setTimeout(()=>{
+      if(first&&anyDone){const el=document.getElementById('guide-stage-'+first);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+      else window.scrollTo(0,0);
+    },80);
+    return()=>clearTimeout(t);
+  },[]);// eslint-disable-line react-hooks/exhaustive-deps
   const S={marginBottom:14,padding:'14px 16px',background:BG2,border:'1px solid '+BORDER,borderRadius:8};
   const H={fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,color:'var(--scale-name)',marginBottom:8};
   const P={fontSize:'0.80rem',lineHeight:1.75,color:'var(--txt)',fontFamily:UI_FONT,marginBottom:8};
@@ -4016,6 +4035,13 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
     );
   }
   return e('div',null,
+    streakBump?e('div',{style:{
+      position:'fixed',bottom:80,left:'50%',transform:'translateX(-50%)',
+      background:'#222',color:GOLD,fontFamily:UI_FONT,fontWeight:700,fontSize:'0.88rem',
+      padding:'10px 20px',borderRadius:24,boxShadow:'0 4px 16px #0008',
+      zIndex:9999,pointerEvents:'none',whiteSpace:'nowrap',
+      animation:'milestoneUp 0.35s ease-out'
+    }},'🔥 '+(streak)+'-day streak!'):null,
     // ── Resume / Today card — a single clear next action on every visit ──
     allDone
       ?e('div',{style:{marginBottom:14,padding:'14px 16px',background:ACT_GOLD,border:'1px solid '+GOLD,borderRadius:8}},
