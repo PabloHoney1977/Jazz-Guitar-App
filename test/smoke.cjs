@@ -15,6 +15,9 @@
 //   - Reduced-motion: animation-duration collapses under prefers-reduced-motion
 //   - Viewport meta present and sets user-scalable=no
 //   - PWA manifest linked
+//   - Visual snapshots of every tab (Pro mode) saved to test/screenshots/ for
+//     human / vision-agent review of layout & UI-clarity bugs that DOM
+//     assertions can't express
 //
 // Network restriction: WebKit binary unavailable in this CI environment, so we
 // use Chromium with an iPhone 14 UA + viewport. This exercises the real DOM
@@ -35,6 +38,7 @@ const { URL } = require('url');
 
 // ── Static file server ────────────────────────────────────────────────────────
 const ROOT = path.join(__dirname, '..');
+const SHOTS_DIR = path.join(__dirname, 'screenshots');
 const MIME = {
   '.html': 'text/html', '.js': 'application/javascript',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
@@ -403,6 +407,44 @@ const IPHONE14 = {
       await ctx.close();
     });
 
+    // ── 14: Visual snapshots — capture every tab for human/vision review ───────
+    // Not pass/fail assertions about correctness. These exist so a reviewer (or a
+    // vision-capable agent) can SEE each screen and catch layout/confusion bugs
+    // that DOM assertions can't express — e.g. two near-duplicate controls that
+    // read as redundant. Captured in Pro mode so every gated control renders.
+    await test('Test 14: Visual snapshots of every tab', async () => {
+      fs.mkdirSync(SHOTS_DIR, { recursive: true });
+      const { page, ctx } = await freshPage({ storage: { 'jg-level': 'pro' } });
+      const shoot = async (name) => {
+        await page.waitForTimeout(400);
+        const file = path.join(SHOTS_DIR, `${name}.png`);
+        await page.screenshot({ path: file, fullPage: true });
+        ok(`captured ${name}.png`, fs.existsSync(file) && fs.statSync(file).size > 1000,
+          `missing/empty: ${file}`);
+      };
+      const tabs = [
+        ['nav-guide', 'guide'], ['nav-diatonic', 'keys'],
+        ['nav-custom', 'chords'], ['nav-iivi', 'play'], ['nav-quiz', 'train'],
+      ];
+      for (const [tour, name] of tabs) {
+        const btn = await page.$(`[data-tour="${tour}"]`);
+        if (btn) await btn.click({ timeout: 5000 });
+        await shoot(name);
+      }
+      // Play tab with the per-bar voicing override expanded, to review that state
+      const playBtn = await page.$('[data-tour="nav-iivi"]');
+      if (playBtn) await playBtn.click({ timeout: 5000 });
+      await page.waitForTimeout(300);
+      const expanded = await page.evaluate(() => {
+        const link = Array.from(document.querySelectorAll('button'))
+          .find(b => /customize this bar/i.test(b.textContent || ''));
+        if (link) { link.click(); return true; }
+        return false;
+      });
+      if (expanded) await shoot('play-bar-override');
+      await ctx.close();
+    });
+
   } finally {
     await browser.close();
     server.close();
@@ -412,5 +454,6 @@ const IPHONE14 = {
   console.log('\n── Smoke test results ───────────────────────────────────');
   for (const r of results) console.log(r);
   console.log(`\n${passed + failed} checks: ${passed} passed, ${failed} failed`);
+  console.log(`Screenshots written to ${SHOTS_DIR}`);
   if (failed > 0) process.exit(1);
 })();

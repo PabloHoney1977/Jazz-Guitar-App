@@ -4,3 +4,5 @@ www/
 # Local React UMD copies for smoke tests (populated from npm at setup time, not source)
 test/react.production.min.js
 test/react-dom.production.min.js
+# Smoke-test visual snapshots — regenerated each run, not source
+test/screenshots/

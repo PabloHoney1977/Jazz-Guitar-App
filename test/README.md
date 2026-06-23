@@ -46,7 +46,7 @@ viewport (390×844, Safari UA) using Playwright. This catches layout/render bugs
 that the vm sandbox can't see — including the class of `visualViewport` misalignment
 the iOS tour-spotlight fix addressed.
 
-What it covers (25 checks across 13 test blocks):
+What it covers (31 checks across 14 test blocks):
 - App bootstraps without JS errors
 - All 5 nav tabs render with correct labels
 - Guide tab renders ≥10 stages; scrolls to top when nothing done; auto-scrolls
@@ -60,6 +60,19 @@ What it covers (25 checks across 13 test blocks):
 - `prefers-reduced-motion` collapses `animation-duration` to ≤1ms
 - Viewport meta present with `user-scalable=no`
 - PWA manifest linked
+- **Visual snapshots** of every tab (Guide, Keys, Chords, Play, Train) plus the
+  Play tab with the per-bar voicing override expanded, captured in **Pro** mode
+  (so every gated control renders) to `test/screenshots/`
+
+### Why the snapshots
+
+DOM assertions verify *correctness* — the right elements exist, the right values
+render. They cannot express *clarity*: e.g. two near-duplicate controls that read
+as redundant, an overflowing label, or a confusing layout. Those are perceptual
+bugs you have to **see**. The snapshots exist so a reviewer — or a vision-capable
+agent — can look at each screen cold and catch UI-confusion issues that no
+selector can encode. They are diagnostic artifacts, regenerated each run and
+git-ignored (not committed).
 
 **Note:** WebKit binary is blocked in this CI environment, so Chromium is used
 instead. For true iOS Safari fidelity, test on a physical device via TestFlight.
