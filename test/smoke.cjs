@@ -2,23 +2,43 @@
 // (390×844, Safari UA) to exercise the real DOM and catch layout/render bugs
 // that the vm-sandbox unit tests can't see.
 //
-// What's covered (41 checks across 16 test blocks):
+// What's covered (68 checks across 24 test blocks):
+//
+//  Static / layout checks (Tests 1–16):
 //   - App bootstraps without JS errors
-//   - All 5 nav tabs render
-//   - Guide tab: first load scrolls to top (nothing done)
-//   - Guide auto-scroll: scrollY > 0 when some stages done
+//   - All 5 nav tabs render with correct labels
+//   - Guide tab: renders ≥10 stages; starts at top; auto-scrolls when progress exists
 //   - Tour spotlight aligns with its target element (within 60px)
-//   - Keys (Diatonic) tab: 7 diatonic chord buttons, correct Roman numeral casing
-//   - Play tab: BPM display visible, Start button present
+//   - Keys tab: 7 chord buttons with correct Roman numeral casing
+//   - Play tab: BPM in range, Start/Stop button present
 //   - Ear Training tab: renders without JS error
 //   - Dark/light theme toggle: data-theme flips
-//   - Reduced-motion: animation-duration collapses under prefers-reduced-motion
-//   - Viewport meta present and sets user-scalable=no
+//   - Reduced-motion: animation-duration collapses to ≤1ms
+//   - Viewport meta present with user-scalable=no
 //   - PWA manifest linked
-//   - Visual snapshots (16 PNGs) saved to test/screenshots/ for layout/clarity review:
-//       Pro dark mode: guide, keys, chords, play, train, play-bar-override
-//       Essentials (free) tier: guide, keys, chords, play, train
-//       Light theme: guide, keys, chords, play, train
+//   - Visual snapshots (16 PNGs): Pro dark, Essentials, light theme
+//
+//  Interactive / flow checks (Tests 17–24):
+//   - Tour: spotlight stays stable after paint (regression guard for rAF-jump bug)
+//   - Tour: step through all steps, screenshot each viewport frame
+//   - Keys tab: open key picker, change key, verify chords update
+//   - Keys tab: click a chord, verify neck renders without errors, screenshot
+//   - Ear Training: skip intro, click a choice, check revealed state,
+//     verify ← ♪ → row stays in viewport without scrolling
+//   - Essentials: trigger upgrade sheet, verify pricing text present
+//   - Play Essentials: single upgrade CTA (not a wall of locked buttons)
+//   - Play BPM: keyboard-control the knob, verify displayed value updates
+//
+// Network restriction: WebKit binary unavailable in this CI environment, so we
+// use Chromium with an iPhone 14 UA + viewport. This exercises the real DOM
+// layout engine and catches viewport/positioning bugs like the iOS tour fix.
+//
+// Run:  node test/smoke.cjs
+//
+// Setup (once, to get local React copies — CDN is blocked in this CI env):
+//   cd /tmp && npm install react@18.2.0 react-dom@18.2.0
+//   cp /tmp/node_modules/react/umd/react.production.min.js test/
+//   cp /tmp/node_modules/react-dom/umd/react-dom.production.min.js test/
 //
 // Network restriction: WebKit binary unavailable in this CI environment, so we
 // use Chromium with an iPhone 14 UA + viewport. This exercises the real DOM
@@ -491,6 +511,322 @@ const IPHONE14 = {
         if (btn) await btn.click({ timeout: 5000 });
         await shoot(name);
       }
+      await ctx.close();
+    });
+
+    // ── 17: Tour spotlight stability ─────────────────────────────────────────
+    // Regression guard for the post-paint rAF jump: measure the spotlight center
+    // immediately after mount, wait 700ms, measure again. Should not drift.
+    await test('Test 17: Tour spotlight stays stable after paint', async () => {
+      const { page, ctx } = await freshPage({ suppressTour: false });
+      await page.waitForTimeout(300);
+      const getSpotCenter = () => page.evaluate(() => {
+        const el = Array.from(document.querySelectorAll('*')).find(e => {
+          const s = getComputedStyle(e);
+          return s.position === 'absolute' && s.border.includes('2px') &&
+                 s.pointerEvents === 'none' && parseFloat(s.width) > 30;
+        });
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      });
+      const pos1 = await getSpotCenter();
+      await page.waitForTimeout(700);
+      const pos2 = await getSpotCenter();
+      if (pos1 && pos2) {
+        const drift = Math.sqrt((pos2.x - pos1.x) ** 2 + (pos2.y - pos1.y) ** 2);
+        ok(`spotlight stable after 700ms (drift=${Math.round(drift)}px ≤ 8px)`,
+           drift <= 8,
+           `jumped from (${Math.round(pos1.x)},${Math.round(pos1.y)}) to (${Math.round(pos2.x)},${Math.round(pos2.y)})`);
+      } else {
+        ok('spotlight element found for stability check', false,
+           `pos1=${JSON.stringify(pos1)}, pos2=${JSON.stringify(pos2)}`);
+      }
+      await ctx.close();
+    });
+
+    // ── 18: Tour step-through — screenshot each step ──────────────────────────
+    // Clicks "Next →" / "Done" through all tour steps, capturing a viewport
+    // screenshot at each step. Exposes misaligned spotlights or broken card text.
+    await test('Test 18: Tour step-through screenshots', async () => {
+      fs.mkdirSync(SHOTS_DIR, { recursive: true });
+      const { page, ctx, jsErrors } = await freshPage({ suppressTour: false });
+      await page.waitForTimeout(500);
+      let stepCount = 0;
+      for (let i = 0; i < 8; i++) {
+        const hasOverlay = await page.evaluate(() =>
+          Array.from(document.querySelectorAll('*')).some(el => {
+            const s = getComputedStyle(el);
+            return s.position === 'fixed' && parseInt(s.zIndex) >= 200 && parseFloat(s.width) > 300;
+          })
+        );
+        if (!hasOverlay) break;
+        const file = path.join(SHOTS_DIR, `tour-step-${stepCount + 1}.png`);
+        await page.screenshot({ path: file, fullPage: false });
+        stepCount++;
+        await page.evaluate(() => {
+          // Find Next / Done button inside the tour card (fixed overlay)
+          const btn = Array.from(document.querySelectorAll('button'))
+            .find(b => /^(Next →|Done)$/.test(b.textContent?.trim()));
+          if (btn) btn.click();
+        });
+        await page.waitForTimeout(450);
+      }
+      ok(`stepped through tour (≥4 steps captured, got ${stepCount})`, stepCount >= 4);
+      const realErrors = jsErrors.filter(e => !isNoise(e));
+      ok('no JS errors during tour step-through', realErrors.length === 0,
+         realErrors.join('; ').slice(0, 200));
+      await ctx.close();
+    });
+
+    // ── 19: Keys tab — key change updates chord display ───────────────────────
+    // Opens the key picker, selects G, then verifies the chord button labels
+    // changed to reflect the new key (proves re-render on key change works).
+    await test('Test 19: Keys tab — key change updates chords', async () => {
+      fs.mkdirSync(SHOTS_DIR, { recursive: true });
+      const { page, ctx, jsErrors } = await freshPage();
+      const keysBtn = await page.$('[data-tour="nav-diatonic"]');
+      if (!keysBtn) { ok('Keys nav found', false); await ctx.close(); return; }
+      await keysBtn.click({ timeout: 5000 });
+      await page.waitForTimeout(400);
+
+      // Record chord button text before key change
+      const chordsBefore = await page.$$eval('button', btns =>
+        btns.map(b => b.textContent?.trim()).filter(t => /^(vii|iii|ii|vi|IV|V|I)[A-G]/.test(t))
+      );
+
+      // Open key picker and select G (index 7 = G)
+      const keyChip = await page.$('[data-tour="key-chip"] button');
+      if (keyChip) await keyChip.click({ timeout: 3000 });
+      await page.waitForTimeout(200);
+      await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button'))
+          .find(b => /^G$/.test(b.textContent?.trim()));
+        if (btn) btn.click();
+      });
+      await page.waitForTimeout(400);
+
+      const chordsAfter = await page.$$eval('button', btns =>
+        btns.map(b => b.textContent?.trim()).filter(t => /^(vii|iii|ii|vi|IV|V|I)[A-G]/.test(t))
+      );
+
+      ok('key change: still 7 chord buttons after switching to G', chordsAfter.length === 7,
+         `got ${chordsAfter.length}: ${chordsAfter.join(', ')}`);
+      ok('key change: chord labels differ from C key', JSON.stringify(chordsBefore) !== JSON.stringify(chordsAfter),
+         `before=${chordsBefore.join(',')}, after=${chordsAfter.join(',')}`);
+
+      const screenshotFile = path.join(SHOTS_DIR, 'keys-key-change.png');
+      await page.screenshot({ path: screenshotFile, fullPage: true });
+      ok('captured keys-key-change.png', fs.existsSync(screenshotFile) && fs.statSync(screenshotFile).size > 1000);
+
+      const realErrors = jsErrors.filter(e => !isNoise(e));
+      ok('no JS errors during key change', realErrors.length === 0, realErrors.join('; ').slice(0, 200));
+      await ctx.close();
+    });
+
+    // ── 20: Keys tab — chord selection, neck diagram updates ─────────────────
+    // Clicks the ii chord, verifies the fretboard SVG is still present and no
+    // errors are thrown. Guards against crashes on chord-click re-render.
+    await test('Test 20: Keys tab — chord click updates neck', async () => {
+      fs.mkdirSync(SHOTS_DIR, { recursive: true });
+      const { page, ctx, jsErrors } = await freshPage();
+      const keysBtn = await page.$('[data-tour="nav-diatonic"]');
+      if (!keysBtn) { ok('Keys nav found', false); await ctx.close(); return; }
+      await keysBtn.click({ timeout: 5000 });
+      await page.waitForTimeout(400);
+
+      // Click the ii chord button
+      await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button'))
+          .find(b => /^ii[A-G]/.test(b.textContent?.trim()));
+        if (btn) btn.click();
+      });
+      await page.waitForTimeout(500);
+
+      const hasNeck = await page.evaluate(() => !!document.querySelector('svg'));
+      ok('neck SVG present after chord click', hasNeck);
+
+      const screenshotFile = path.join(SHOTS_DIR, 'keys-chord-click.png');
+      await page.screenshot({ path: screenshotFile, fullPage: true });
+      ok('captured keys-chord-click.png', fs.existsSync(screenshotFile) && fs.statSync(screenshotFile).size > 1000);
+
+      const realErrors = jsErrors.filter(e => !isNoise(e));
+      ok('no JS errors on chord click', realErrors.length === 0, realErrors.join('; ').slice(0, 200));
+      await ctx.close();
+    });
+
+    // ── 21: Ear training — answer flow, nav row stays in viewport ─────────────
+    // Seeds jg-ear-intro so we land directly on a question. Verifies the ← ♪ →
+    // row and choice grid render, then clicks a choice. After reveal, checks that
+    // the → button's bottom edge is within the iPhone 14 viewport (844px) — the
+    // exact layout bug that required scrolling before the fix.
+    await test('Test 21: Ear training — answer flow, → in viewport', async () => {
+      fs.mkdirSync(SHOTS_DIR, { recursive: true });
+      const { page, ctx, jsErrors } = await freshPage({
+        storage: { 'jg-ear-intro': '1' },
+      });
+      const earBtn = await page.$('[data-tour="nav-quiz"]');
+      if (!earBtn) { ok('Ear Training nav found', false); await ctx.close(); return; }
+      await earBtn.click({ timeout: 5000 });
+      await page.waitForTimeout(600);
+
+      // ♪ play button and → arrow should both be visible before answering
+      const playBtnInView = await page.evaluate(() => {
+        const btn = document.querySelector('[data-tour="ear-play-btn"]');
+        if (!btn) return false;
+        const r = btn.getBoundingClientRect();
+        return r.top >= 0 && r.bottom <= window.innerHeight;
+      });
+      ok('♪ play button visible in viewport', playBtnInView);
+
+      const nextArrowInViewBefore = await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button'))
+          .find(b => b.getAttribute('aria-label') === 'Next');
+        if (!btn) return null;
+        const r = btn.getBoundingClientRect();
+        return { inView: r.top >= 0 && r.bottom <= window.innerHeight, bottom: Math.round(r.bottom) };
+      });
+      ok('→ arrow button visible in viewport before answering',
+         nextArrowInViewBefore && nextArrowInViewBefore.inView,
+         `bottom=${nextArrowInViewBefore?.bottom}, viewport=844`);
+
+      // Wait for choices to appear, then click the first one
+      const choiceClicked = await page.evaluate(() => {
+        const grid = document.querySelector('[data-tour="ear-choices"]');
+        if (!grid) return false;
+        const btn = grid.querySelector('button:not([disabled])');
+        if (btn) { btn.click(); return true; }
+        return false;
+      });
+      ok('clicked a choice button', choiceClicked);
+      await page.waitForTimeout(400);
+
+      // After reveal: → should be golden/active AND still in viewport
+      const nextArrowInViewAfter = await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button'))
+          .find(b => b.getAttribute('aria-label') === 'Next');
+        if (!btn) return null;
+        const r = btn.getBoundingClientRect();
+        return { inView: r.top >= 0 && r.bottom <= window.innerHeight, bottom: Math.round(r.bottom) };
+      });
+      ok('→ arrow still in viewport after revealing answer',
+         nextArrowInViewAfter && nextArrowInViewAfter.inView,
+         `bottom=${nextArrowInViewAfter?.bottom}, viewport=844`);
+
+      const screenshotFile = path.join(SHOTS_DIR, 'train-revealed.png');
+      await page.screenshot({ path: screenshotFile, fullPage: false }); // viewport-only
+      ok('captured train-revealed.png', fs.existsSync(screenshotFile) && fs.statSync(screenshotFile).size > 1000);
+
+      const realErrors = jsErrors.filter(e => !isNoise(e));
+      ok('no JS errors during ear training answer flow', realErrors.length === 0,
+         realErrors.join('; ').slice(0, 200));
+      await ctx.close();
+    });
+
+    // ── 22: Essentials — upgrade sheet trigger ────────────────────────────────
+    // Clicks a locked mode tab (Triads) in Essentials tier. Verifies the upgrade
+    // sheet renders with the Pro price and an unlock action.
+    await test('Test 22: Essentials — upgrade sheet appears on locked feature', async () => {
+      fs.mkdirSync(SHOTS_DIR, { recursive: true });
+      const { page, ctx, jsErrors } = await freshPage({
+        storage: { 'jg-level': 'essentials', 'jg-ear-intro': '1' },
+      });
+      const earBtn = await page.$('[data-tour="nav-quiz"]');
+      if (!earBtn) { ok('Ear Training nav found', false); await ctx.close(); return; }
+      await earBtn.click({ timeout: 5000 });
+      await page.waitForTimeout(400);
+
+      // Click the Triads tab (locked in Essentials)
+      await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button'))
+          .find(b => /Triads/.test(b.textContent));
+        if (btn) btn.click();
+      });
+      await page.waitForTimeout(400);
+
+      const sheetText = await page.evaluate(() => document.body.innerText);
+      ok('upgrade sheet contains pricing ($9.99)', sheetText.includes('9.99'),
+         'upgrade sheet did not appear or lacks price text');
+      ok('upgrade sheet contains unlock action', /unlock|upgrade/i.test(sheetText));
+
+      const screenshotFile = path.join(SHOTS_DIR, 'upgrade-sheet.png');
+      await page.screenshot({ path: screenshotFile, fullPage: false });
+      ok('captured upgrade-sheet.png', fs.existsSync(screenshotFile) && fs.statSync(screenshotFile).size > 1000);
+
+      const realErrors = jsErrors.filter(e => !isNoise(e));
+      ok('no JS errors when upgrade sheet triggered', realErrors.length === 0,
+         realErrors.join('; ').slice(0, 200));
+      await ctx.close();
+    });
+
+    // ── 23: Play Essentials — single upgrade CTA, not a wall of locked buttons ─
+    // Ensures the freemium play-form area shows exactly one unlock CTA
+    // ("🔒 Unlock 8 more — Pro") rather than 8+ individual locked buttons.
+    await test('Test 23: Play Essentials — single upgrade CTA present', async () => {
+      const { page, ctx, jsErrors } = await freshPage({ storage: { 'jg-level': 'essentials' } });
+      const playBtn = await page.$('[data-tour="nav-iivi"]');
+      if (!playBtn) { ok('Play nav found', false); await ctx.close(); return; }
+      await playBtn.click({ timeout: 5000 });
+      await page.waitForTimeout(400);
+
+      const formRow = await page.$('[data-tour="play-form-row"]');
+      ok('play-form-row rendered', !!formRow);
+
+      if (formRow) {
+        const btnsInRow = await formRow.$$('button');
+        ok(`play-form-row has ≤3 buttons in Essentials (major + upgrade CTA), got ${btnsInRow.length}`,
+           btnsInRow.length <= 3, `expected ≤3, got ${btnsInRow.length}`);
+        const rowText = await formRow.evaluate(el => el.innerText);
+        ok('upgrade CTA present in play form row', /unlock/i.test(rowText),
+           `row text: "${rowText.slice(0, 100)}"`);
+      }
+
+      const realErrors = jsErrors.filter(e => !isNoise(e));
+      ok('no JS errors in Play Essentials', realErrors.length === 0, realErrors.join('; ').slice(0, 200));
+      await ctx.close();
+    });
+
+    // ── 24: BPM — keyboard control moves the displayed value ─────────────────
+    // Focuses the BPM knob (aria-label="BPM N") and fires ArrowUp keypresses.
+    // Verifies the displayed number increases, proving the knob's keyboard
+    // handler and React state update are wired correctly.
+    await test('Test 24: BPM knob responds to keyboard input', async () => {
+      const { page, ctx, jsErrors } = await freshPage();
+      const playBtn = await page.$('[data-tour="nav-iivi"]');
+      if (!playBtn) { ok('Play nav found', false); await ctx.close(); return; }
+      await playBtn.click({ timeout: 5000 });
+      await page.waitForTimeout(400);
+
+      // BPM knob has aria-label "BPM <number>"
+      const knob = await page.$('[aria-label^="BPM "]');
+      ok('BPM knob found', !!knob);
+
+      if (knob) {
+        const bpmBefore = await page.evaluate(el => {
+          const m = el.getAttribute('aria-label').match(/BPM (\d+)/);
+          return m ? parseInt(m[1]) : null;
+        }, knob);
+
+        await knob.focus();
+        // Each ArrowUp press = +5 BPM per the handler; press 3 times = +15
+        await page.keyboard.press('ArrowUp');
+        await page.keyboard.press('ArrowUp');
+        await page.keyboard.press('ArrowUp');
+        await page.waitForTimeout(200);
+
+        const bpmAfter = await page.evaluate(el => {
+          const m = el.getAttribute('aria-label').match(/BPM (\d+)/);
+          return m ? parseInt(m[1]) : null;
+        }, knob);
+
+        ok(`BPM increased after 3×ArrowUp (before=${bpmBefore}, after=${bpmAfter})`,
+           bpmAfter !== null && bpmAfter > bpmBefore,
+           `bpmBefore=${bpmBefore}, bpmAfter=${bpmAfter}`);
+      }
+
+      const realErrors = jsErrors.filter(e => !isNoise(e));
+      ok('no JS errors during BPM keyboard control', realErrors.length === 0,
+         realErrors.join('; ').slice(0, 200));
       await ctx.close();
     });
 
