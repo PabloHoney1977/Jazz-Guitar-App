@@ -535,6 +535,8 @@ function playChordPreview(voicing,strings){
   if(!voicing) return;
   try{
     const ctx=_getPreviewCtx();if(!ctx) return;
+    // Samples fetched but not yet decoded into this context — wait for decode.
+    if(!_guitarBufs&&_guitarRaw){setTimeout(()=>playChordPreview(voicing,strings),300);return;}
     strings.forEach((si,i)=>{
       const midi=OPEN_MIDI[si]+voicing.frets[i];
       const t=ctx.currentTime+i*0.028;
@@ -1361,12 +1363,29 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
         'Essentials: ii–V and V–I  →  Pro unlocks ii–V–I, I–VI, and iv–I'
       ):null,
       e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:16}},
-        e('button',{'data-tour':'ear-play-btn',onClick:replayCurrent,style:{
-          width:72,height:72,borderRadius:'50%',border:'2px solid '+GOLD,
-          background:ACT_YEL,color:GOLD,fontSize:'2rem',cursor:'pointer',
-          display:'flex',alignItems:'center',justifyContent:'center',
-          boxShadow:'0 0 16px '+GOLD+'44',transition:'box-shadow 0.15s'
-        }},'♪'),
+        e('div',{style:{display:'flex',alignItems:'center',gap:20}},
+          e('button',{onClick:replayCurrent,'aria-label':'Replay',style:{
+            width:44,height:44,borderRadius:'50%',border:'1px solid '+BTN_BRD,
+            background:'transparent',color:BTN_OFF,fontSize:'1.2rem',cursor:'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center'
+          }},'←'),
+          e('button',{'data-tour':'ear-play-btn',onClick:replayCurrent,style:{
+            width:72,height:72,borderRadius:'50%',border:'2px solid '+GOLD,
+            background:ACT_YEL,color:GOLD,fontSize:'2rem',cursor:'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center',
+            boxShadow:'0 0 16px '+GOLD+'44',transition:'box-shadow 0.15s'
+          }},'♪'),
+          e('button',{onClick:!autoMode&&revealed?newRound:replayCurrent,'aria-label':'Next',
+            disabled:autoMode,style:{
+            width:44,height:44,borderRadius:'50%',
+            border:'1px solid '+(!autoMode&&revealed?GOLD:BTN_BRD),
+            background:!autoMode&&revealed?ACT_YEL:'transparent',
+            color:!autoMode&&revealed?GOLD:BTN_OFF,
+            fontSize:'1.2rem',cursor:autoMode?'default':'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center',
+            opacity:autoMode?0.35:1
+          }},'→')
+        ),
         e('div',{style:{fontSize:'0.72rem',color:HINT}},
           autoMode&&!revealed?'Listen… answer coming':autoMode&&revealed?'Next question coming…':'Tap to replay')
       ),
@@ -1389,11 +1408,6 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
       current?e('div',{'data-tour':'ear-choices',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:revealed?12:0}},
         renderChoices()
       ):null,
-      !autoMode&&revealed?e('button',{onClick:newRound,style:{
-        width:'100%',padding:'12px',background:GOLD,border:'none',borderRadius:8,
-        color:'#07070f',fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:'bold',
-        cursor:'pointer',minHeight:48
-      }},'Next →'):null
     ),
     !autoMode?e('button',{onClick:()=>{setScores(s=>({...s,[mode]:{r:0,w:0}}));setDetail(d=>({...d,[mode]:{}}));},style:{
       width:'100%',padding:'6px',background:'transparent',
@@ -1492,7 +1506,7 @@ function TourOverlay({steps,step,onNext,onSkip}){
       else setRect(null);
       return !!el;
     }
-    // Immediate + rAF attempt; if target isn't in DOM yet (view just switched),
+    // Immediate attempt; if target isn't in DOM yet (view just switched),
     // retry at 150ms and 350ms to let React finish rendering the new view.
     const vv=window.visualViewport;
     if(!measure()){
@@ -1504,10 +1518,11 @@ function TourOverlay({steps,step,onNext,onSkip}){
       return ()=>{cancelAnimationFrame(raf);clearTimeout(t1);clearTimeout(t2);window.removeEventListener('scroll',measure);
         vv&&vv.removeEventListener('resize',measure);vv&&vv.removeEventListener('scroll',measure);};
     }
-    const raf=requestAnimationFrame(measure);
+    // Element found — skip the rAF re-measure (fires post-paint and causes a visual jump);
+    // scroll/resize listeners are sufficient for tracking real layout changes.
     window.addEventListener('scroll',measure,{passive:true});
     vv&&vv.addEventListener('resize',measure);vv&&vv.addEventListener('scroll',measure);
-    return ()=>{cancelAnimationFrame(raf);window.removeEventListener('scroll',measure);
+    return ()=>{window.removeEventListener('scroll',measure);
       vv&&vv.removeEventListener('resize',measure);vv&&vv.removeEventListener('scroll',measure);};
   },[step,s&&s.target]);
 
