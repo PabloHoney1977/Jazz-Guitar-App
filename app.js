@@ -2081,6 +2081,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   const [rideVolume,setRideVolume]=useState(()=>parseInt(safeLS('jg-rvol','80'),10));
   const [pinnedChords,setPinnedChords]=useState(()=>new Set());
   const [barVTypes,setBarVTypes]=useState(()=>[]);
+  const [showBarOverride,setShowBarOverride]=useState(false); // per-bar voicing override disclosure
   const pendingBarVTypesRef=useRef(null);
   const skipVLRef=useRef(false); // set when a favorite restore drives both form+vType in one click
   const [vType,setVType]=useState(()=>{const v=safeLS('jg-vtype','shell');return safeLS('jg-level')==='essentials'&&v!=='shell'?'shell':v;});
@@ -2265,6 +2266,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx,form,customProg]);
   // Effective voicing type/strSet for the currently selected bar
   const barVT=barVTypes[safeBarIdx]||null;
+  // Collapse the per-bar override disclosure whenever the selected bar changes
+  useEffect(()=>{setShowBarOverride(false);},[safeBarIdx]);
   const activeVT=barVT?barVT.vType:vType;
   const activeVTSI=barVT?Math.min(barVT.strSetIdx,(DROP_DATA[barVT.vType]||DROP_DATA.drop2).sets.length-1):ssIdx;
   const activeDropD=DROP_DATA[activeVT]||DROP_DATA.drop2;
@@ -3176,7 +3179,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
           )
         :e('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},
             e('div',{style:{display:'flex',gap:6,alignItems:'center',flexShrink:0}},
-              e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'},title:'Global voicing style applied to all bars — can be overridden per-chord below'},'Voicing'),
+              e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'},title:'Voicing style applied to every bar — override a single bar with "Customize this bar" below'},'Voicing (all bars)'),
               (level==='essentials'
                 ?[{id:'shell',lbl:'Shell'}]
                 :[{id:'drop2',lbl:'Drop 2'},{id:'drop3',lbl:'Drop 3'},{id:'rootless',lbl:'Rootless'},{id:'shell',lbl:'Shell'}]
@@ -3229,18 +3232,36 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
             background:activeVT===t?ACT_GOLD:'transparent',
             color:activeVT===t?GOLD:BTN_OFF,minHeight:0,opacity:locked?0.6:1,
           }},label,(locked?e('span',{style:{fontSize:'0.55rem',marginLeft:2}},'🔒'):null));
+          // Per-bar override is progressive disclosure: collapsed to a link until the
+          // user opts in (or the bar already carries an override).
+          const barOverrideOpen=!!barVT||showBarOverride;
           return e(React.Fragment,null,
-            e('div',{style:{width:'100%',display:'flex',alignItems:'center',gap:5,marginBottom:6}},
-              e('span',{style:{fontSize:'0.65rem',color:HINT,fontFamily:UI_FONT,letterSpacing:'0.3px'},title:'Override voicing for this bar only — other bars keep the global setting. ↺ resets to default.'},'Type'),
-              typeBtn('shell','Shell'),
-              typeBtn('drop2','Drop 2'),
-              typeBtn('drop3','Drop 3',isEss),
-              barVT?e('button',{onClick:clearBarType,style:{
-                marginLeft:4,padding:'2px 7px',borderRadius:4,cursor:'pointer',
-                fontFamily:UI_FONT,fontSize:'0.65rem',
-                border:'1px solid '+BTN_BRD,background:'transparent',color:HINT,minHeight:0,
-              }},'↺ default'):null
-            ),
+            barOverrideOpen
+              ?e('div',{style:{width:'100%',display:'flex',alignItems:'center',gap:5,marginBottom:6,flexWrap:'wrap'}},
+                  e('span',{style:{fontSize:'0.65rem',color:HINT,fontFamily:UI_FONT,letterSpacing:'0.3px'},
+                    title:'Voicing for this bar only — other bars keep the global setting'},'This bar ('+ac.name+')'),
+                  typeBtn('shell','Shell'),
+                  typeBtn('drop2','Drop 2'),
+                  typeBtn('drop3','Drop 3',isEss),
+                  barVT
+                    ?e('button',{onClick:()=>{clearBarType();setShowBarOverride(false);},style:{
+                        marginLeft:4,padding:'2px 7px',borderRadius:4,cursor:'pointer',
+                        fontFamily:UI_FONT,fontSize:'0.65rem',
+                        border:'1px solid '+BTN_BRD,background:'transparent',color:HINT,minHeight:0,
+                      }},'↺ default')
+                    :e('button',{onClick:()=>setShowBarOverride(false),style:{
+                        marginLeft:4,padding:'2px 7px',borderRadius:4,cursor:'pointer',
+                        fontFamily:UI_FONT,fontSize:'0.65rem',
+                        border:'1px solid '+BTN_BRD,background:'transparent',color:HINT,minHeight:0,
+                      }},'✕')
+                )
+              :e('div',{style:{width:'100%',marginBottom:6}},
+                  e('button',{onClick:()=>setShowBarOverride(true),style:{
+                    padding:'2px 0',background:'none',border:'none',cursor:'pointer',
+                    fontFamily:UI_FONT,fontSize:'0.68rem',color:HINT,minHeight:0,
+                    textDecoration:'underline',textUnderlineOffset:2}},
+                    'Customize this bar ('+ac.name+') →')
+                ),
             activeVT==='shell'
               ?SHELLS.map((sh,ii)=>
                   e(ChordBox,{key:ii,voicing:activeVoicings[ii],strings:sh.s,tones:ac.tones,
