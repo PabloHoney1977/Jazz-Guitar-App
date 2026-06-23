@@ -40,11 +40,12 @@ self.addEventListener('install', (ev) => {
 
 self.addEventListener('activate', (ev) => {
   ev.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
+    caches.keys()
+      .then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+      )
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (ev) => {
@@ -59,7 +60,11 @@ self.addEventListener('fetch', (ev) => {
         if (res && res.ok) {
           const clone = res.clone();
           caches.open(CACHE).then((c) => c.put(request, clone));
+          return res;
         }
+        // Non-ok response (5xx/4xx): serve cached version rather than surfacing the error.
+        const cached = await caches.match(request);
+        if (cached) return cached;
         return res;
       } catch (err) {
         const cached = await caches.match(request);

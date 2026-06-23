@@ -5,7 +5,7 @@
   "scripts": {
     "build": "mkdir -p www && cp index.html app.js sw.js manifest.json icon.svg www/ && cp -r icons www/ && ([ -d audio ] && cp -r audio www/ || true)",
     "sync": "npm run build && npx cap sync ios",
-    "test": "node --test",
+    "test": "node --test test/theory.test.cjs test/content.test.cjs test/gating.test.cjs",
     "test:smoke": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node test/smoke.cjs"
   },
   "author": "Pablo Honey",

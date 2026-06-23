@@ -486,6 +486,16 @@ function _loadGuitar(ctx){
 }
 // Pre-fetch ArrayBuffers immediately on page load (no AudioContext needed for fetch)
 _loadGuitar(null);
+// Release the preview AudioContext when the page is hidden to avoid exceeding
+// the browser's per-page AudioContext limit and to free OS audio resources.
+if(typeof document!=='undefined'){
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='hidden'&&_previewCtx&&_previewCtx.state!=='closed'){
+      _previewCtx.close().catch(()=>{});
+      _previewCtx=null;_guitarBufs=null;_ksFallback=null;
+    }
+  });
+}
 
 function _getPreviewCtx(){
   try{
@@ -846,6 +856,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const answerCountRef=useRef(0);
   const skipSaveRef=useRef(0); // suppresses localStorage write during level-change score reset
   const levelInitRef=useRef(false); // skip level-change effect on first mount
+  const levelChangingRef=useRef(false); // set by [level] effect to suppress the [mode] effect's newRound
 
   // Modes: intervals always visible; triads + 7th chords are Full only
   const [mode,setMode]=useState('intervals');
@@ -1132,6 +1143,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   }
   useEffect(()=>{
     if(seenIntro){
+      if(levelChangingRef.current){levelChangingRef.current=false;return;}
       clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);
       newRound();
     }
@@ -1143,7 +1155,10 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     if(isEss){
       setHarmonic(false);
       setAutoMode(false);
-      if(mode==='triads'||mode==='chords'||mode==='cadences') setMode('intervals');
+      if(mode==='triads'||mode==='chords'||mode==='cadences'){
+        levelChangingRef.current=true; // suppress the [mode] effect's newRound — we call it below
+        setMode('intervals');
+      }
     }
     skipSaveRef.current+=2; // suppress the upcoming score+detail saves so Pro history survives
     setScores(s=>({...s,intervals:{r:0,w:0}}));
@@ -2392,6 +2407,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     src.connect(jWarmth);jWarmth.connect(jPressCut);jPressCut.connect(jHiCut);
     jHiCut.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);gain.connect(compRef.current||ctx.destination);
     src.start(startTime);src.stop(startTime+sustainSecs+0.05);
+    src.onended=()=>{try{src.disconnect();jWarmth.disconnect();jPressCut.disconnect();jHiCut.disconnect();eq.forEach(f=>f.disconnect());gain.disconnect();}catch(_){}};
   }
 
   function playGuitarChord(ctx,midiNotes,startTime,sustainSecs,vol,strum){
@@ -2447,6 +2463,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       bHiCut.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);
       gain.connect(compRef.current||ctx.destination);
       src.start(startTime);src.stop(startTime+beatDur*1.65+0.05);
+      src.onended=()=>{try{src.disconnect();bLowBoost.disconnect();bThump.disconnect();bMidCut.disconnect();bHiCut.disconnect();eq.forEach(f=>f.disconnect());gain.disconnect();}catch(_){}};
       return;
     }
     // Fallback: KS at half speed (will be replaced once samples decode)
@@ -2460,12 +2477,13 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.92);
     src.connect(gain);gain.connect(compRef.current||ctx.destination);
     src.start(startTime);src.stop(startTime+beatDur);
+    src.onended=()=>{try{src.disconnect();gain.disconnect();}catch(_){}};
   }
 
   function tick(gen,ctx){
     if(!audioCtxRef.current) return;
     const beatDur=60/bpmRef.current;
-    while(audioCtxRef.current&&nextTimeRef.current < audioCtxRef.current.currentTime+0.12){
+    while(audioCtxRef.current&&nextTimeRef.current < audioCtxRef.current.currentTime+0.25){
       const bars=barsRef.current;
       const rawBeat=beatRef.current;
       const beat=rawBeat%(bars.length*4);
