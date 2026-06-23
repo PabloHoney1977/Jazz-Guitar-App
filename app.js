@@ -1165,7 +1165,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     setDetail(d=>({...d,intervals:{}}));
     newRound();
   },[level]);
-  if(!seenIntro) return e('div',{style:{padding:'20px 16px',textAlign:'center',maxWidth:420,margin:'0 auto'}},
+  if(!seenIntro) return e('div',{style:{paddingTop:'25vh',paddingBottom:'20px',paddingLeft:'16px',paddingRight:'16px',textAlign:'center',maxWidth:420,margin:'0 auto'}},
     e('div',{style:{fontSize:'2.5rem',marginBottom:12}},'♫'),
     e('div',{style:{fontSize:'1.0rem',fontWeight:700,fontFamily:SERIF,marginBottom:8}},'Ear Training'),
     e('div',{style:{fontSize:'0.8rem',color:LBL,lineHeight:1.6,marginBottom:20}},
@@ -2037,9 +2037,9 @@ function LedToggle({label,enabled,onToggle,color,compact}){
   }},
     e('div',{style:{
       width:compact?7:9,height:compact?7:9,borderRadius:'50%',flexShrink:0,
-      background:enabled?color:'rgba(255,255,255,0.07)',
-      boxShadow:enabled?`0 0 8px ${color},0 0 3px ${color}`:'inset 0 1px 2px rgba(0,0,0,0.5)',
-      border:`1px solid ${enabled?color+'aa':'rgba(255,255,255,0.1)'}`,
+      background:enabled?color:'var(--brd)',
+      boxShadow:enabled?`0 0 8px ${color},0 0 3px ${color}`:'inset 0 1px 2px rgba(0,0,0,0.3)',
+      border:`1px solid ${enabled?color+'aa':'var(--brd)'}`,
       transition:'background 0.15s,box-shadow 0.15s'
     }}),
     e('span',{style:{
@@ -2782,22 +2782,14 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     !isPlaying?(
     level==='essentials'
       ?e('div',{'data-tour':'play-form-row',style:{marginBottom:10}},
-          e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',marginBottom:5}},
-            e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Progressions'),
-            e('button',{onClick:()=>setForm('major'),style:modeBtn(form==='major',FORM_DEFS.major.col,FORM_DEFS.major.bg)},FORM_DEFS.major.lbl),
-            ...['minor','turn','blues','minblues','custom'].map(f=>
-              e('button',{key:f,onClick:()=>onUpgrade(FORM_DEFS[f].lbl),
-                style:{...modeBtn(false,FORM_DEFS[f].col,FORM_DEFS[f].bg),opacity:0.55}},
-                FORM_DEFS[f].lbl,' ',e('span',{style:{fontSize:'0.65rem'}},'🔒'))
-            )
-          ),
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}},
-            e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Standards'),
-            ...['autumn','attya','twnbay','tritone','secdom'].map(f=>
-              e('button',{key:f,onClick:()=>onUpgrade(FORM_DEFS[f].lbl),
-                style:{...modeBtn(false,FORM_DEFS[f].col,FORM_DEFS[f].bg),opacity:0.55}},
-                FORM_DEFS[f].lbl,' ',e('span',{style:{fontSize:'0.65rem'}},'🔒'))
-            )
+            e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Progression'),
+            e('button',{onClick:()=>setForm('major'),style:modeBtn(form==='major',FORM_DEFS.major.col,FORM_DEFS.major.bg)},FORM_DEFS.major.lbl),
+            e('button',{onClick:()=>onUpgrade('progressions'),style:{
+              padding:'4px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,
+              fontSize:'0.72rem',border:'1px solid '+GOLD+'66',background:GOLD+'18',
+              color:GOLD,fontWeight:600,minHeight:36,letterSpacing:'0.2px'
+            }},'🔒 Unlock 8 more — Pro')
           )
         )
       :e('div',{'data-tour':'play-form-row',style:{marginBottom:10}},

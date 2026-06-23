@@ -51,15 +51,13 @@ test('voicings — runtime guards force shell when level is/with becomes essenti
 });
 
 test('play forms — only major is free; all others route to upgrade', () => {
-  // Essentials branch: major is the only active button, the rest call onUpgrade.
-  assert.ok(has("...['minor','turn','blues','minblues','custom'].map(f=>"),
-    'essentials progressions-row gate shape changed');
-  assert.ok(has("...['autumn','attya','twnbay','tritone','secdom'].map(f=>"),
-    'essentials standards-row gate shape changed');
-  // The essentials map calls onUpgrade, not setForm.
-  const essBlock = SRC.slice(SRC.indexOf("...['minor','turn','blues','minblues','custom'].map(f=>"));
-  assert.ok(essBlock.slice(0, 200).includes('onUpgrade(FORM_DEFS[f].lbl)'),
-    'locked forms should trigger onUpgrade');
+  // Essentials branch: major is the only active button; locked forms are
+  // collapsed into a single upgrade-prompt button (not enumerated individually).
+  assert.ok(has("e('button',{onClick:()=>setForm('major'),style:modeBtn(form==='major',FORM_DEFS.major.col,FORM_DEFS.major.bg)},FORM_DEFS.major.lbl),"),
+    'essentials major-form button missing');
+  // The upgrade prompt calls onUpgrade.
+  assert.ok(has("onClick:()=>onUpgrade('progressions')"),
+    'essentials upgrade prompt should call onUpgrade');
   // Runtime guard forces major if the level flips while on a Pro form.
   assert.ok(has("if(form!=='major'){setForm('major');setIsPlaying(false);}"),
     'Play tab major-downgrade guard missing');

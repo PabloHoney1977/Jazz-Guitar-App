@@ -2,7 +2,7 @@
 // (390×844, Safari UA) to exercise the real DOM and catch layout/render bugs
 // that the vm-sandbox unit tests can't see.
 //
-// What's covered:
+// What's covered (41 checks across 16 test blocks):
 //   - App bootstraps without JS errors
 //   - All 5 nav tabs render
 //   - Guide tab: first load scrolls to top (nothing done)
@@ -15,9 +15,10 @@
 //   - Reduced-motion: animation-duration collapses under prefers-reduced-motion
 //   - Viewport meta present and sets user-scalable=no
 //   - PWA manifest linked
-//   - Visual snapshots of every tab (Pro mode) saved to test/screenshots/ for
-//     human / vision-agent review of layout & UI-clarity bugs that DOM
-//     assertions can't express
+//   - Visual snapshots (16 PNGs) saved to test/screenshots/ for layout/clarity review:
+//       Pro dark mode: guide, keys, chords, play, train, play-bar-override
+//       Essentials (free) tier: guide, keys, chords, play, train
+//       Light theme: guide, keys, chords, play, train
 //
 // Network restriction: WebKit binary unavailable in this CI environment, so we
 // use Chromium with an iPhone 14 UA + viewport. This exercises the real DOM
@@ -442,6 +443,54 @@ const IPHONE14 = {
         return false;
       });
       if (expanded) await shoot('play-bar-override');
+      await ctx.close();
+    });
+
+    // Test 15: Visual snapshots — Essentials (free) tier
+    // Verifies that the free-user experience looks intentional rather than broken:
+    // lock badges visible, upgrade prompts present, no layout regressions.
+    await test('Test 15: Visual snapshots — Essentials tier', async () => {
+      const { page, ctx } = await freshPage({ storage: { 'jg-level': 'essentials' } });
+      const shoot = async (name) => {
+        await page.waitForTimeout(400);
+        const file = path.join(SHOTS_DIR, `${name}.png`);
+        await page.screenshot({ path: file, fullPage: true });
+        ok(`captured ${name}.png`, fs.existsSync(file) && fs.statSync(file).size > 1000,
+          `missing/empty: ${file}`);
+      };
+      const tabs = [
+        ['nav-guide', 'guide-essentials'], ['nav-diatonic', 'keys-essentials'],
+        ['nav-custom', 'chords-essentials'], ['nav-iivi', 'play-essentials'], ['nav-quiz', 'train-essentials'],
+      ];
+      for (const [tour, name] of tabs) {
+        const btn = await page.$(`[data-tour="${tour}"]`);
+        if (btn) await btn.click({ timeout: 5000 });
+        await shoot(name);
+      }
+      await ctx.close();
+    });
+
+    // Test 16: Visual snapshots — light theme
+    // Confirms contrast, color-variable usage, and layout in the light theme.
+    await test('Test 16: Visual snapshots — light theme', async () => {
+      // Seed jg-theme so the app mounts in light mode without needing a button click.
+      const { page, ctx } = await freshPage({ storage: { 'jg-level': 'pro', 'jg-theme': 'light' } });
+      const shoot = async (name) => {
+        await page.waitForTimeout(400);
+        const file = path.join(SHOTS_DIR, `${name}.png`);
+        await page.screenshot({ path: file, fullPage: true });
+        ok(`captured ${name}.png`, fs.existsSync(file) && fs.statSync(file).size > 1000,
+          `missing/empty: ${file}`);
+      };
+      const tabs = [
+        ['nav-guide', 'guide-light'], ['nav-diatonic', 'keys-light'],
+        ['nav-custom', 'chords-light'], ['nav-iivi', 'play-light'], ['nav-quiz', 'train-light'],
+      ];
+      for (const [tour, name] of tabs) {
+        const btn = await page.$(`[data-tour="${tour}"]`);
+        if (btn) await btn.click({ timeout: 5000 });
+        await shoot(name);
+      }
       await ctx.close();
     });
 

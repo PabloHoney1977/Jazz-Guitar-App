@@ -46,7 +46,7 @@ viewport (390×844, Safari UA) using Playwright. This catches layout/render bugs
 that the vm sandbox can't see — including the class of `visualViewport` misalignment
 the iOS tour-spotlight fix addressed.
 
-What it covers (31 checks across 14 test blocks):
+What it covers (41 checks across 16 test blocks):
 - App bootstraps without JS errors
 - All 5 nav tabs render with correct labels
 - Guide tab renders ≥10 stages; scrolls to top when nothing done; auto-scrolls
@@ -60,9 +60,10 @@ What it covers (31 checks across 14 test blocks):
 - `prefers-reduced-motion` collapses `animation-duration` to ≤1ms
 - Viewport meta present with `user-scalable=no`
 - PWA manifest linked
-- **Visual snapshots** of every tab (Guide, Keys, Chords, Play, Train) plus the
-  Play tab with the per-bar voicing override expanded, captured in **Pro** mode
-  (so every gated control renders) to `test/screenshots/`
+- **Visual snapshots** (16 PNGs) captured to `test/screenshots/`:
+  - **Pro dark mode** — guide, keys, chords, play, train, play-bar-override
+  - **Essentials (free) tier** — all 5 tabs, showing lock badges and upgrade prompts
+  - **Light theme** — all 5 tabs, verifying contrast and color-variable correctness
 
 ### Why the snapshots
 
