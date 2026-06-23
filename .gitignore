@@ -6,3 +6,5 @@ test/react.production.min.js
 test/react-dom.production.min.js
 # Smoke-test visual snapshots — regenerated each run, not source
 test/screenshots/
+# Exploratory agent reports — regenerated each run, not source
+test/explore/reports/
