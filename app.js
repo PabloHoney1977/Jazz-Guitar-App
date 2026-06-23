@@ -1314,14 +1314,28 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
           ):null
     ),
     e('div',{'data-tour':'ear-mode-tabs',style:{display:'flex',gap:2,marginBottom:0,alignItems:'flex-end'}},
-      TABS.map(({id,lbl,locked})=>e('button',{key:id,onClick:locked?()=>onUpgrade(lbl):()=>setMode(id),style:{
-        padding:'7px 16px',borderRadius:'6px 6px 0 0',cursor:'pointer',
-        fontFamily:UI_FONT,fontSize:'0.79rem',fontWeight:mode===id?700:400,
-        border:'1px solid '+BTN_BRD,borderBottom:mode===id?'1px solid '+BG2:'1px solid '+BTN_BRD,
-        background:mode===id?BG2:'transparent',color:mode===id?'var(--txt)':BTN_OFF,
-        marginBottom:mode===id?'-1px':0,position:'relative',zIndex:mode===id?1:0,minHeight:44,
-        ...(locked?{opacity:0.6}:{})
-      }},lbl,(locked?e('span',{style:{fontSize:'0.6rem',marginLeft:2}},'🔒'):null)))
+      isEss
+        ?[e('button',{key:'intervals',onClick:()=>setMode('intervals'),style:{
+            padding:'7px 16px',borderRadius:'6px 6px 0 0',cursor:'pointer',
+            fontFamily:UI_FONT,fontSize:'0.79rem',fontWeight:mode==='intervals'?700:400,
+            border:'1px solid '+BTN_BRD,borderBottom:mode==='intervals'?'1px solid '+BG2:'1px solid '+BTN_BRD,
+            background:mode==='intervals'?BG2:'transparent',color:mode==='intervals'?'var(--txt)':BTN_OFF,
+            marginBottom:mode==='intervals'?'-1px':0,position:'relative',zIndex:mode==='intervals'?1:0,minHeight:44
+          }},'Intervals'),
+          e('button',{key:'pro-unlock',onClick:()=>onUpgrade('Triads, 7th Chords & Cadences'),style:{
+            padding:'7px 16px',borderRadius:'6px 6px 0 0',cursor:'pointer',
+            fontFamily:UI_FONT,fontSize:'0.79rem',fontWeight:400,
+            border:'1px solid '+GOLD,borderBottom:'1px solid '+BTN_BRD,
+            background:'transparent',color:GOLD,minHeight:44,opacity:0.8
+          }},'3 more modes ',e('span',{style:{fontSize:'0.6rem'}},'🔒'))]
+        :TABS.map(({id,lbl,locked})=>e('button',{key:id,onClick:locked?()=>onUpgrade(lbl):()=>setMode(id),style:{
+            padding:'7px 16px',borderRadius:'6px 6px 0 0',cursor:'pointer',
+            fontFamily:UI_FONT,fontSize:'0.79rem',fontWeight:mode===id?700:400,
+            border:'1px solid '+BTN_BRD,borderBottom:mode===id?'1px solid '+BG2:'1px solid '+BTN_BRD,
+            background:mode===id?BG2:'transparent',color:mode===id?'var(--txt)':BTN_OFF,
+            marginBottom:mode===id?'-1px':0,position:'relative',zIndex:mode===id?1:0,minHeight:44,
+            ...(locked?{opacity:0.6}:{})
+          }},lbl,(locked?e('span',{style:{fontSize:'0.6rem',marginLeft:2}},'🔒'):null)))
     ),
     e('div',{style:{display:'flex',justifyContent:'flex-end',marginTop:4,marginBottom:4}},
       e('button',{onClick:toggleAuto,title:autoMode?'Turn off auto-advance':'Auto-advance: hear the answer, then next question',
@@ -4412,7 +4426,7 @@ function App(){
   },[theme]);
   // Global state
   const [key,setKey]=useState(()=>parseInt(safeLS('jg-key','0'),10));
-  const [viewMode,setViewMode]=useState(()=>safeLS('jg-viewMode','iivi')); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
+  const [viewMode,setViewMode]=useState(()=>{const sv=safeLS('jg-viewMode',null);if(sv)return sv;return safeLS('jg-path',null)?'iivi':'guide';}); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
   const [keyOpen,setKeyOpen]=useState(false);
   const [dotMode,setDotMode]=useState(()=>{const m=safeLS('jg-dotMode','interval');return (m==='both'||m==='finger')?'interval':m;});
   useEffect(()=>{safeLSSet('jg-dotMode',dotMode);},[dotMode]);

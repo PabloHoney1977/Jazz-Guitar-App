@@ -724,8 +724,8 @@ const IPHONE14 = {
     });
 
     // ── 22: Essentials — upgrade sheet trigger ────────────────────────────────
-    // Clicks a locked mode tab (Triads) in Essentials tier. Verifies the upgrade
-    // sheet renders with the Pro price and an unlock action.
+    // Clicks the consolidated "3 more modes" upgrade CTA in Essentials tier.
+    // Verifies the upgrade sheet renders with the Pro price and an unlock action.
     await test('Test 22: Essentials — upgrade sheet appears on locked feature', async () => {
       fs.mkdirSync(SHOTS_DIR, { recursive: true });
       const { page, ctx, jsErrors } = await freshPage({
@@ -736,10 +736,10 @@ const IPHONE14 = {
       await earBtn.click({ timeout: 5000 });
       await page.waitForTimeout(400);
 
-      // Click the Triads tab (locked in Essentials)
+      // Click the consolidated "3 more modes" upgrade CTA (Essentials)
       await page.evaluate(() => {
         const btn = Array.from(document.querySelectorAll('button'))
-          .find(b => /Triads/.test(b.textContent));
+          .find(b => /3 more modes/.test(b.textContent));
         if (btn) btn.click();
       });
       await page.waitForTimeout(400);
