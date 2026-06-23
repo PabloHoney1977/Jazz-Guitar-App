@@ -19,7 +19,7 @@ Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitari
 **Marketing:** Paid ads (Instagram/TikTok/YouTube targeting guitarists). No prior audience to leverage.
 
 ## Stack
-Single-file React 18 PWA. No build step. CDN React, all inline styles, ~3650 lines in `app.js`. Serve from `main` branch, develop on feature branches. Target: iPad (720px content width) primary, iPhone secondary.
+Single-file React 18 PWA. No build step. CDN React, all inline styles, ~5100 lines in `app.js`. Serve from `main` branch, develop on feature branches. Target: iPad (720px content width) primary, iPhone secondary.
 
 Capacitor iOS project lives in `ios/`. Build script (`npm run build`) copies web assets to `www/` before `cap sync`. Codemagic config is in `codemagic.yaml`.
 
@@ -44,17 +44,23 @@ Steps completed and still needed to ship:
 ## What's Built (current `app.js` features)
 - **5 nav tabs:** Guide, Chords (Diatonic), Any Chord (Custom), Play (II-V-I), Ear Training
 - **Freemium paywall:** `UpgradeSheet` bottom sheet triggered by 🔒 lock badges on gated features. `showUpgrade(feature)` / `doUpgrade()` in App. Currently calls `setLevel('full')` directly — TODO: wire to RevenueCat/StoreKit IAP. Pro ✦ chip in header (tap to revert to Essentials for testing).
+- **First-time onboarding:** Brand-new users (no `jg-viewMode` saved, no `jg-path` progress) land on the Guide tab. Returning users go straight to their last view. Logic in `viewMode` useState init.
 - **Guide tab:** 16 ordered learning stages with expandable content, tappable checklist items (persisted to `jg-path-items`), resume card, phase labels, links to live presets
 - **Chords tab:** All 7 diatonic chords in any key, shell/drop2/drop3/rootless voicings, scale overlay, guide tones, fingering numbers
 - **Any Chord tab:** All chord types including extensions, find-in-key, custom root picker
 - **Play tab (IIVIView):** Backing track with walking bass, ride cymbal, jazz guitar comping. Forms: major/minor II-V-I, jazz blues, tritone sub, sec. dom., custom. Swing feel, variable BPM (35–150). Voice leading, pinned chords, bar-level voicing override.
-- **Ear Training tab:** Interval recognition (melodic + harmonic), triads, 7th chords, cadence recognition (II-V, V-I, II-V-I, I-VI, iv-I). Essentials: consonant intervals (melodic) only. Pro: all 12 intervals + harmonic mode + triads + 7th chords + cadences.
+- **Ear Training tab:** Interval recognition (melodic + harmonic), triads, 7th chords, cadence recognition (II-V, V-I, II-V-I, I-VI, iv-I). Essentials: consonant intervals (melodic) only, single "3 more modes 🔒" upgrade CTA (not individual per-tab badges). Pro: all 12 intervals + harmonic mode + triads + 7th chords + cadences. Nav row uses ← ♪ → circle buttons (always in viewport, no scroll needed).
 - **Two-tier tour system:** App overview tour (5 steps across nav tabs) + per-page contextual tour for each tab
 - **Streak tracking:** 🔥 Xd badge in header. Fires when Play tab session starts OR first Ear Training answer. Resets if day is skipped. `playSessions` counted in localStorage. Push notification reminders deferred to Capacitor build.
 - **Streak milestones:** Celebration card slides up at days 3, 7, 14, 30. Auto-dismisses at 5.4s. Tap to dismiss early. `streakMilestone` state, `STREAK_MILESTONES=[3,7,14,30]`, `milestoneUp` CSS animation in index.html.
 - **Dark/light theme toggle**
 - **Bluetooth page-turner pedal support** (AirTurn / PageFlip keyboard events)
 - **PWA:** `manifest.json` + `sw.js` service worker for offline caching
+
+## Test Suite
+- **Unit + gating:** `npm test` — 40 checks (theory, content, freemium gate assertions). Lives in `test/theory.test.cjs`, `test/content.test.cjs`, `test/gating.test.cjs`.
+- **Smoke (Playwright):** `npm run test:smoke` — 68 checks across 24 test blocks. Headless Chromium, iPhone 14 viewport (390×844). Covers layout, interactive flows, upgrade sheet, BPM control. React UMD copies needed in `test/` (CDN blocked in CI; install once from npm). Screenshots written to `test/screenshots/`.
+- **Exploratory harness:** `npm run test:explore` — multi-persona simulation. 4 parallel sessions, each 20 steps, seeded PRNG for reproducibility (`--seed N`). Generates structured report in `test/explore/reports/YYYYMMDD-HHMM/`. Set `ANTHROPIC_API_KEY` for LLM synthesis of findings. Reports dir is gitignored.
 
 ## Audio Architecture
 - Guitar samples from `nbrosowsky` CDN, pre-fetched as ArrayBuffers on load
@@ -85,7 +91,7 @@ Steps completed and still needed to ship:
 
 ## Pending / Next Session Priorities
 1. **IAP implementation** — Replace `setLevel('full')` in `doUpgrade()` with RevenueCat/StoreKit purchase call. Product ID: `pro_unlock`. Use `@capacitor/purchases` or RevenueCat SDK.
-2. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`
-3. **App Store assets** — app icon in all required sizes, screenshots, store description copywriting
-4. **Apple Developer enrollment** — user action required, $99, developer.apple.com
+2. **App Store assets** — app icon in all required sizes, screenshots, store description copywriting
+3. **Apple Developer enrollment** — user action required, $99, developer.apple.com
+4. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`
 5. **Add Capacitor Local Notifications** — practice streak reminders (defer until after first TestFlight build)
