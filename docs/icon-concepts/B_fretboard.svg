@@ -1,0 +1,36 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#14141f"/>
+      <stop offset="100%" stop-color="#08080f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="44%" r="58%">
+      <stop offset="0%" stop-color="#d4a855" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#d4a855" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+  <ellipse cx="512" cy="470" rx="440" ry="460" fill="url(#glow)"/>
+  <!-- nut (top) -->
+  <rect x="232" y="232" width="560" height="20" rx="6" fill="#d4a855"/>
+  <!-- frets -->
+  <g stroke="#3a3a52" stroke-width="6">
+    <line x1="232" y1="392" x2="792" y2="392"/>
+    <line x1="232" y1="552" x2="792" y2="552"/>
+    <line x1="232" y1="712" x2="792" y2="712"/>
+    <line x1="232" y1="848" x2="792" y2="848"/>
+  </g>
+  <!-- strings -->
+  <g stroke="#52526e" stroke-width="4">
+    <line x1="288" y1="252" x2="288" y2="848"/>
+    <line x1="378" y1="252" x2="378" y2="848"/>
+    <line x1="468" y1="252" x2="468" y2="848"/>
+    <line x1="558" y1="252" x2="558" y2="848"/>
+    <line x1="648" y1="252" x2="648" y2="848"/>
+    <line x1="736" y1="252" x2="736" y2="848"/>
+  </g>
+  <!-- shell voicing dots: R (red) / 3rd (teal) / 7th (gold) -->
+  <circle cx="288" cy="472" r="52" fill="#FF6B6B"/>
+  <circle cx="468" cy="632" r="52" fill="#4ECDC4"/>
+  <circle cx="648" cy="312" r="52" fill="#FFD43B"/>
+</svg>
