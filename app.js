@@ -47,6 +47,64 @@ const Notif=(()=>{
   return{requestPermission,schedule,cancel};
 })();
 
+// ── In-App Purchase (Pro unlock) ──────────────────────────────────────
+// Real money moves ONLY inside the native iOS app, through Apple StoreKit via
+// the RevenueCat Capacitor plugin. The web/PWA build (where beta testers run
+// the app) has no payment bridge at all, so nothing here can ever charge a web
+// user — the browser literally cannot reach StoreKit. `isNativeApp()` is the
+// gate: false on the web, where the caller falls back to the free Pro preview.
+//
+// NATIVE BUILD TODO before this functions: `npm i @revenuecat/purchases-capacitor`,
+// `npx cap sync ios`, set REVENUECAT_API_KEY below, and create the `pro`
+// entitlement + `pro_unlock` product in RevenueCat/App Store Connect.
+// Until the plugin is installed, native purchase() returns 'no-store' and grants
+// nothing (it never silently hands out free Pro on device). See docs/IAP_PLAN.md.
+const IAP=(()=>{
+  const ENTITLEMENT='pro';
+  const PRODUCT_ID='pro_unlock';
+  const REVENUECAT_API_KEY='appl_REPLACE_WITH_REVENUECAT_KEY';
+  function plugin(){return window?.Capacitor?.Plugins?.Purchases||null;}
+  // True only in the packaged native app. On the web this is false even if a
+  // Capacitor web shim is present, so beta testers always take the web path.
+  function isNativeApp(){return !!window?.Capacitor?.isNativePlatform?.();}
+  let configured=false;
+  async function configure(){
+    const P=plugin();if(!P||configured)return;
+    try{await P.configure({apiKey:REVENUECAT_API_KEY});configured=true;}catch(ex){}
+  }
+  // → true / false on native; null when it can't be determined (no plugin / offline / error)
+  async function isPro(){
+    const P=plugin();if(!P)return null;
+    try{await configure();const{customerInfo}=await P.getCustomerInfo();
+      return !!customerInfo?.entitlements?.active?.[ENTITLEMENT];}
+    catch(ex){return null;}
+  }
+  // → 'pro' | 'cancelled' | 'unavailable' | 'no-store' | 'error'
+  async function purchase(){
+    const P=plugin();if(!P)return 'no-store';
+    try{
+      await configure();
+      const off=await P.getOfferings();
+      const cur=off?.current||off?.offerings?.current||null;
+      const pkgs=cur?.availablePackages||[];
+      const pkg=pkgs.find(p=>p?.product?.identifier===PRODUCT_ID)||pkgs[0];
+      if(!pkg)return 'unavailable';
+      const{customerInfo}=await P.purchasePackage({aPackage:pkg});
+      return customerInfo?.entitlements?.active?.[ENTITLEMENT]?'pro':'error';
+    }catch(ex){return ex?.userCancelled?'cancelled':'error';}
+  }
+  // → 'pro' | 'none' | 'no-store' | 'error'
+  async function restore(){
+    const P=plugin();if(!P)return 'no-store';
+    try{
+      await configure();
+      const{customerInfo}=await P.restorePurchases();
+      return customerInfo?.entitlements?.active?.[ENTITLEMENT]?'pro':'none';
+    }catch(ex){return 'error';}
+  }
+  return{isNativeApp,isPro,purchase,restore};
+})();
+
 // ── Tuning ───────────────────────────────────────────────────────────
 const OPEN_MIDI=[40,45,50,55,59,64];
 const OPEN_PC  =[4, 9, 2, 7,11, 4];
@@ -694,8 +752,12 @@ function UpgradeSheet({feature,onClose,onUnlock}){
 
 // ── AboutSheet ────────────────────────────────────────────────────────
 function AboutSheet({onClose,level,onRestore}){
-  const [restored,setRestored]=React.useState(false);
-  function handleRestore(){onRestore();setRestored(true);}
+  const [restoreState,setRestoreState]=React.useState('idle'); // idle|restoring|done|none
+  function handleRestore(){
+    setRestoreState('restoring');
+    Promise.resolve(onRestore()).then(res=>setRestoreState(res==='none'?'none':'done'))
+      .catch(()=>setRestoreState('none'));
+  }
   return e(React.Fragment,null,
     e('div',{onClick:onClose,style:{position:'fixed',inset:0,zIndex:299,background:'rgba(0,0,0,0.5)'}}),
     e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:300,
@@ -714,12 +776,12 @@ function AboutSheet({onClose,level,onRestore}){
           color:'var(--txt)',marginBottom:10,minHeight:44,boxSizing:'border-box'}},
         'Contact Support'),
       level==='essentials'?e('button',{
-        onClick:handleRestore,
-        style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
+        onClick:restoreState==='restoring'?undefined:handleRestore,
+        style:{width:'100%',padding:'14px',borderRadius:10,cursor:restoreState==='restoring'?'default':'pointer',
           fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,
           background:'transparent',border:'1px solid '+GOLD+'66',
-          color:restored?HINT:GOLD,minHeight:44,marginBottom:10}},
-        restored?'Purchase restored ✓':'Restore Purchase'):null,
+          color:restoreState==='done'?HINT:GOLD,minHeight:44,marginBottom:10}},
+        restoreState==='restoring'?'Restoring…':restoreState==='done'?'Purchase restored ✓':restoreState==='none'?'No purchase found':'Restore Purchase'):null,
       e('div',{style:{borderTop:'1px solid '+BORDER,marginTop:14,paddingTop:14,
         fontSize:'0.75rem',color:HINT,fontFamily:UI_FONT,lineHeight:1.6}},
         '🦶 Bluetooth pedal: AirTurn or PageFlip works in all tabs. Forward = next chord / next question. Back = previous chord / replay sound.'),
@@ -4473,14 +4535,24 @@ function App(){
   const [popTerm,setPopTerm]=useState(null); // glossary term key, or null
   const [aboutOpen,setAboutOpen]=useState(false);
   function showUpgrade(feature){setUpgradeSheet(feature);}
+  function grantPro(){setLevel('pro');safeLSSet('jg-level','pro');}
   function doUpgrade(){
-    // TODO: replace the two lines below with RevenueCat/StoreKit purchase call when IAP is ready
-    setLevel('pro');safeLSSet('jg-level','pro');
-    setUpgradeSheet(null);
+    // Web/PWA (beta testers): no StoreKit in a browser → keep the free Pro
+    // preview, unchanged. No tester can be charged because there's nothing here
+    // that can move money on the web.
+    if(!IAP.isNativeApp()){grantPro();setUpgradeSheet(null);return;}
+    // Native iOS: real Apple In-App Purchase. Pro is granted only on a verified
+    // entitlement; cancels/errors leave the user on Essentials.
+    IAP.purchase().then(res=>{if(res==='pro'){grantPro();setUpgradeSheet(null);}});
   }
+  // Returns 'done' (restored) | 'none' (no purchase) so AboutSheet can show the
+  // right message. Web testers always succeed (free preview).
   function doRestore(){
-    // TODO: replace with RevenueCat restorePurchases() when IAP is ready
-    setLevel('pro');safeLSSet('jg-level','pro');
+    if(!IAP.isNativeApp()){grantPro();return Promise.resolve('done');}
+    return IAP.restore().then(res=>{
+      if(res==='pro'){grantPro();return 'done';}
+      return 'none';
+    });
   }
   const isEss=level==='essentials';
   const [iiviPlaying,setIiviPlaying]=useState(false);
@@ -4545,6 +4617,19 @@ function App(){
     const s=parseInt(safeLS('jg-streak','0'),10);
     if(practiced){Notif.cancel();}
     else if(s>0){Notif.schedule(s);}
+  },[]);
+
+  // On native launch, let the verified Apple entitlement decide Pro — not
+  // trusted localStorage — so Pro can't be faked and survives reinstall.
+  // No-op on the web/PWA: beta testers keep whatever level they have (the free
+  // preview), and are never downgraded or charged.
+  useEffect(()=>{
+    if(!IAP.isNativeApp()) return;
+    IAP.isPro().then(pro=>{
+      if(pro===true){setLevel('pro');safeLSSet('jg-level','pro');}
+      else if(pro===false){setLevel('essentials');safeLSSet('jg-level','essentials');}
+      // null → couldn't determine (offline/error): leave the cached level as-is
+    });
   },[]);
 
   // Bluetooth page-turner pedal support

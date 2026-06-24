@@ -49,7 +49,7 @@ Steps completed and still needed to ship:
 
 ## What's Built (current `app.js` features)
 - **5 nav tabs:** Guide, Chords (Diatonic), Any Chord (Custom), Play (II-V-I), Ear Training
-- **Freemium paywall:** `UpgradeSheet` bottom sheet triggered by 🔒 lock badges on gated features. `showUpgrade(feature)` / `doUpgrade()` in App. Currently calls `setLevel('full')` directly — TODO: wire to RevenueCat/StoreKit IAP. Pro ✦ chip in header (tap to revert to Essentials for testing).
+- **Freemium paywall:** `UpgradeSheet` bottom sheet triggered by 🔒 lock badges on gated features. `showUpgrade(feature)` / `doUpgrade()` in App. IAP wired via the `IAP` module: native iOS does a real RevenueCat purchase; web/PWA grants the free Pro preview (`isNativeApp()` gate). Entitlement-on-launch is the source of truth on device. Pro ✦ chip in header (tap to revert to Essentials for testing — dev-only, hide for production per SHIP_GATE).
 - **First-time onboarding:** Brand-new users (no `jg-viewMode` saved, no `jg-path` progress) land on the Guide tab. Returning users go straight to their last view. Logic in `viewMode` useState init.
 - **Guide tab:** 16 ordered learning stages with expandable content, tappable checklist items (persisted to `jg-path-items`), resume card, phase labels, links to live presets
 - **Chords tab:** All 7 diatonic chords in any key, shell/drop2/drop3/rootless voicings, scale overlay, guide tones, fingering numbers
@@ -96,7 +96,7 @@ Steps completed and still needed to ship:
 - Subscription pricing (one-time $9.99 is the model)
 
 ## Pending / Next Session Priorities
-1. **IAP implementation (revenue gate)** — Replace the `doUpgrade()`/`doRestore()` stubs (currently grant Pro for free) with a real RevenueCat purchase. Product ID: `pro_unlock`, entitlement-on-launch as source of truth. Full plan + code in `docs/IAP_PLAN.md`.
+1. **IAP implementation (revenue gate)** — App-side code is WIRED: `IAP` module (RevenueCat, gated by `isNativeApp()`), real `doUpgrade()`/`doRestore()`, entitlement-on-launch sync. Web/PWA keeps the free Pro preview (testers unaffected, never charged). Remaining is env/account setup only: install `@revenuecat/purchases-capacitor` + `cap sync`, set `REVENUECAT_API_KEY` + `pro_unlock`/`pro` entitlement in RevenueCat & App Store Connect, sandbox-test on device. See `docs/IAP_PLAN.md`.
 2. **App Store assets** — app icon in all required sizes, screenshots, store description copywriting. Copy + ASO drafted in `docs/APP_STORE_LISTING.md`.
 3. **Apple Developer enrollment** — user action required, $99, developer.apple.com
 4. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`

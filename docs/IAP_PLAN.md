@@ -3,6 +3,18 @@
 This is the **revenue gate**. Until it's done there is no income and Apple will
 reject the build (a priced paywall that unlocks without StoreKit is a rejection).
 
+> **Status (code wired):** The app-side IAP logic is now implemented in `app.js`
+> — an `IAP` module (RevenueCat Capacitor plugin, guarded by `isNativeApp()`),
+> real `doUpgrade()`/`doRestore()`, and an entitlement-on-launch sync. **The
+> web/PWA path is unchanged**: beta testers still get the free Pro preview and
+> can never be charged (no StoreKit in a browser). Remaining work is all
+> environment/account setup, not code: (1) `npm i @revenuecat/purchases-capacitor`
+> + `npx cap sync ios`, (2) set `REVENUECAT_API_KEY` and the `pro` entitlement /
+> `pro_unlock` product in RevenueCat + App Store Connect, (3) sandbox-test on a
+> device (needs the $99 Apple enrollment first). Until the plugin is installed,
+> native purchase returns `'no-store'` and grants nothing — it never hands out
+> free Pro on device.
+
 ## Current state (what exists today)
 
 The whole Pro/Free split already runs off **one** piece of state:
