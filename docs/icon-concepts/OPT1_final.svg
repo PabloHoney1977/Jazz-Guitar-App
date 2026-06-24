@@ -1,0 +1,30 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#101622"/><stop offset="100%" stop-color="#070a0f"/></linearGradient>
+ <radialGradient id="glow" cx="50%" cy="44%" r="60%"><stop offset="0%" stop-color="#3FC9BE" stop-opacity="0.15"/><stop offset="100%" stop-color="#3FC9BE" stop-opacity="0"/></radialGradient>
+ <linearGradient id="nut" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f0d68a"/><stop offset="100%" stop-color="#c69a3f"/></linearGradient>
+ <radialGradient id="dRoot" cx="38%" cy="30%" r="80%"><stop offset="0%" stop-color="#FF9A9A"/><stop offset="100%" stop-color="#E0494F"/></radialGradient>
+ <radialGradient id="dThird" cx="38%" cy="30%" r="80%"><stop offset="0%" stop-color="#7FE5DD"/><stop offset="100%" stop-color="#2BA497"/></radialGradient>
+ <radialGradient id="dSev" cx="38%" cy="30%" r="80%"><stop offset="0%" stop-color="#FFE680"/><stop offset="100%" stop-color="#E0A92F"/></radialGradient>
+ <filter id="sh" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0" dy="7" stdDeviation="10" flood-color="#000" flood-opacity="0.55"/></filter>
+</defs>
+<rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+<ellipse cx="512" cy="470" rx="460" ry="480" fill="url(#glow)"/>
+<!-- nut: squared ends, aligned to the outer strings -->
+<rect x="302" y="270" width="420" height="22" fill="url(#nut)"/>
+<!-- fret lines: square (butt) caps so the sides line up flush -->
+<g stroke="#27384c" stroke-width="9">
+ <line x1="302" y1="446" x2="722" y2="446"/><line x1="302" y1="616" x2="722" y2="616"/><line x1="302" y1="786" x2="722" y2="786"/>
+</g>
+<!-- strings: start flush at the bottom of the nut -->
+<g stroke="#3a5160" stroke-width="5">
+ <line x1="302" y1="292" x2="302" y2="786"/><line x1="386" y1="292" x2="386" y2="786"/><line x1="470" y1="292" x2="470" y2="786"/>
+ <line x1="554" y1="292" x2="554" y2="786"/><line x1="638" y1="292" x2="638" y2="786"/><line x1="722" y1="292" x2="722" y2="786"/>
+</g>
+<!-- Cmaj7 skip-string shell (R-7-3): A3 root, G4 7th, B5 3rd -->
+<g filter="url(#sh)">
+ <circle cx="386" cy="365" r="66" fill="url(#dRoot)"/>
+ <circle cx="554" cy="531" r="66" fill="url(#dSev)"/>
+ <circle cx="638" cy="701" r="66" fill="url(#dThird)"/>
+</g>
+</svg>
