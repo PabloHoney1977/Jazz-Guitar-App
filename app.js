@@ -8,8 +8,10 @@ const safeLSSet=(key,val)=>{try{localStorage.setItem(key,val);}catch(ex){}};
 
 // Local date string (YYYY-MM-DD) using device timezone — avoids UTC midnight rollover bug
 function localDateStr(ts=Date.now()){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-// Streak milestone check — [3,7,14] + every 30 days + 365
-function isStreakMilestone(n){return [3,7,14].includes(n)||(n>0&&n%30===0)||n===365;}
+// Streak milestone check — [3,7,14,100] + every 30 days + 365
+// (100 is advertised in the header "next badge" tooltip and has its own card copy,
+//  but isn't a multiple of 30 — list it explicitly so day 100 actually celebrates)
+function isStreakMilestone(n){return [3,7,14,100].includes(n)||(n>0&&n%30===0)||n===365;}
 
 // ── Capacitor Local Notifications ─────────────────────────────────────
 // All calls are silent no-ops in the browser (Capacitor bridge not present).
@@ -3212,8 +3214,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
         ?e('div',{style:{display:'flex',alignItems:'center',gap:6}},
             e('span',{style:{fontSize:'0.68rem',color:LBL}},'Voicing'),
             e('span',{style:{fontSize:'0.68rem',color:GOLD,fontWeight:600}},
-              activeVT==='shell'?'Shell':activeVT==='drop3'?'Drop 3':activeVT==='rootless'?'Rootless':'Drop 2'
-              +(vType!=='shell'&&dropD.sets[ssIdx]?' · '+dropD.sets[ssIdx].lbl:'')
+              (activeVT==='shell'?'Shell':activeVT==='drop3'?'Drop 3':activeVT==='rootless'?'Rootless':'Drop 2')
+              +((activeVT==='drop2'||activeVT==='drop3')&&activeDropD.sets[activeVTSI]?' · '+activeDropD.sets[activeVTSI].lbl:'')
             )
           )
         :e('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},
@@ -3740,6 +3742,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
     if(streak>prevStreakRef.current){
       setStreakBump(true);
       const t=setTimeout(()=>setStreakBump(false),2500);
+      prevStreakRef.current=streak; // advance on the increase path too, or the ref stays stuck at its initial value
       return()=>clearTimeout(t);
     }
     prevStreakRef.current=streak;
