@@ -51,7 +51,7 @@ Steps completed and still needed to ship:
 - **Play tab (IIVIView):** Backing track with walking bass, ride cymbal, jazz guitar comping. Forms: major/minor II-V-I, jazz blues, tritone sub, sec. dom., custom. Swing feel, variable BPM (35–150). Voice leading, pinned chords, bar-level voicing override.
 - **Ear Training tab:** Interval recognition (melodic + harmonic), triads, 7th chords, cadence recognition (II-V, V-I, II-V-I, I-VI, iv-I). Essentials: consonant intervals (melodic) only, single "3 more modes 🔒" upgrade CTA (not individual per-tab badges). Pro: all 12 intervals + harmonic mode + triads + 7th chords + cadences. Nav row uses ← ♪ → circle buttons (always in viewport, no scroll needed).
 - **Two-tier tour system:** App overview tour (5 steps across nav tabs) + per-page contextual tour for each tab
-- **Streak tracking:** 🔥 Xd badge in header. Fires when Play tab session starts OR first Ear Training answer. Resets if day is skipped. `playSessions` counted in localStorage. Push notification reminders deferred to Capacitor build.
+- **Streak tracking:** 🔥 Xd badge in header. `markPracticed()` fires after 4 completed loops in the Play tab, after the 5th Ear Training answer in a session, or when checking off a Guide checklist item. Resets if a day is skipped (with a one-day grace once streak ≥ 3). `playSessions` counted in localStorage. Push notification reminders deferred to Capacitor build.
 - **Streak milestones:** Celebration card slides up at days 3, 7, 14, 30. Auto-dismisses at 5.4s. Tap to dismiss early. `streakMilestone` state, `STREAK_MILESTONES=[3,7,14,30]`, `milestoneUp` CSS animation in index.html.
 - **Dark/light theme toggle**
 - **Bluetooth page-turner pedal support** (AirTurn / PageFlip keyboard events)
