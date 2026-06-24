@@ -46,6 +46,10 @@ a post-launch item.
 - [ ] Privacy "nutrition label" answered (this app stores only local data — declare accordingly).
 - [ ] One successful TestFlight build via Codemagic, installed and smoke-tested on a device.
 - [ ] $9.99 non-consumable `pro_unlock` created + "Ready to Submit" in App Store Connect.
+- [ ] Native plugins installed + `cap sync`: `@revenuecat/purchases-capacitor`
+      (IAP) and `@capacitor-community/in-app-review` (ratings prompt). Both are
+      runtime-guarded, so their absence is harmless on web but means no IAP / no
+      review prompt on device until installed.
 
 ## Explicitly NOT blockers (ship with these open)
 - Cosmetic / copy / single-pixel layout issues.

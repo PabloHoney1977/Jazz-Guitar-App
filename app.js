@@ -105,6 +105,34 @@ const IAP=(()=>{
   return{isNativeApp,isPro,purchase,restore};
 })();
 
+// ── App Store rating prompt ───────────────────────────────────────────
+// Native-only: asks iOS to show the StoreKit review sheet (Apple itself caps
+// this at ~3 prompts/year and may show nothing). Silent no-op on the web.
+// NATIVE BUILD TODO: `npm i @capacitor-community/in-app-review` + `cap sync`.
+const Review=(()=>{
+  function plug(){return window?.Capacitor?.Plugins?.InAppReview||null;}
+  function isNativeApp(){return !!window?.Capacitor?.isNativePlatform?.();}
+  async function request(){
+    if(!isNativeApp())return;
+    const P=plug();if(!P)return;
+    try{await P.requestReview();}catch(ex){}
+  }
+  return{isNativeApp,request};
+})();
+// Fire a rating prompt at most twice in the app's lifetime, ≥60 days apart, so
+// even across many milestones the user is never nagged. Called only at peaks.
+function maybeAskReview(){
+  try{
+    const asks=parseInt(safeLS('jg-review-asks','0'),10)||0;
+    if(asks>=2) return;
+    const last=safeLS('jg-review-last','');
+    if(last){const days=(Date.now()-new Date(last+'T00:00:00'))/86400000;if(days<60) return;}
+    safeLSSet('jg-review-asks',String(asks+1));
+    safeLSSet('jg-review-last',localDateStr());
+    Review.request();
+  }catch(ex){}
+}
+
 // ── Tuning ───────────────────────────────────────────────────────────
 const OPEN_MIDI=[40,45,50,55,59,64];
 const OPEN_PC  =[4, 9, 2, 7,11, 4];
@@ -699,11 +727,22 @@ function UpgradeSheet({feature,onClose,onUnlock}){
   const FEATURE_DESC={
     'Drop 2 voicings':'The most common jazz comping grip — four notes across adjacent strings, clean and compact.',
     'Drop 3 voicings':'Wider spread, more open sound — great for comping in lower positions.',
+    'Drop 3':'Wider spread, more open sound — great for comping in lower positions.',
     'Rootless voicings':'Play like a pianist: remove the root so the bassist has space. Type A and B give you two inversion sets.',
     'Triads':'Major, minor, dim, aug — hear them in isolation before combining into 7th chords.',
     '7th Chords':'Identify maj7, m7, dom7, and half-dim chords by ear — the core vocabulary of jazz harmony.',
+    'Cadences':'Recognize ii–V, V–I, and full ii–V–I by ear — hear the progressions you play, not just single chords.',
     'Auto ear training':'Listen without scoring pressure — the app plays, speaks the answer, and moves on automatically.',
     'Find Chord':'Tap any notes on the fretboard and instantly see what chord you\'re playing.',
+    // Play-tab forms — these are the exact strings the Guide stages hand off, so
+    // the sheet sells the specific thing the learner just reached for.
+    'Play forms':'Every progression with a full band — minor ii–V–i, jazz blues, tritone sub, secondary dominants, standards, and your own custom changes.',
+    'progressions':'Every progression with a full band — minor ii–V–i, jazz blues, tritone sub, secondary dominants, standards, and your own custom changes.',
+    'minor ii–V–i':'The darker cousin of the ii–V–I — the half-diminished pull into a minor home. It\'s all over Autumn Leaves.',
+    'Jazz Blues':'The 12-bar blues, jazz-ified — loop the form with walking bass and ride and play the changes.',
+    'Turnaround form':'The I–VI–ii–V loop that ends nearly every standard — practice it on repeat at any tempo.',
+    'Tritone Sub':'Hear the chromatic-bass substitution that gives bebop its slip — looped against a live band.',
+    'Sec. Dom.':'Borrow a V7 for any chord — chains of secondary dominants you can loop and solo over.',
   };
   // Map partial feature strings to a perk index (0-3) so that perk gets highlighted
   const PERK_IDX={'Drop 2':0,'Drop 3':0,'Rootless':0,'drop2':0,'drop3':0,'rootless':0,
@@ -739,8 +778,16 @@ function UpgradeSheet({feature,onClose,onUnlock}){
       e('button',{onClick:onUnlock,style:{
         width:'100%',padding:'15px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'1rem',fontWeight:700,
-        background:GOLD,border:'none',color:'#07070f',minHeight:54,marginBottom:10}},
+        background:GOLD,border:'none',color:'#07070f',minHeight:54,marginBottom:8}},
         'Unlock Pro — $9.99'),
+      // Reassurance + anchor: the one-time price is the differentiator in a
+      // subscription-fatigued market; the anchor makes $9.99 feel trivial.
+      e('div',{style:{textAlign:'center',marginBottom:12}},
+        e('div',{style:{fontSize:'0.78rem',color:'var(--scale-name)',fontWeight:700,fontFamily:UI_FONT}},
+          'One-time purchase — no subscription, yours forever'),
+        e('div',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,marginTop:2}},
+          'Less than a third of a single guitar lesson')
+      ),
       e('button',{onClick:onClose,style:{
         width:'100%',padding:'10px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.82rem',background:'transparent',
@@ -4598,6 +4645,11 @@ function App(){
     if(isStreakMilestone(newStreak)){
       setStreakMilestone(newStreak);
       setTimeout(()=>setStreakMilestone(null),5400);
+      // Ask for an App Store rating at a genuine peak (a streak milestone, day 7+).
+      // Self-limited to 2 lifetime asks ≥60 days apart so it's never nagging;
+      // Apple rate-limits on top of this and the card is showing, so the moment
+      // is unambiguously positive. No-op on the web.
+      if(newStreak>=7) maybeAskReview();
     }
     if(iiviPlaying){
       setStreakAnimPending(true);
