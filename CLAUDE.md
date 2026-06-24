@@ -24,6 +24,12 @@ Single-file React 18 PWA. No build step. CDN React, all inline styles, ~5100 lin
 Capacitor iOS project lives in `ios/`. Build script (`npm run build`) copies web assets to `www/` before `cap sync`. Codemagic config is in `codemagic.yaml`.
 
 ## App Store Deployment Checklist
+**Launch plan lives in:** `SHIP_GATE.md` (v1.0 definition of done / stopping rule),
+`BACKLOG.md` (parked non-blockers), `docs/IAP_PLAN.md` (the revenue gate — real
+$9.99 IAP), `docs/APP_STORE_LISTING.md` (listing copy + ASO). The critical path
+to revenue is: freeze scope → wire real IAP → distribution. Minor bug findings
+go in `BACKLOG.md`, not in the way of launch.
+
 Steps completed and still needed to ship:
 - [x] Capacitor iOS project initialized (`ios/` directory committed)
 - [x] `codemagic.yaml` build pipeline configured
@@ -90,8 +96,8 @@ Steps completed and still needed to ship:
 - Subscription pricing (one-time $9.99 is the model)
 
 ## Pending / Next Session Priorities
-1. **IAP implementation** — Replace `setLevel('full')` in `doUpgrade()` with RevenueCat/StoreKit purchase call. Product ID: `pro_unlock`. Use `@capacitor/purchases` or RevenueCat SDK.
-2. **App Store assets** — app icon in all required sizes, screenshots, store description copywriting
+1. **IAP implementation (revenue gate)** — Replace the `doUpgrade()`/`doRestore()` stubs (currently grant Pro for free) with a real RevenueCat purchase. Product ID: `pro_unlock`, entitlement-on-launch as source of truth. Full plan + code in `docs/IAP_PLAN.md`.
+2. **App Store assets** — app icon in all required sizes, screenshots, store description copywriting. Copy + ASO drafted in `docs/APP_STORE_LISTING.md`.
 3. **Apple Developer enrollment** — user action required, $99, developer.apple.com
 4. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`
 5. **Add Capacitor Local Notifications** — practice streak reminders (defer until after first TestFlight build)
