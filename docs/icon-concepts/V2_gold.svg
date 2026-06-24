@@ -1,0 +1,29 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#181208"/><stop offset="100%" stop-color="#07070d"/></linearGradient>
+ <radialGradient id="glow" cx="50%" cy="42%" r="60%">
+   <stop offset="0%" stop-color="#d4a855" stop-opacity="0.26"/>
+   <stop offset="100%" stop-color="#d4a855" stop-opacity="0"/>
+ </radialGradient>
+ <radialGradient id="dR" cx="38%" cy="30%" r="78%"><stop offset="0%" stop-color="#F2D98E"/><stop offset="100%" stop-color="#C99A3F"/></radialGradient>
+ <radialGradient id="dT" cx="38%" cy="30%" r="78%"><stop offset="0%" stop-color="#F0CF7E"/><stop offset="100%" stop-color="#B98A33"/></radialGradient>
+ <radialGradient id="dG" cx="38%" cy="30%" r="78%"><stop offset="0%" stop-color="#FFE9A8"/><stop offset="100%" stop-color="#D4A855"/></radialGradient>
+ <filter id="sh" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="7" stdDeviation="9" flood-color="#000" flood-opacity="0.5"/></filter>
+</defs>
+<rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+<ellipse cx="512" cy="450" rx="450" ry="470" fill="url(#glow)"/>
+
+<rect x="250" y="236" width="524" height="22" rx="8" fill="#e8d090"/>
+<g stroke="#3a2f1c" stroke-width="9" stroke-linecap="round">
+ <line x1="262" y1="404" x2="762" y2="404"/><line x1="262" y1="564" x2="762" y2="564"/><line x1="262" y1="724" x2="762" y2="724"/>
+</g>
+<g stroke="#5a4a2e" stroke-width="5">
+ <line x1="312" y1="248" x2="312" y2="812"/><line x1="392" y1="248" x2="392" y2="812"/><line x1="472" y1="248" x2="472" y2="812"/>
+ <line x1="552" y1="248" x2="552" y2="812"/><line x1="632" y1="248" x2="632" y2="812"/><line x1="712" y1="248" x2="712" y2="812"/>
+</g>
+<g filter="url(#sh)">
+ <circle cx="312" cy="486" r="60" fill="url(#dR)"/>
+ <circle cx="472" cy="646" r="60" fill="url(#dT)"/>
+ <circle cx="632" cy="324" r="60" fill="url(#dG)"/>
+</g>
+</svg>
