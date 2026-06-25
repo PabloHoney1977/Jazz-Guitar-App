@@ -41,8 +41,8 @@ Steps completed and still needed to ship:
 - [ ] Create App Store listing (name, screenshots, description, pricing)
 - [ ] Set up $9.99 one-time IAP in App Store Connect (product ID: `pro_unlock`)
 - [ ] Add Capacitor Local Notifications plugin (for practice streak reminders — defer until after first build succeeds)
-- [ ] App icon: needs all required sizes (currently have `icon.svg` and `icons/` — need to verify App Store required sizes)
-- [ ] Splash screen: review default Capacitor splash, customize if needed
+- [x] App icon: new mark = a Cmaj7 shell chord diagram (jewel palette on navy). Master `icon.svg` (vector); exported iOS `AppIcon-512@2x.png` (1024, full-bleed, no alpha), `icons/apple-touch-icon.png` (180), `icons/icon-192.png` + `icons/icon-512.png` (PWA maskable). Source variants in `docs/icon-concepts/`. (Palette may still be tweaked.)
+- [x] Splash screen: regenerated (`Splash.imageset`, 2732) — mark centered on the navy background to match the icon
 - [ ] First TestFlight build via Codemagic
 - [ ] Internal testing
 - [ ] App Store submission

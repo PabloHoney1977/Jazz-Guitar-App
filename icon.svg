@@ -1,36 +1,7 @@
-<svg viewBox="0 0 24 40" xmlns="http://www.w3.org/2000/svg">
-  <!-- Headstock -->
-  <rect x="9" y="0" width="6" height="3" rx="1.5" fill="#c49030"/>
-  <!-- Tuning pegs -->
-  <circle cx="8" cy="1" r="1" fill="#888"/>
-  <circle cx="8" cy="2.5" r="1" fill="#888"/>
-  <circle cx="16" cy="1" r="1" fill="#888"/>
-  <circle cx="16" cy="2.5" r="1" fill="#888"/>
-  <!-- Neck -->
-  <rect x="10.5" y="2.5" width="3" height="11" rx="1" fill="#c49030"/>
-  <!-- Nut -->
-  <rect x="10" y="2.5" width="4" height="0.8" rx="0.4" fill="#e8d090"/>
-  <!-- Body (archtop) with f-holes cut out -->
-  <path fill="#d4a855" fill-rule="evenodd" d="
-    M 12 12
-    C 5 12 3.5 17 3.5 21
-    C 3.5 23.5 5 25 5 27
-    C 5 29.5 2.5 32 2.5 36
-    C 2.5 38.5 7 40 12 40
-    C 17 40 21.5 38.5 21.5 36
-    C 21.5 32 19 29.5 19 27
-    C 19 25 20.5 23.5 20.5 21
-    C 20.5 17 19 12 12 12 Z
-    M 7.5 27 a 1.2 3.5 0 1 0 2.4 0 a 1.2 3.5 0 1 0 -2.4 0
-    M 14.1 27 a 1.2 3.5 0 1 0 2.4 0 a 1.2 3.5 0 1 0 -2.4 0
-  "/>
-  <!-- Sound hole highlight -->
-  <ellipse cx="12" cy="26" rx="2.5" ry="0.8" fill="none" stroke="#b08020" stroke-width="0.4" opacity="0.5"/>
-  <!-- Strings -->
-  <line x1="11" y1="3" x2="9.5" y2="35" stroke="#c0c0c0" stroke-width="0.25" opacity="0.6"/>
-  <line x1="11.6" y1="3" x2="10.5" y2="35" stroke="#c0c0c0" stroke-width="0.25" opacity="0.6"/>
-  <line x1="12.2" y1="3" x2="11.5" y2="35" stroke="#c0c0c0" stroke-width="0.25" opacity="0.6"/>
-  <line x1="12.8" y1="3" x2="12.5" y2="35" stroke="#c0c0c0" stroke-width="0.25" opacity="0.6"/>
-  <line x1="13.4" y1="3" x2="13.5" y2="35" stroke="#c0c0c0" stroke-width="0.25" opacity="0.6"/>
-  <line x1="14" y1="3" x2="14.5" y2="35" stroke="#c0c0c0" stroke-width="0.25" opacity="0.6"/>
-</svg>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#111a2b"/><stop offset="100%" stop-color="#070a12"/></linearGradient>
+ <radialGradient id="glow" cx="50%" cy="44%" r="60%"><stop offset="0%" stop-color="#3FC9BE" stop-opacity="0.13"/><stop offset="100%" stop-color="#3FC9BE" stop-opacity="0"/></radialGradient>
+ <linearGradient id="nut" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e6cd86"/><stop offset="100%" stop-color="#b88f3c"/></linearGradient>
+ <filter id="ng" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><rect width="1024" height="1024" rx="230" fill="url(#bg)"/><ellipse cx="512" cy="470" rx="460" ry="480" fill="url(#glow)"/><rect x="302" y="270" width="420" height="22" fill="url(#nut)"/>
+<g stroke="#27384c" stroke-width="9"><line x1="302" y1="446" x2="722" y2="446"/><line x1="302" y1="616" x2="722" y2="616"/><line x1="302" y1="786" x2="722" y2="786"/></g>
+<g stroke="#3a5160" stroke-width="5"><line x1="302" y1="270" x2="302" y2="786"/><line x1="386" y1="270" x2="386" y2="786"/><line x1="470" y1="270" x2="470" y2="786"/><line x1="554" y1="270" x2="554" y2="786"/><line x1="638" y1="270" x2="638" y2="786"/><line x1="722" y1="270" x2="722" y2="786"/></g>
+<g filter="url(#ng)" stroke="rgba(255,255,255,0.85)" stroke-width="6"><circle cx="386" cy="365" r="44" fill="#E1496B"/><circle cx="554" cy="531" r="44" fill="#E7B24C"/><circle cx="638" cy="701" r="44" fill="#2FB79F"/></g></svg>

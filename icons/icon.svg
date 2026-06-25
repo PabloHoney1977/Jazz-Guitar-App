@@ -1,45 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#111124"/>
-      <stop offset="100%" stop-color="#07070f"/>
-    </linearGradient>
-    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="5" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
-
-  <!-- Background -->
-  <rect width="512" height="512" rx="90" fill="url(#bg)"/>
-
-  <!-- Nut -->
-  <rect x="110" y="66" width="292" height="14" rx="5" fill="#d4a855" opacity="0.9"/>
-
-  <!-- Fret lines (4 frets) -->
-  <line x1="110" y1="158" x2="402" y2="158" stroke="#2a2848" stroke-width="4"/>
-  <line x1="110" y1="250" x2="402" y2="250" stroke="#2a2848" stroke-width="4"/>
-  <line x1="110" y1="342" x2="402" y2="342" stroke="#2a2848" stroke-width="4"/>
-  <line x1="110" y1="420" x2="402" y2="420" stroke="#2a2848" stroke-width="3"/>
-
-  <!-- String lines (4 strings) -->
-  <line x1="155" y1="80" x2="155" y2="420" stroke="#3a3860" stroke-width="2.5"/>
-  <line x1="236" y1="80" x2="236" y2="420" stroke="#3a3860" stroke-width="2.5"/>
-  <line x1="316" y1="80" x2="316" y2="420" stroke="#3a3860" stroke-width="3"/>
-  <line x1="395" y1="80" x2="395" y2="420" stroke="#3a3860" stroke-width="3.5"/>
-
-  <!-- Chord dots (drop-2 style diagonal pattern) -->
-  <!-- String 4 (root), fret 1 -->
-  <circle cx="395" cy="112" r="30" fill="#FF6B6B" filter="url(#glow)"/>
-  <!-- String 3 (3rd), fret 2 -->
-  <circle cx="316" cy="204" r="30" fill="#4ECDC4" filter="url(#glow)"/>
-  <!-- String 2 (5th), fret 1 -->
-  <circle cx="236" cy="112" r="30" fill="#74C0FC" filter="url(#glow)"/>
-  <!-- String 1 (7th), fret 3 -->
-  <circle cx="155" cy="296" r="30" fill="#FFD43B" filter="url(#glow)"/>
-
-  <!-- "JG" label -->
-  <text x="256" y="490" text-anchor="middle"
-    fill="#d4a855" font-family="Georgia,serif"
-    font-size="54" font-weight="700" opacity="0.88">JG</text>
-</svg>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#111a2b"/><stop offset="100%" stop-color="#070a12"/></linearGradient>
+ <radialGradient id="glow" cx="50%" cy="44%" r="60%"><stop offset="0%" stop-color="#3FC9BE" stop-opacity="0.13"/><stop offset="100%" stop-color="#3FC9BE" stop-opacity="0"/></radialGradient>
+ <linearGradient id="nut" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e6cd86"/><stop offset="100%" stop-color="#b88f3c"/></linearGradient>
+ <filter id="ng" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><rect width="1024" height="1024" rx="230" fill="url(#bg)"/><ellipse cx="512" cy="470" rx="460" ry="480" fill="url(#glow)"/><rect x="302" y="270" width="420" height="22" fill="url(#nut)"/>
+<g stroke="#27384c" stroke-width="9"><line x1="302" y1="446" x2="722" y2="446"/><line x1="302" y1="616" x2="722" y2="616"/><line x1="302" y1="786" x2="722" y2="786"/></g>
+<g stroke="#3a5160" stroke-width="5"><line x1="302" y1="270" x2="302" y2="786"/><line x1="386" y1="270" x2="386" y2="786"/><line x1="470" y1="270" x2="470" y2="786"/><line x1="554" y1="270" x2="554" y2="786"/><line x1="638" y1="270" x2="638" y2="786"/><line x1="722" y1="270" x2="722" y2="786"/></g>
+<g filter="url(#ng)" stroke="rgba(255,255,255,0.85)" stroke-width="6"><circle cx="386" cy="365" r="44" fill="#E1496B"/><circle cx="554" cy="531" r="44" fill="#E7B24C"/><circle cx="638" cy="701" r="44" fill="#2FB79F"/></g></svg>
