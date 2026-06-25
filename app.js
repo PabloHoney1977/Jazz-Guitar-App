@@ -2431,7 +2431,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     const v=vol*(guitarVolRef.current/100);
     gain.gain.setValueAtTime(0.001,startTime);
     gain.gain.linearRampToValueAtTime(v,startTime+0.01);
-    gain.gain.exponentialRampToValueAtTime(v*0.45,startTime+0.35);
+    gain.gain.exponentialRampToValueAtTime(v*0.6,startTime+0.35);
+    gain.gain.exponentialRampToValueAtTime(v*0.28,startTime+Math.min(sustainSecs*0.7,1.2));
     gain.gain.exponentialRampToValueAtTime(0.001,startTime+sustainSecs);
     src.connect(jWarmth);jWarmth.connect(jPressCut);jPressCut.connect(jHiCut);
     jHiCut.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);gain.connect(compRef.current||ctx.destination);
@@ -2567,8 +2568,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
         const midi=compMidiRef.current[bar]||[];
         if(midi.length>0){
           const b=beat%4;
-          const sustLong=Math.min(beatDur*1.9,bpmRef.current<70?2.4:1.8);
-          const sustStab=Math.min(beatDur*0.75,bpmRef.current<70?0.9:0.65);
+          const sustLong=Math.min(beatDur*2.6,bpmRef.current<70?3.4:2.6);
+          const sustStab=Math.min(beatDur*1.1,bpmRef.current<70?1.3:0.95);
           const top3=midi.slice(-Math.min(3,midi.length));
           if(barPat.comp===0){
             // Standard bop: 1, 2-stab, 3, 4-and anticipation
