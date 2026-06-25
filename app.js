@@ -1514,11 +1514,19 @@ function TourOverlay({steps,step,onNext,onSkip}){
   const s=steps[step];
   useEffect(()=>{
     if(!s){setRect(null);return;}
+    let rafId=null;
     function measure(){
       const el=document.querySelector('[data-tour="'+s.target+'"]');
       if(el){const r=el.getBoundingClientRect();setRect({top:r.top,left:r.left,w:r.width,h:r.height});}
       else setRect(null);
       return !!el;
+    }
+    // Viewport resize/scroll events (e.g. iOS address-bar collapsing) fire during
+    // the animation and return intermediate coordinates. Defer through rAF so we
+    // only commit the rect after layout has fully settled.
+    function deferMeasure(){
+      cancelAnimationFrame(rafId);
+      rafId=requestAnimationFrame(measure);
     }
     // Immediate attempt; if target isn't in DOM yet (view just switched),
     // retry at 150ms and 350ms to let React finish rendering the new view.
@@ -1527,17 +1535,16 @@ function TourOverlay({steps,step,onNext,onSkip}){
       let t2=null;
       const t1=setTimeout(()=>{if(!measure()) t2=setTimeout(measure,200);},150);
       const raf=requestAnimationFrame(measure);
-      window.addEventListener('scroll',measure,{passive:true});
-      vv&&vv.addEventListener('resize',measure);vv&&vv.addEventListener('scroll',measure);
-      return ()=>{cancelAnimationFrame(raf);clearTimeout(t1);clearTimeout(t2);window.removeEventListener('scroll',measure);
-        vv&&vv.removeEventListener('resize',measure);vv&&vv.removeEventListener('scroll',measure);};
+      window.addEventListener('scroll',deferMeasure,{passive:true});
+      vv&&vv.addEventListener('resize',deferMeasure);vv&&vv.addEventListener('scroll',deferMeasure);
+      return ()=>{cancelAnimationFrame(raf);cancelAnimationFrame(rafId);clearTimeout(t1);clearTimeout(t2);
+        window.removeEventListener('scroll',deferMeasure);
+        vv&&vv.removeEventListener('resize',deferMeasure);vv&&vv.removeEventListener('scroll',deferMeasure);};
     }
-    // Element found — skip the rAF re-measure (fires post-paint and causes a visual jump);
-    // scroll/resize listeners are sufficient for tracking real layout changes.
-    window.addEventListener('scroll',measure,{passive:true});
-    vv&&vv.addEventListener('resize',measure);vv&&vv.addEventListener('scroll',measure);
-    return ()=>{window.removeEventListener('scroll',measure);
-      vv&&vv.removeEventListener('resize',measure);vv&&vv.removeEventListener('scroll',measure);};
+    window.addEventListener('scroll',deferMeasure,{passive:true});
+    vv&&vv.addEventListener('resize',deferMeasure);vv&&vv.addEventListener('scroll',deferMeasure);
+    return ()=>{cancelAnimationFrame(rafId);window.removeEventListener('scroll',deferMeasure);
+      vv&&vv.removeEventListener('resize',deferMeasure);vv&&vv.removeEventListener('scroll',deferMeasure);};
   },[step,s&&s.target]);
 
   if(!s) return null;
