@@ -26,9 +26,15 @@ Capacitor iOS project lives in `ios/`. Build script (`npm run build`) copies web
 ## App Store Deployment Checklist
 **Launch plan lives in:** `SHIP_GATE.md` (v1.0 definition of done / stopping rule),
 `BACKLOG.md` (parked non-blockers), `docs/IAP_PLAN.md` (the revenue gate — real
-$9.99 IAP), `docs/APP_STORE_LISTING.md` (listing copy + ASO). The critical path
+$9.99 IAP), `docs/APP_STORE_LISTING.md` (listing copy + ASO), `docs/LAUNCH_ASSETS.md`
+(demo-video script + r/JazzGuitar post + launch-day runbook). The critical path
 to revenue is: freeze scope → wire real IAP → distribution. Minor bug findings
 go in `BACKLOG.md`, not in the way of launch.
+
+**Monetization reality (from this session's analysis):** $99/yr Apple enrollment is
+the only mandatory spend; break-even ≈ 12 sales/yr (enroll in Apple's Small
+Business Program → 15% cut, ~$8.49 net/sale). Paid ads almost certainly won't pay
+back at a $9.99 one-time price — the path is free ASO + community, not ad spend.
 
 Steps completed and still needed to ship:
 - [x] Capacitor iOS project initialized (`ios/` directory committed)
@@ -98,7 +104,19 @@ Steps completed and still needed to ship:
 
 ## Pending / Next Session Priorities
 1. **IAP implementation (revenue gate)** — App-side code is WIRED: `IAP` module (RevenueCat, gated by `isNativeApp()`), real `doUpgrade()`/`doRestore()`, entitlement-on-launch sync. Web/PWA keeps the free Pro preview (testers unaffected, never charged). Remaining is env/account setup only: install `@revenuecat/purchases-capacitor` + `cap sync`, set `REVENUECAT_API_KEY` + `pro_unlock`/`pro` entitlement in RevenueCat & App Store Connect, sandbox-test on device. See `docs/IAP_PLAN.md`.
-2. **App Store assets** — app icon in all required sizes, screenshots, store description copywriting. Copy + ASO drafted in `docs/APP_STORE_LISTING.md`.
+2. **App Store assets** — app icon DONE (see checklist); still need screenshots + final store description. Copy + ASO drafted in `docs/APP_STORE_LISTING.md`; screenshot/video plan in `docs/LAUNCH_ASSETS.md`.
 3. **Apple Developer enrollment** — user action required, $99, developer.apple.com
-4. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`
-5. **Add Capacitor Local Notifications** — practice streak reminders (defer until after first TestFlight build)
+4. **"Taste of Pro" conversion experiment (parked, decide later)** — let users briefly sample a Pro feature, then loss-aversion to convert (the rollout-plan item #3 we deferred). Conversion levers #1/#2/#4 already shipped (Guide-aware paywall copy, one-time/no-sub framing + price anchor, ratings prompt).
+5. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`
+6. **Add Capacitor Local Notifications** — practice streak reminders (defer until after first TestFlight build)
+
+## Asset / icon pipeline
+`icon.svg` (root) is the single vector source of truth for all branding. All
+raster exports regenerate from it via headless Chromium (no SVG renderer / PIL /
+ImageMagick installed; `/opt/pw-browsers/chromium-*/chrome-linux/chrome` works,
+ffmpeg at `/opt/pw-browsers/ffmpeg-*` if alpha-flatten is ever needed). Render an
+opaque page background so the **iOS app icon stays RGB with no alpha** (App Store
+rejects alpha). Targets: `ios/.../AppIcon.appiconset/AppIcon-512@2x.png` (1024,
+full-bleed), `Splash.imageset` (2732 ×3), `icons/apple-touch-icon.png` (180),
+`icons/icon-192.png` + `icon-512.png` (PWA maskable), `docs/endcard.png`. Design
+variants/history in `docs/icon-concepts/` (rejected ones can be pruned later).
