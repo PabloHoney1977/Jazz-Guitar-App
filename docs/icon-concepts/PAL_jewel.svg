@@ -9,7 +9,7 @@
 <rect x="302" y="270" width="420" height="22" fill="url(#nut)"/>
 <g stroke="#27384c" stroke-width="9"><line x1="302" y1="446" x2="722" y2="446"/><line x1="302" y1="616" x2="722" y2="616"/><line x1="302" y1="786" x2="722" y2="786"/></g>
 <g stroke="#3a5160" stroke-width="5"><line x1="302" y1="270" x2="302" y2="786"/><line x1="386" y1="270" x2="386" y2="786"/><line x1="470" y1="270" x2="470" y2="786"/><line x1="554" y1="270" x2="554" y2="786"/><line x1="638" y1="270" x2="638" y2="786"/><line x1="722" y1="270" x2="722" y2="786"/></g>
-<circle cx="386" cy="365" r="52" fill="#E1496B"/>
-<circle cx="554" cy="531" r="52" fill="#E7B24C"/>
-<circle cx="638" cy="701" r="52" fill="#2FB79F"/>
+<circle cx="386" cy="365" r="46" fill="#E1496B"/>
+<circle cx="554" cy="531" r="46" fill="#E7B24C"/>
+<circle cx="638" cy="701" r="46" fill="#2FB79F"/>
 </svg>
