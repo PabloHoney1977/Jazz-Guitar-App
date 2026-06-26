@@ -632,7 +632,7 @@ function GuitarToggle({level,setLevel}){
 function UpgradeSheet({feature,onClose,onUnlock}){
   const PERKS=[
     'Drop 2, Drop 3, and Rootless voicings in the Keys tab',
-    'All play forms + 3 jazz standards — Autumn Leaves, All The Things You Are, There Will Never Be Another You',
+    'All play forms + 5 jazz standards — Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You',
     'All 12 ear training intervals + harmonic mode, triads, 7th chords, and cadence recognition',
     'All extended chord types (9ths, 11ths, 13ths, altered) in the Any Chord tab',
   ];
@@ -644,8 +644,10 @@ function UpgradeSheet({feature,onClose,onUnlock}){
     '7th Chords':'Identify maj7, m7, dom7, and half-dim chords by ear — the core vocabulary of jazz harmony.',
     'Auto ear training':'Listen without scoring pressure — the app plays, speaks the answer, and moves on automatically.',
     'Find Chord':'Tap any notes on the fretboard and instantly see what chord you\'re playing.',
+    'BLUE BOSSA':'16 bars, two key centers: C minor for bars 1–8, D♭ major for bars 9–12, back to C minor. The modulation is the lesson — watch the key shift at bar 9.',
     'AUTUMN LEAVES':'32-bar AABA in G major/E minor. Practice the descending ii–V–I–IV motion and the minor ii–V–i in the bridge.',
     'ALL THINGS':'Two ii–V–I cycles descending a fourth apart — the root motion that shows up in countless standards. Set key to Ab.',
+    'STELLA':'Three ii–V–I chains through different keys (E♭, G, B♭) in 16 bars. The opening Em7♭5–A7 is the harmonic surprise — it doesn\'t resolve where you expect. Set key to B♭.',
     'ANOTHER YOU':'Backdoor ii–V, secondary dominants, and a turnaround all in one 12-bar A section. Set key to Eb.',
     'MINOR ii–V–i':'The half-diminished iim7♭5 creates stronger pull than a plain m7 — the ear hears it lean hard into im7.',
     'JAZZ BLUES':'12-bar blues transformed: VI7 in bar 8, iim7–V7 in bars 9–10, turnaround in bar 12.',
@@ -658,7 +660,7 @@ function UpgradeSheet({feature,onClose,onUnlock}){
   const PERK_IDX={'Drop 2':0,'Drop 3':0,'Rootless':0,'drop2':0,'drop3':0,'rootless':0,
     'minor ii':1,'MINOR ii':1,'Jazz Blues':1,'JAZZ BLUES':1,'Tritone':1,'TRITONE':1,
     'Sec. Dom':1,'SEC. DOM':1,'Turnaround':1,'I–VI':1,'MINOR BLUES':1,'Minor Blues':1,
-    'AUTUMN':1,'ALL THINGS':1,'ANOTHER YOU':1,
+    'BLUE BOSSA':1,'AUTUMN':1,'ALL THINGS':1,'STELLA':1,'ANOTHER YOU':1,
     'Triads':2,'7th Chords':2,'Auto ear':2,'auto ear':2,
     '△':3,'ø':3,'9sus':3};
   const featureKey=Object.keys(PERK_IDX).find(k=>feature&&feature.toLowerCase().includes(k.toLowerCase()));
@@ -2030,6 +2032,17 @@ const FORM_DEFS={
             [2,'m7','m7','iim7'],[7,'dom7','7','V7']],
     bars:[0,1,2,3,4,5,0,6,7,8,9,0],
     tip:'"There Will Never Be Another You" A section (Eb): cadence to IVmaj7 via vm7–I7 (Bbm7–Eb7–Abmaj7), then backdoor ii–V home (ivm7–bVII7–I). Closes with I–vim7–II7–iim7–V7. Set key to Eb.'},
+  bluebossa:{lbl:'BLUE BOSSA',col:'#60A5FA',bg:'#030d1e',
+    chords:[[0,'m7','m7','im7'],[5,'m7','m7','ivm7'],[2,'m7b5','ø7','iiø7'],[7,'dom7','7','V7'],
+            [3,'m7','m7','♭IIIm7'],[8,'dom7','7','♭VI7'],[1,'maj7','maj7','♭IImaj7']],
+    bars:[0,0,1,1, 2,3,0,0, 4,5,6,6, 2,3,0,0],
+    tip:'Blue Bossa — 16 bars. A: C minor (im7–ivm7–iiø7–V7–im7). B bars 9–12: key shifts to D♭ major (♭IIIm7–♭VI7–♭IImaj7). A\' bars 13–16: returns to C minor ii–V–i. Set key to C.'},
+  stella:{lbl:'STELLA',col:'#C4B5FD',bg:'#07051a',
+    chords:[[6,'m7b5','ø7','iiø'],[11,'dom7','7','VII7'],[2,'m7','m7','iim7'],[7,'dom7','7','V7'],
+            [7,'maj7','maj7','Vmaj7'],[7,'m7','m7','vm7'],[0,'dom7','7','I7'],[5,'maj7','maj7','IVmaj7'],
+            [11,'m7b5','ø7','iiø'],[4,'dom7','7','III7'],[9,'maj7','maj7','VImaj7'],[0,'maj7','maj7','Imaj7']],
+    bars:[0,1, 2,3, 4,5, 6,7, 8,9, 10,10, 2,3, 11,11],
+    tip:'Stella by Starlight — 16-bar form in B♭. Three ii–V–I chains: to E♭ (vm7–I7–IVmaj7), to G (Am7♭5–D7–Gmaj7), home to B♭ (iim7–V7–Imaj7). The opening Em7♭5–A7 is a ii–V of D that dissolves into the Cm7–F7 — the harmonic surprise that defines the tune. Set key to B♭.'},
   tritone:{lbl:'TRITONE SUB',col:'#FF6B6B',bg:ACT_RED,
     chords:[[2,'m7','m7','iim7'],[7,'dom7','7','V7'],[0,'maj7','maj7','Imaj7'],[1,'dom7','7','♭II7']],
     bars:[0,1,2,2,0,3,2,2],
@@ -2829,7 +2842,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
           ),
           e('div',{style:{position:'relative'}},
             e('div',{style:{display:'flex',gap:6,overflowX:'auto',paddingBottom:2,scrollbarWidth:'none',msOverflowStyle:'none'}},
-              ['minor','turn','blues','minblues','tritone','secdom','autumn','attya','twnbay'].map(f=>
+              ['minor','turn','blues','minblues','tritone','secdom','bluebossa','autumn','attya','stella','twnbay'].map(f=>
                 e('button',{key:f,onClick:()=>onUpgrade(FORM_DEFS[f].lbl),style:{
                   padding:'4px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,
                   fontSize:'0.72rem',border:'1px solid '+BORDER,background:'transparent',
@@ -2856,7 +2869,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
           ),
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}},
             e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Standards'),
-            ['autumn','attya','twnbay','tritone','secdom'].map(f=>
+            ['bluebossa','autumn','attya','stella','twnbay','tritone','secdom'].map(f=>
               e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
             ),
             e('button',{
@@ -3995,7 +4008,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
      title:'Play a jazz standard',
      time:'An arrival, not a finish line',
      preset:{view:'iivi',key:0,form:'major',bpm:65},
-     body:['This is what the whole path built toward. Pick one standard and play it all the way through — changes, form, in time. Suggested starting points: ',e('b',null,'Autumn Leaves'),' (major and minor ii–V–Is back to back, the most-studied standard for a reason), ',e('b',null,'Blue Bossa'),' (bossa nova feel, two-key form, accessible), ',e('b',null,'Fly Me to the Moon'),' (clear changes in one key, beautiful melody), or any ',e('b',null,'jazz blues'),' ("Now\'s the Time," "Billie\'s Bounce").',
+     body:['This is what the whole path built toward. Pick one standard and play it all the way through — changes, form, in time. Suggested starting points: ',e('b',null,'Autumn Leaves'),' (major and minor ii–V–Is back to back, most-studied), ',e('b',null,'Blue Bossa'),' (16-bar bossa nova feel, key modulation — in the Play tab), ',e('b',null,'Stella by Starlight'),' (three ii–V–I chains through different keys — in the Play tab), or ',e('b',null,'Fly Me to the Moon'),' (clear changes in one key, beautiful melody).',
            e('div',{style:{marginTop:12,marginBottom:4,fontWeight:700,fontSize:'0.9rem'}},'▸ Autumn Leaves — first 8 bars (G minor, shell voicings)'),
            e('div',{style:{fontSize:'0.8rem',color:'var(--hint)',marginBottom:8}},'Two ii–V–Is back to back — everything you\'ve practiced is in these 8 bars.'),
            e('div',{style:{overflowX:'auto'}},
@@ -4022,12 +4035,33 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
                      e('td',{style:{padding:'5px 8px',color:'var(--txt)'}},shape),
                      e('td',{style:{padding:'5px 8px',color:'var(--hint)',fontSize:'0.74rem'}},role)))))),
            e('div',{style:{marginTop:10,fontSize:'0.8rem',color:'var(--hint)',lineHeight:1.5}},'You\'ve played these ii–V–Is dozens of times in the Play tab — Autumn Leaves is just two of them chained together in a 32-bar form. The moment they connect to a real melody is the moment everything clicks.'),
+           e('div',{style:{marginTop:14,marginBottom:4,fontWeight:700,fontSize:'0.9rem'}},'▸ Blue Bossa — watch the key change (bar 9)'),
+           e('div',{style:{fontSize:'0.8rem',color:'var(--hint)',marginBottom:8}},'Set key to C in the Play tab. Bars 1–8 are C minor. At bar 9 the harmony shifts to D♭ major for 4 bars — you\'re playing a ii–V–I in a completely different key center. Bar 13 returns to the C minor ii–V–i. That modulation is the whole lesson: recognizing when the key changes and landing the new chords cleanly.'),
+           e('div',{style:{overflowX:'auto',marginBottom:10}},
+             e('table',{style:{borderCollapse:'collapse',width:'100%',fontSize:'0.78rem',fontFamily:'var(--ui-font)'}},
+               e('thead',null,e('tr',null,
+                 e('th',{style:{padding:'4px 8px',textAlign:'left',borderBottom:'1px solid var(--border)',color:'var(--hint)',fontWeight:600}},'Bars'),
+                 e('th',{style:{padding:'4px 8px',textAlign:'left',borderBottom:'1px solid var(--border)',color:'var(--hint)',fontWeight:600}},'Key center'),
+                 e('th',{style:{padding:'4px 8px',textAlign:'left',borderBottom:'1px solid var(--border)',color:'var(--hint)',fontWeight:600}},'Changes'),
+                 e('th',{style:{padding:'4px 8px',textAlign:'left',borderBottom:'1px solid var(--border)',color:'var(--hint)',fontWeight:600}},'What to do'))),
+               e('tbody',null,...[
+                 ['1–8','C minor','im7 – ivm7 – iiø7–V7 – im7','Stay in C minor; land the minor ii–V–i solidly'],
+                 ['9–12','D♭ major','♭IIIm7 – ♭VI7 – ♭IImaj7','New key center — hear the brightness shift'],
+                 ['13–16','C minor','iiø7 – V7 – im7','Return home; the minor ii–V–i closes the form'],
+               ].map(([bars,key,changes,tip],i)=>
+                 e('tr',{key:i,style:{background:i%2===0?'var(--bg2)':'transparent'}},
+                   e('td',{style:{padding:'5px 8px',color:'var(--hint)'}},bars),
+                   e('td',{style:{padding:'5px 8px',fontWeight:700}},key),
+                   e('td',{style:{padding:'5px 8px',color:'var(--txt)'}},changes),
+                   e('td',{style:{padding:'5px 8px',color:'var(--hint)',fontSize:'0.74rem'}},tip)))))),
+           e('div',{style:{marginTop:14,marginBottom:4,fontWeight:700,fontSize:'0.9rem'}},'▸ Stella by Starlight — three key centers'),
+           e('div',{style:{fontSize:'0.8rem',color:'var(--hint)',marginBottom:8}},'Set key to B♭. The opening Em7♭5–A7 is a ii–V of D that doesn\'t resolve to D — it dissolves into Cm7–F7 instead, which is the harmonic ambiguity that defines the tune. After that, three ii–V–I chains shift the key center: vm7–I7 to E♭maj7 (key of E♭), then Am7♭5–D7 to Gmaj7 (key of G), then iim7–V7 to B♭maj7 home. Every ii–V you\'ve practiced is in here — Stella just moves through all of them back to back.'),
            e('div',{style:{marginTop:14,padding:'10px 12px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,fontSize:'0.82rem',lineHeight:1.5}},[
              e('b',null,'Use iReal Pro for backing tracks. '),'It\'s a separate app ($21.99, the jazz musician\'s standard tool) with 3,000+ chord charts and playable backing tracks. Jazz Guitar Lab teaches the harmony — iReal Pro is where you apply it to real tunes. Get it, search "Autumn Leaves," set the tempo to 80 BPM, and ',term('comp','comp'),' through the changes (play the chords in time through the progression) with what you\'ve learned here. These two apps are designed to work together.',
              e('div',{style:{marginTop:6,fontSize:'0.76rem',color:'var(--hint)'}},'Search "iReal Pro" on the App Store, or find charts at ',e('span',{style:{textDecoration:'underline',color:'var(--txt)'}},'irealpro.com'),' and ',e('span',{style:{textDecoration:'underline',color:'var(--txt)'}},'jazzstandards.com'),'.')
            ]),
            'What comes after: Drop 3 and Rootless voicings add harmonic depth (Pro). Chord melody (playing the tune inside the chords), reharmonization (re-coloring the chords under a melody), and playing with other humans are the next frontiers. Finding a musician to play with is the single most accelerating thing you can do from here.'],
-     items:['Open iReal Pro (or jazzstandards.com) and find Autumn Leaves — look at the changes and map every chord to a shell voicing you know','Play bars 1–4 only at 60 BPM until the two-bar major ii–V–I resolves cleanly to Bbmaj7','Play bars 5–8 at 60 BPM — the minor ii–V–I to Gm. Notice how Am7♭5 has a different pull than Am7','Play all 8 bars without stopping — you\'ve already practiced every chord in this sequence','[Pro] Upgrade to Drop 2 for the whole 8 bars, then the full 32-bar form','Play it in one other key']},
+     items:['Open iReal Pro (or jazzstandards.com) and find Autumn Leaves — look at the changes and map every chord to a shell voicing you know','Play bars 1–4 only at 60 BPM until the two-bar major ii–V–I resolves cleanly to Bbmaj7','Play bars 5–8 at 60 BPM — the minor ii–V–I to Gm. Notice how Am7♭5 has a different pull than Am7','Play all 8 bars without stopping — you\'ve already practiced every chord in this sequence','[Pro] Open BLUE BOSSA in the Play tab (key C, 70 BPM) — play bars 1–8, then let bar 9 arrive and notice the key shift to D♭','[Pro] Open STELLA in the Play tab (key B♭, 65 BPM) — name each key center as the ii–V–I chains arrive: E♭, G, B♭','[Pro] Upgrade to Drop 2 for any standard once the shells are solid','Play your chosen standard in one other key']},
   ];
   const doneCount=stages.filter(s=>done[s.id]).length;
   const allDone=stages.length>0&&doneCount===stages.length;
@@ -4394,7 +4428,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
         e('span',null,e('b',null,'Pat Metheny'),' — lyrical modern jazz, strong melodic sense, bridges many styles'),
         e('span',null,e('b',null,'Kurt Rosenwinkel'),' — modern harmony, complex extensions, guitar-forward compositional thinking')
       ),
-      p('Start with a standard: ',e('b',{style:HL},'Autumn Leaves'),' (minor and major ii–V–is back to back — the most-studied standard for a reason), ',e('b',{style:HL},'All The Things You Are'),' (moves through many keys, teaches transposition), or ',e('b',{style:HL},'There Will Never Be Another You'),' (clear changes, medium tempo, beautiful melody). Learn the melody first, then comp through the chords, then listen to recordings and try to identify what you\'re hearing.')
+      p('Start with a standard: ',e('b',{style:HL},'Autumn Leaves'),' (minor and major ii–V–is back to back — most-studied for a reason), ',e('b',{style:HL},'Blue Bossa'),' (16-bar bossa, modulates to D♭ — accessible and satisfying), ',e('b',{style:HL},'Stella by Starlight'),' (three ii–V–I chains through E♭, G, and B♭ — the key-hopping tune every player studies), or ',e('b',{style:HL},'All The Things You Are'),' (moves through many keys, teaches transposition). Learn the melody first, then comp through the chords, then listen to recordings and try to identify what you\'re hearing.')
     )
   );
 }
