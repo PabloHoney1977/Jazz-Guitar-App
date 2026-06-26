@@ -72,6 +72,7 @@ Steps completed and still needed to ship:
 - Guitar samples from `nbrosowsky` CDN, pre-fetched as ArrayBuffers on load
 - `playGuitarNote(ctx, midi, startTime, sustainSecs, vol)` — biquad EQ chain for jazz tone (warmth boost 180Hz, presence cut 2200Hz, hi-shelf cut 3500Hz)
 - `playGuitarChord(ctx, midiNotes, startTime, sustainSecs, vol, strum)` — stagger per string, volume taper
+- `playChordPreview(voicing, strings)` — module-level tap-to-preview helper (own `_getPreviewCtx`, independent of the Play tab's `audioCtxRef`). Used by `ChordBox` taps, the Diatonic chord cards, and the Build a Chord Root/Type/Extension selectors (via `previewSelection` in `CustomChordView`). Selector handlers compute tones from the passed args, NOT state — `setState` is async so derived `tones` lag a render. Always previews a shell voicing for consistency.
 - `pickStrum(isStab)` — probabilistic strum direction/speed
 - Bass: Web Audio API synthesis with `bLowBoost`, `bThump`, `bMidCut`, `bHiCut` filter chain
 - Ride cymbal: pre-rendered via `OfflineAudioContext`
@@ -84,6 +85,7 @@ Steps completed and still needed to ship:
 - `e()` = `React.createElement` alias used throughout
 - `localStorage` keys: `jg-path` (guide done), `jg-streak`, `jg-last-practice`, `jg-play-sessions`, `jg-level`, `jg-trial-start` (7-day Pro trial start date), `jg-key`, `jg-bpm`, `jg-form`, `jg-toured`, etc.
 - `SCALE_HINTS` has dom7 with 4 options including Phrygian Dom
+- **Fretboard display invariant:** `NeckSVG` only draws 15 frets (`NF=15`), so `calcVoicing` must never return a shape whose max fret exceeds 15 — anything higher renders as a dot floating off the right edge of the neck. When a computed voicing lands above fret 15, `calcVoicing` drops it an octave (even if that introduces an open string or a low-position stretch `spanOK` would otherwise reject) to keep all dots on the board.
 - Essentials tier: shell voicings only, major II-V-I only, melodic intervals (consonant) only in ear training, first 4 chord types in Any Chord; gated features show 🔒 badges that trigger UpgradeSheet
 - Pro tier: all voicings, all play forms, all ear training modes, all chord types
 - **iOS Safari SVG repaint gotcha:** SVG elements that use a `filter` (e.g. the `url(#ng)` blur/glow on NeckSVG highlight dots) do NOT visually repaint on iOS Safari/WebKit when React updates their attributes — they stay stale until a user gesture forces a reflow. This caused the "Keys page chords don't update until I tap them" bug. Fix is to force a GPU compositing layer on the affected `<svg>` via `style:{transform:'translateZ(0)',WebkitTransform:'translateZ(0)'}`. Chromium does not reproduce this — only real iOS Safari does, so it can't be caught by the headless Playwright smoke tests. Apply the same `translateZ(0)` hint to any new filtered SVG that re-renders on state change.
