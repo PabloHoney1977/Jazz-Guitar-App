@@ -3486,7 +3486,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
 // ── CustomChordView ───────────────────────────────────────────────────
 // Reuses the same voicing UI as the diatonic view. Receives the active
 // chord data as props and renders controls + neck + chord boxes.
-function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey,vType,setVType,onUpgrade}){
+function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey,vType,setVType,onUpgrade,ssIdx,setSsIdx,invIdx,setInvIdx,shellIdx,setShellIdx}){
   dotMode=dotMode||'interval';
   const isEss=level==='essentials';
   const [detectMode,setDetectMode]=useState(false);
@@ -3494,15 +3494,24 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   const [completionChord,setCompletionChord]=useState(null);
   const detectFretPos=5; // how many frets shown at once
   const [fretOffset,setFretOffset]=useState(0);
-  const [ssIdx,setSsIdx]=useState(2);
-  const [invIdx,setInvIdx]=useState(0);
-  const [shellIdx,setShellIdx]=useState(0);
+  // ssIdx / invIdx / shellIdx are lifted to App state (shared with the Keys
+  // view) so the chosen voicing — string set, inversion, shell shape —
+  // survives switching between Any Chord and Keys via "In a key ↗" /
+  // "Explore ↗". The index tables (DROP_DATA, D2_INV, SHELLS) are identical
+  // across both views, so the values transfer directly.
   const [extOpt,setExtOpt]=useState(null); // active extension id or null
+  const typeChangeMount=useRef(false); // skip the reset-on-mount run
+  const shellResetMount=useRef(false);
   useEffect(()=>{
     if(isEss&&(vType==='drop3'||vType==='drop24'||vType==='drop23'||vType==='drop2'))setVType('shell');
     if(isEss)setExtOpt(null);
   },[level]);
-  useEffect(()=>{setExtOpt(null);setInvIdx(0);setScaleHintCustom(null);},[customTypeIdx,customRoot]);
+  useEffect(()=>{
+    // Skip the mount run so a voicing carried in from the Keys view (via
+    // "Explore ↗") isn't reset; only reset when the user picks a new chord here.
+    if(!typeChangeMount.current){typeChangeMount.current=true;return;}
+    setExtOpt(null);setInvIdx(0);setScaleHintCustom(null);
+  },[customTypeIdx,customRoot]);
 
   const [scaleHintCustom,setScaleHintCustom]=useState(null);
   const scaleHintQKey={'maj7':'maj7','m7':'m7','dom7':'dom7','m7b5':'m7b5','maj9':'maj7','m9':'m7','dom9':'dom7','7alt':'dom7','7b9':'dom7','9sus':'dom7'};
@@ -3553,7 +3562,13 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     const vs=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,1));
     const f=vs.findIndex(v=>v!==null); return f>=0?f:0;
   },[tones]);
-  useEffect(()=>{if(vType==='shell') setShellIdx(firstValidShell);},[firstValidShell,vType]);
+  useEffect(()=>{
+    // Skip the mount run so a shell shape carried in from the Keys view isn't
+    // snapped back to the first playable one; safeShellIdx still guards an
+    // index that's invalid for the current chord.
+    if(!shellResetMount.current){shellResetMount.current=true;return;}
+    if(vType==='shell') setShellIdx(firstValidShell);
+  },[firstValidShell,vType]);
   const safeShellIdx=allVoicings[shellIdx]?shellIdx:firstValidShell;
   const selIdx=vType==='shell'?safeShellIdx:invIdx;
 
@@ -3777,7 +3792,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       ),
       onFindInKey&&customTypeIdx<4?e('button',{'data-tour':'custom-inkey',
         onClick:()=>onFindInKey(customRoot,customTypeIdx),
-        title:'Find this chord in the diatonic key map — see which key it belongs to and at what position',
+        title:'Open this chord in a key — keeps your voicing (string set & inversion). The key map covers the seven 7th chords, so any extension shows as its base 7th.',
         style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
           fontSize:'0.7rem',border:'1px solid '+BTN_BRD,background:'transparent',
           color:BTN_OFF,minHeight:0,flexShrink:0,whiteSpace:'nowrap'}
@@ -4856,6 +4871,8 @@ function App(){
     if(!quality) return;
     // Carry the voicing style across so Chords ↔ Keys stay consistent.
     // m7b5 has no Rootless tab in Keys, but Chords can't be Rootless anyway.
+    // String set / inversion / shell index are shared App state, so they
+    // carry over automatically — no need to copy them here.
     setVType(customVType);
     // Prefer current key — search its degrees first
     for(let d=0;d<7;d++){
@@ -5046,7 +5063,7 @@ function App(){
       }}):null,
 
     // ── CUSTOM CHORD VIEW ────────────────────────────────────────────
-    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level:effectiveLevel,dotMode,setDotMode,onFindInKey:findInKey,vType:customVType,setVType:setCustomVType,onUpgrade:showUpgrade}):null,
+    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level:effectiveLevel,dotMode,setDotMode,onFindInKey:findInKey,vType:customVType,setVType:setCustomVType,onUpgrade:showUpgrade,ssIdx,setSsIdx,invIdx,setInvIdx,shellIdx,setShellIdx}):null,
 
     // ── GUIDE / PATH VIEW ────────────────────────────────────────────
     viewMode==='guide'?e(GuideView,{openPreset,level:effectiveLevel,streak,lastPracticeDay,bestStreak,onUpgrade:showUpgrade,onPracticed:markPracticed}):null,
@@ -5116,7 +5133,7 @@ function App(){
             setCustomVType(cv);
             setViewMode('custom');window.scrollTo(0,0);
           },
-          title:'Open this chord in the Chord Explorer — extensions, voicing types, and key lookup',
+          title:'Open this chord in the Chord Explorer — keeps your voicing (string set & inversion); add extensions, change voicing type, or look up another key.',
           style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
             fontSize:'0.7rem',border:'1px solid '+BTN_BRD,background:'transparent',
             color:BTN_OFF,minHeight:0,flexShrink:0,whiteSpace:'nowrap'}
