@@ -5,7 +5,7 @@
 - When making a fix, always commit it without being asked — only skip committing if explicitly told not to.
 - After committing, always push to the appropriate branch immediately — do not wait to be asked.
 - The app is served from `main`; always ensure finished work lands on `main` and is pushed. Merge finished fixes into `main` automatically without asking each time (commit on a feature branch, then merge to `main` and push).
-- **Remote-env git quirk:** the fresh container sometimes clones a stale local `main` (a 2-commit unrelated history) instead of the real `origin/main`. Before merging a feature branch into `main`, run `git fetch origin main` then `git reset --hard origin/main` first — otherwise the merge fails with "refusing to merge unrelated histories." Also `git fetch origin main` again right before pushing, since other sessions push to `main` concurrently (expect to merge `origin/main` before `git push` succeeds).
+- **Git gotcha (remote-env quirk):** the fresh container clones a stray local `main` with unrelated history (just "Initial commit" / "Improve readability") — do NOT base work on it. The real served main is `origin/main`. A plain `git merge` of a feature branch into local main fails with "refusing to merge unrelated histories". To land work on main: `git fetch origin main`, then `git checkout -B main origin/main` (or `git reset --hard origin/main`), then bring in the fix (`git cherry-pick <fix-commit>` applies cleanly), then `git push origin main`. Other sessions push to `main` concurrently, so `git fetch origin main` again right before pushing and expect to merge `origin/main` before `git push` succeeds.
 
 ## Big Picture Goal
 Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitarists who want to learn jazz harmony. Monetization: **free download** (Essentials tier) with a **$9.99 one-time IAP** to unlock Pro. No subscription.
@@ -47,17 +47,18 @@ Steps completed and still needed to ship:
 ## What's Built (current `app.js` features)
 - **5 nav tabs:** Guide, Chords (Diatonic), Any Chord (Custom), Play (II-V-I), Ear Training
 - **Freemium paywall:** `UpgradeSheet` bottom sheet triggered by 🔒 lock badges on gated features. `showUpgrade(feature)` / `doUpgrade()` in App. Currently calls `setLevel('pro')` directly — TODO: wire to RevenueCat/StoreKit IAP. Pro ✦ chip in header (tap to revert to Essentials for testing).
+- **7-day Pro trial ("taste of Pro"):** `UpgradeSheet` shows a "Try Pro free for 7 days" secondary button, only when no trial started yet. Stored as `jg-trial-start` (date string). `trialActive` is computed from that date (<7 days). KEY ARCHITECTURE: `effectiveLevel = (level==='essentials' && trialActive) ? 'pro' : level` is what gets passed to ALL four child views (Guide, Play, Keys/CustomChord, Train) and drives `isEss`. The purchased `level`/`jg-level` is NEVER set to 'pro' during a trial — only `effectiveLevel` lifts gates, so an expired trial cleanly reverts without a stale 'pro' confusing future IAP wiring. Header shows "Trial ✦" (vs "Pro ✦"); tap toggles `trialActive` off to preview Essentials. When trial expired, `UpgradeSheet` shows "Your free trial has ended" copy. `trial.started` tracked via PostHog.
 - **First-time onboarding:** Brand-new users (no `jg-viewMode` saved, no `jg-path` progress) land on the Guide tab. Returning users go straight to their last view. Logic in `viewMode` useState init.
 - **Guide tab:** 16 ordered learning stages with expandable content, tappable checklist items (persisted to `jg-path-items`), resume card, phase labels, links to live presets
 - **Chords tab:** All 7 diatonic chords in any key, shell/drop2/drop3/rootless voicings, scale overlay, guide tones, fingering numbers
-- **Any Chord tab:** All chord types including extensions, find-in-key, custom root picker
+- **Any Chord tab:** All chord types including extensions, find-in-key, custom root picker. Two modes: **Build a Chord** (pick root + type, see voicings on neck) and **Find Chord** (Pro — tap notes on fretboard to identify chord). Find Chord: exact matches show chord name + "open ↗" to jump to Build a Chord; incomplete matches are clickable and highlight missing chord tones as blue dashed dots on the fretboard so you can tap them to complete the voicing.
 - **Play tab (IIVIView):** Backing track with walking bass, ride cymbal, jazz guitar comping. Forms: major/minor II-V-I, jazz blues, I-VI-ii-V turnaround, tritone sub, sec. dom., custom. Standards (Pro): Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You. Swing feel, variable BPM (35–150). Voice leading, pinned chords, bar-level voicing override.
 - **Ear Training tab:** Interval recognition (melodic + harmonic), triads, 7th chords, cadence recognition (II-V, V-I, II-V-I, I-VI, iv-I). Essentials: consonant intervals (melodic) only, single "3 more modes 🔒" upgrade CTA (not individual per-tab badges). Pro: all 12 intervals + harmonic mode + triads + 7th chords + cadences. Nav row uses ← ♪ → circle buttons (always in viewport, no scroll needed).
 - **Two-tier tour system:** App overview tour (5 steps across nav tabs) + per-page contextual tour for each tab
 - **Streak tracking:** 🔥 Xd badge in header. Fires when Play tab session starts OR first Ear Training answer. Resets if day is skipped. `playSessions` counted in localStorage. Push notification reminders deferred to Capacitor build.
 - **Streak milestones:** Celebration card slides up at days 3, 7, 14, 30. Auto-dismisses at 5.4s. Tap to dismiss early. `streakMilestone` state, `STREAK_MILESTONES=[3,7,14,30]`, `milestoneUp` CSS animation in index.html. Days 7 and 30 show an inline upgrade nudge for essentials users.
 - **CRO upgrade CTAs:** Guide Stage 16 ("standard") shows a gold upgrade card before "I've got this" (essentials only). Guide allDone graduation card has an Unlock Pro button (essentials only).
-- **Analytics:** PostHog CDN snippet in `index.html` with `__POSTHOG_KEY__` placeholder (no-ops until key is set — user must replace after signing up at posthog.com). `track(event, props)` helper in `app.js`. Events tracked: `app.loaded`, `paywall.shown {feature}`, `upgrade.completed {feature}`, `guide.stage.completed {stage_id}`, `streak.milestone {days, level}`.
+- **Analytics:** PostHog CDN snippet in `index.html` with `__POSTHOG_KEY__` placeholder (no-ops until key is set — user must replace after signing up at posthog.com). `track(event, props)` helper in `app.js`. Events tracked: `app.loaded`, `paywall.shown {feature}`, `upgrade.completed {feature}`, `trial.started`, `guide.stage.completed {stage_id}`, `streak.milestone {days, level}`.
 - **Dark/light theme toggle**
 - **Bluetooth page-turner pedal support** (AirTurn / PageFlip keyboard events)
 - **PWA:** `manifest.json` + `sw.js` service worker for offline caching
@@ -81,7 +82,7 @@ Steps completed and still needed to ship:
 - CSS variables in `index.html` for dark/light theme
 - Tonal center colors: `TC = ['#FF6B6B','#4ECDC4','#74C0FC','#FFD43B']` (Root, 3rd, 5th, 7th) — teal restricted to chord-tone contexts only
 - `e()` = `React.createElement` alias used throughout
-- `localStorage` keys: `jg-path` (guide done), `jg-streak`, `jg-last-practice`, `jg-play-sessions`, `jg-level`, `jg-key`, `jg-bpm`, `jg-form`, `jg-toured`, etc.
+- `localStorage` keys: `jg-path` (guide done), `jg-streak`, `jg-last-practice`, `jg-play-sessions`, `jg-level`, `jg-trial-start` (7-day Pro trial start date), `jg-key`, `jg-bpm`, `jg-form`, `jg-toured`, etc.
 - `SCALE_HINTS` has dom7 with 4 options including Phrygian Dom
 - Essentials tier: shell voicings only, major II-V-I only, melodic intervals (consonant) only in ear training, first 4 chord types in Any Chord; gated features show 🔒 badges that trigger UpgradeSheet
 - Pro tier: all voicings, all play forms, all ear training modes, all chord types
@@ -97,7 +98,7 @@ Steps completed and still needed to ship:
 
 ## Pending / Next Session Priorities
 1. **PostHog key** — user action: sign up at posthog.com, create project, replace `__POSTHOG_KEY__` in `index.html` with the real API key. Once live, paywall funnel (paywall.shown → upgrade.completed) will be visible.
-2. **IAP implementation** — Replace `setLevel('pro')` in `doUpgrade()` with RevenueCat/StoreKit purchase call. Product ID: `pro_unlock`. Use `@capacitor/purchases` or RevenueCat SDK.
+2. **IAP implementation** — Replace `setLevel('pro')` in `doUpgrade()` with RevenueCat/StoreKit purchase call. Product ID: `pro_unlock`. Use `@capacitor/purchases` or RevenueCat SDK. NOTE: the 7-day trial is currently honor-system / client-side only (`jg-trial-start` in localStorage — a savvy user could reset it). Fine for launch; if abuse shows up, gate the trial server-side or via StoreKit's intro-offer / free-trial mechanism.
 3. **App Store assets** — app icon in all required sizes, screenshots, store description copywriting
 4. **Apple Developer enrollment** — user action required, $99, developer.apple.com. Also enroll in Small Business Program (15% cut → ~$8.49 net per sale).
 5. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`

@@ -48,6 +48,8 @@
       /* chord-tone dim fills for arpPos dots — semi-transparent in dark mode */
       --tc-dim-0: #FF6B6B55; --tc-dim-1: #4ECDC455;
       --tc-dim-2: #74C0FC55; --tc-dim-3: #FFD43B55;
+      /* LedToggle label text — bright pastels read fine on the dark bg */
+      --led-bass-fg: #74C0FC; --led-guitar-fg: #86EFAC; --led-ride-fg: #FFD43B;
     }
     :root[data-theme="light"] {
       --bg: #f5f5fa; --bg2: #eaeaf5; --brd: #b8b8d8;
@@ -72,6 +74,9 @@
       --tc-dim-1: rgba(15,148,138,0.82); /* 3rd:  dark teal  */
       --tc-dim-2: rgba(30,108,195,0.82); /* 5th:  dark blue  */
       --tc-dim-3: rgba(172,108,0,0.85);  /* 7th:  dark amber */
+      /* LedToggle label text — darkened so it stays legible on the light bg
+         (the bright pastels failed contrast — see screenshot report) */
+      --led-bass-fg: #1971c2; --led-guitar-fg: #2b8a3e; --led-ride-fg: #8a6d00;
     }
 
     body {
