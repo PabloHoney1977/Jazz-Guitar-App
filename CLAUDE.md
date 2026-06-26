@@ -70,6 +70,7 @@ Steps completed and still needed to ship:
 - Guitar samples from `nbrosowsky` CDN, pre-fetched as ArrayBuffers on load
 - `playGuitarNote(ctx, midi, startTime, sustainSecs, vol)` — biquad EQ chain for jazz tone (warmth boost 180Hz, presence cut 2200Hz, hi-shelf cut 3500Hz)
 - `playGuitarChord(ctx, midiNotes, startTime, sustainSecs, vol, strum)` — stagger per string, volume taper
+- `playChordPreview(voicing, strings)` — module-level tap-to-preview helper (own `_getPreviewCtx`, independent of the Play tab's `audioCtxRef`). Used by `ChordBox` taps, the Diatonic chord cards, and the Build a Chord Root/Type/Extension selectors (via `previewSelection` in `CustomChordView`). Selector handlers compute tones from the passed args, NOT state — `setState` is async so derived `tones` lag a render. Always previews a shell voicing for consistency.
 - `pickStrum(isStab)` — probabilistic strum direction/speed
 - Bass: Web Audio API synthesis with `bLowBoost`, `bThump`, `bMidCut`, `bHiCut` filter chain
 - Ride cymbal: pre-rendered via `OfflineAudioContext`
