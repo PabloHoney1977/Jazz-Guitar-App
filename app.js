@@ -3432,6 +3432,22 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   // Build chord name using enharmonic spelling matching the root (Ab not G#, Bb not A#)
   const chordName=nn(customRoot,customRoot)+baseType.sym+(extDef?extDef.sym:'');
 
+  // Audio preview for the root/type/extension selectors — mirrors the diatonic
+  // chord cards, which play a shell voicing on tap. Computed from the passed
+  // values (not state) since setState is async and tones lag a render behind.
+  const previewSelection=(root,typeIdx,extId)=>{
+    try{
+      const bt=EXT_TYPES[typeIdx];if(!bt) return;
+      const exts=CHORD_EXTS[typeIdx]||[];
+      const ed=extId?exts.find(x=>x.id===extId):null;
+      const iv=ed?bt.iv.map((x,i)=>i===2?ed.tone:x):bt.iv;
+      const tns=iv.map(i=>(root+i)%12);
+      const vs=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tns,1));
+      const vi=vs.findIndex(v=>v!==null);
+      if(vi>=0)playChordPreview(vs[vi],SHELLS[vi].s);
+    }catch(ex){}
+  };
+
   const dropD=DROP_DATA[vType]||DROP_DATA.drop2;
   const invData=dropD.inv, setsData=dropD.sets;
   const safeSSIdx=Math.min(ssIdx,setsData.length-1);
@@ -3588,7 +3604,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         e('div',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',marginBottom:6,fontWeight:600}},'Root'),
         e('div',{style:{display:'flex',flexWrap:'wrap',gap:3}},
           KEYS.map((k,i)=>
-            e('button',{key:i,onClick:()=>{setCustomRoot(k.root);setInvIdx(0);},style:{
+            e('button',{key:i,onClick:()=>{setCustomRoot(k.root);setInvIdx(0);previewSelection(k.root,customTypeIdx,extOpt);},style:{
               padding:'4px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
               border:'1px solid '+(customRoot===k.root?GOLD:BTN_BRD),
               background:customRoot===k.root?ACT_GOLD:BG2,
@@ -3602,7 +3618,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         e('div',{'data-tour':'chord-type-tabs',style:{display:'flex',flexWrap:'wrap',gap:3,marginBottom:4}},
           EXT_TYPES.map((t,i)=>{
             const locked=isEss&&i>=4;
-            return e('button',{key:i,onClick:locked?()=>onUpgrade(t.sym+' chords'):()=>{setCustomTypeIdx(i);setInvIdx(0);},style:{
+            return e('button',{key:i,onClick:locked?()=>onUpgrade(t.sym+' chords'):()=>{setCustomTypeIdx(i);setInvIdx(0);previewSelection(customRoot,i,null);},style:{
               padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
               border:'1px solid '+(customTypeIdx===i?'#C084FC':BTN_BRD),
               background:customTypeIdx===i?ACT_PUR:BG2,
@@ -3629,7 +3645,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     availExts.length>0&&!isEss?e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12,alignItems:'center'}},
       e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Extension'),
       availExts.map(ex=>
-        e('button',{key:ex.id,onClick:()=>setExtOpt(extOpt===ex.id?null:ex.id),style:{
+        e('button',{key:ex.id,onClick:()=>{const ne=extOpt===ex.id?null:ex.id;setExtOpt(ne);previewSelection(customRoot,customTypeIdx,ne);},style:{
           padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
           border:'1px solid '+(extOpt===ex.id?'#F4A261':BTN_BRD),
           background:extOpt===ex.id?ACT_GOLD:BG2,
