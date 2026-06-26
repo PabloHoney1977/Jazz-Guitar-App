@@ -81,6 +81,7 @@ Steps completed and still needed to ship:
 - `e()` = `React.createElement` alias used throughout
 - `localStorage` keys: `jg-path` (guide done), `jg-streak`, `jg-last-practice`, `jg-play-sessions`, `jg-level`, `jg-key`, `jg-bpm`, `jg-form`, `jg-toured`, etc.
 - `SCALE_HINTS` has dom7 with 4 options including Phrygian Dom
+- Unplayable voicings (Chords + Any Chord tabs): `calcVoicing` returns null when a drop voicing needs a wider-than-hand stretch. Handled in 3 layers — (1) a `playableSets` memo flags which string sets yield a shape for the current chord; (2) an effect auto-snaps `ssIdx` away from a dead set to `firstPlayableSet`; (3) dead string-set buttons are disabled/grayed (not removed — keeps layout stable), and when `noDropShape` (no set works at all) the neck is hidden and the full-width `NoShapes` notice shows. Shells/rootless already auto-jump via `firstValidShell`/`firstValidRl`. Don't "fix" the empty fretboard by removing options — disable, don't delete.
 - Essentials tier: shell voicings only, major II-V-I only, melodic intervals (consonant) only in ear training, first 4 chord types in Any Chord; gated features show 🔒 badges that trigger UpgradeSheet
 - Pro tier: all voicings, all play forms, all ear training modes, all chord types
 
