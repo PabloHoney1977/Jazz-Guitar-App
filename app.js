@@ -1527,30 +1527,43 @@ function TourOverlay({steps,step,onNext,onSkip}){
   const s=steps[step];
   useEffect(()=>{
     if(!s){setRect(null);return;}
+    let pollActive=true;
+    let pollRafId=null;
+    let eventRafId=null;
     function measure(){
       const el=document.querySelector('[data-tour="'+s.target+'"]');
-      if(el){const r=el.getBoundingClientRect();setRect({top:r.top,left:r.left,w:r.width,h:r.height});}
-      else setRect(null);
+      if(el){
+        const r=el.getBoundingClientRect();
+        setRect(prev=>{
+          if(prev&&Math.abs(prev.top-r.top)<0.5&&Math.abs(prev.left-r.left)<0.5
+            &&Math.abs(prev.w-r.width)<0.5&&Math.abs(prev.h-r.height)<0.5) return prev;
+          return {top:r.top,left:r.left,w:r.width,h:r.height};
+        });
+      } else setRect(null);
       return !!el;
     }
-    // Immediate attempt; if target isn't in DOM yet (view just switched),
-    // retry at 150ms and 350ms to let React finish rendering the new view.
+    // Poll every frame for 2s to catch iOS address-bar / Shared-with-You banner
+    // collapse and any late layout shifts. Separate rAF chain so events below
+    // don't accidentally cancel the poll loop.
+    function poll(){if(!pollActive) return; measure(); pollRafId=requestAnimationFrame(poll);}
+    pollRafId=requestAnimationFrame(poll);
+    const stopPoll=setTimeout(()=>{pollActive=false;},2000);
+    // After the poll window, events keep the rect current. window.resize catches
+    // browser-chrome changes (address bar, iOS Shared-with-You banner, keyboard)
+    // that visualViewport.resize might not fire for.
     const vv=window.visualViewport;
-    if(!measure()){
-      let t2=null;
-      const t1=setTimeout(()=>{if(!measure()) t2=setTimeout(measure,200);},150);
-      const raf=requestAnimationFrame(measure);
-      window.addEventListener('scroll',measure,{passive:true});
-      vv&&vv.addEventListener('resize',measure);vv&&vv.addEventListener('scroll',measure);
-      return ()=>{cancelAnimationFrame(raf);clearTimeout(t1);clearTimeout(t2);window.removeEventListener('scroll',measure);
-        vv&&vv.removeEventListener('resize',measure);vv&&vv.removeEventListener('scroll',measure);};
-    }
-    // Element found — skip the rAF re-measure (fires post-paint and causes a visual jump);
-    // scroll/resize listeners are sufficient for tracking real layout changes.
-    window.addEventListener('scroll',measure,{passive:true});
-    vv&&vv.addEventListener('resize',measure);vv&&vv.addEventListener('scroll',measure);
-    return ()=>{window.removeEventListener('scroll',measure);
-      vv&&vv.removeEventListener('resize',measure);vv&&vv.removeEventListener('scroll',measure);};
+    function onEvent(){cancelAnimationFrame(eventRafId); eventRafId=requestAnimationFrame(measure);}
+    window.addEventListener('scroll',onEvent,{passive:true});
+    window.addEventListener('resize',onEvent);
+    vv&&vv.addEventListener('resize',onEvent); vv&&vv.addEventListener('scroll',onEvent);
+    return ()=>{
+      pollActive=false;
+      cancelAnimationFrame(pollRafId); cancelAnimationFrame(eventRafId);
+      clearTimeout(stopPoll);
+      window.removeEventListener('scroll',onEvent);
+      window.removeEventListener('resize',onEvent);
+      vv&&vv.removeEventListener('resize',onEvent); vv&&vv.removeEventListener('scroll',onEvent);
+    };
   },[step,s&&s.target]);
 
   if(!s) return null;
