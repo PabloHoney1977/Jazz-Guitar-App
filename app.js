@@ -923,6 +923,8 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const [ivalTier,setIvalTier]=useState(()=>{const v=parseInt(safeLS('jg-ear-ival-tier','1'),10);return v>=1&&v<=3?v:1;});
   useEffect(()=>{safeLSSet('jg-ear-ival-tier',String(ivalTier));},[ivalTier]);
   const [autoMode,setAutoMode]=useState(false);
+  // Back-navigation history: snapshots of prior rounds so ← steps to the previous question
+  const historyRef=useRef([]);
   const autoTimerRef=useRef(null);
   const autoTimer2Ref=useRef(null);
   const bestVoiceRef=useRef(null);
@@ -1067,12 +1069,41 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
       });
     }catch(ex){}
   }
+  // Play the sound for an arbitrary round snapshot (used by replay + back navigation)
+  function playRound(r){
+    if(!r||!r.current) return;
+    if(r.mode==='intervals') playInterval(r.current.root,r.current.semitones,!!r.harmonic);
+    else if(r.mode==='triads') playTriad(r.current.root,r.current.quality);
+    else if(r.mode==='cadences') playCadence(r.current.root,r.current.cadence);
+    else playChord(r.current.root,r.current.quality);
+  }
   function replayCurrent(){
     if(!current) return;
-    if(mode==='intervals') playInterval(current.root,current.semitones,harmonic);
-    else if(mode==='triads') playTriad(current.root,current.quality);
-    else if(mode==='cadences') playCadence(current.root,current.cadence);
-    else playChord(current.root,current.quality);
+    playRound({mode,current,harmonic});
+  }
+  // Push the current round onto the back-history stack (bounded)
+  function pushHistory(){
+    if(!current) return;
+    historyRef.current.push({mode,current,choices,revealed,lastResult,wrongGuess,harmonic});
+    if(historyRef.current.length>50) historyRef.current.shift();
+  }
+  // User-initiated advance: remember the current round, then generate a fresh one
+  function nextRound(){
+    pushHistory();
+    newRound();
+  }
+  // Step back to the previous question, restoring its answered state and replaying it.
+  // Falls back to replaying the current sound when there's no history (e.g. first question).
+  function goBack(){
+    const h=historyRef.current.pop();
+    if(!h){replayCurrent();return;}
+    clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);
+    setCurrent(h.current);
+    setChoices(h.choices||[]);
+    setRevealed(h.revealed);
+    setLastResult(h.lastResult);
+    setWrongGuess(h.wrongGuess);
+    setTimeout(()=>playRound(h),150);
   }
   function autoReveal(){
     if(!current) return;
@@ -1176,6 +1207,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     if(seenIntro){
       if(levelChangingRef.current){levelChangingRef.current=false;return;}
       clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);
+      historyRef.current=[];
       newRound();
     }
   },[mode,seenIntro,ivalTier]);
@@ -1194,6 +1226,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     skipSaveRef.current+=2; // suppress the upcoming score+detail saves so Pro history survives
     setScores(s=>({...s,intervals:{r:0,w:0}}));
     setDetail(d=>({...d,intervals:{}}));
+    historyRef.current=[];
     newRound();
   },[level]);
   if(!seenIntro) return e('div',{style:{paddingTop:'25vh',paddingBottom:'20px',paddingLeft:'16px',paddingRight:'16px',textAlign:'center',maxWidth:420,margin:'0 auto'}},
@@ -1212,8 +1245,8 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   if(pedalRef) pedalRef.current={
     forward:autoMode
       ?(()=>{clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);if(!revealed)autoReveal();else newRound();})
-      :(()=>revealed?newRound():replayCurrent()),
-    back:replayCurrent,
+      :(()=>revealed?nextRound():replayCurrent()),
+    back:autoMode?replayCurrent:goBack,
   };
 
   const sc=scores[mode];
@@ -1407,9 +1440,11 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
       ):null,
       e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:16}},
         e('div',{style:{display:'flex',alignItems:'center',gap:20}},
-          e('button',{onClick:replayCurrent,'aria-label':'Replay',style:{
+          e('button',{onClick:autoMode?replayCurrent:goBack,'aria-label':'Previous question',
+            disabled:autoMode,style:{
             width:44,height:44,borderRadius:'50%',border:'1px solid '+BTN_BRD,
-            background:'transparent',color:BTN_OFF,fontSize:'1.2rem',cursor:'pointer',
+            background:'transparent',color:BTN_OFF,fontSize:'1.2rem',
+            cursor:autoMode?'default':'pointer',opacity:autoMode?0.35:1,
             display:'flex',alignItems:'center',justifyContent:'center'
           }},'←'),
           e('button',{'data-tour':'ear-play-btn',onClick:replayCurrent,style:{
@@ -1418,7 +1453,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
             display:'flex',alignItems:'center',justifyContent:'center',
             boxShadow:'0 0 16px '+GOLD+'44',transition:'box-shadow 0.15s'
           }},'♪'),
-          e('button',{onClick:!autoMode&&revealed?newRound:replayCurrent,'aria-label':'Next',
+          e('button',{onClick:!autoMode&&revealed?nextRound:replayCurrent,'aria-label':'Next',
             disabled:autoMode,style:{
             width:44,height:44,borderRadius:'50%',
             border:'1px solid '+(!autoMode&&revealed?GOLD:BTN_BRD),
