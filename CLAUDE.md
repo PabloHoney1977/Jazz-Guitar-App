@@ -2,8 +2,9 @@
 
 ## Workflow Preferences
 - Always use model **claude-opus-4-8** (set in `.claude/settings.json`).
+- When making a fix, always commit it without being asked — only skip committing if explicitly told not to.
 - After committing, always push to the appropriate branch immediately — do not wait to be asked.
-- The app is served from `main`; always ensure finished work lands on `main` and is pushed.
+- The app is served from `main`; always ensure finished work lands on `main` and is pushed. Merge finished fixes into `main` automatically without asking each time (commit on a feature branch, then merge to `main` and push).
 
 ## Big Picture Goal
 Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitarists who want to learn jazz harmony. Monetization: **free download** (Essentials tier) with a **$9.99 one-time IAP** to unlock Pro. No subscription.
