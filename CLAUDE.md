@@ -70,7 +70,7 @@ Steps completed and still needed to ship:
 
 ## Test Suite
 - **Unit + gating:** `npm test` — 40 checks (theory, content, freemium gate assertions). Lives in `test/theory.test.cjs`, `test/content.test.cjs`, `test/gating.test.cjs`.
-- **Smoke (Playwright):** `npm run test:smoke` — 68 checks across 24 test blocks. Headless Chromium, iPhone 14 viewport (390×844). Covers layout, interactive flows, upgrade sheet, BPM control. React UMD copies needed in `test/` (CDN blocked in CI; install once from npm). Screenshots written to `test/screenshots/`.
+- **Smoke (Playwright):** `npm run test:smoke` — 68 checks across 24 test blocks. Headless Chromium, iPhone 14 viewport (390×844). Covers layout, interactive flows, upgrade sheet, BPM control. React UMD copies needed in `test/` (CDN blocked in CI; install once from npm). Screenshots written to `test/screenshots/`. ⚠️ In the web/remote environment those UMD copies are usually absent, so smoke runs report ~20+ cascading failures all rooted in "React is not defined" (the app never renders) — these are environmental, not regressions. Trust `npm test` (unit/gating) there.
 - **Exploratory harness:** `npm run test:explore` — multi-persona simulation. 4 parallel sessions, each 20 steps, seeded PRNG for reproducibility (`--seed N`). Generates structured report in `test/explore/reports/YYYYMMDD-HHMM/`. Set `ANTHROPIC_API_KEY` for LLM synthesis of findings. Reports dir is gitignored.
 
 ## Audio Architecture
@@ -94,6 +94,7 @@ Steps completed and still needed to ship:
 - Essentials tier: shell voicings only, major II-V-I only, melodic intervals (consonant) only in ear training, first 4 chord types in Any Chord; gated features show 🔒 badges that trigger UpgradeSheet
 - Pro tier: all voicings, all play forms, all ear training modes, all chord types
 - **iOS Safari SVG repaint gotcha:** SVG elements that use a `filter` (e.g. the `url(#ng)` blur/glow on NeckSVG highlight dots) do NOT visually repaint on iOS Safari/WebKit when React updates their attributes — they stay stale until a user gesture forces a reflow. This caused the "Keys page chords don't update until I tap them" bug. Fix is to force a GPU compositing layer on the affected `<svg>` via `style:{transform:'translateZ(0)',WebkitTransform:'translateZ(0)'}`. Chromium does not reproduce this — only real iOS Safari does, so it can't be caught by the headless Playwright smoke tests. Apply the same `translateZ(0)` hint to any new filtered SVG that re-renders on state change.
+- Voicing selection (`ssIdx`/`invIdx`/`shellIdx`) is **shared App state** between the Keys (diatonic) and Any Chord (`CustomChordView`) views, so the chosen string set/inversion/shape survives the "In a key ↗" / "Explore ↗" bridges and plain tab switches. `CustomChordView`'s reset-on-chord-change effects are skip-on-mount guarded (`typeChangeMount`/`shellResetMount` refs) so a carried-in voicing isn't wiped. Extensions (9/11/13) live **only** in Any Chord — the Keys map is the seven diatonic 7th chords, so jumping to a key shows the underlying 7th in the same voicing geometry.
 
 ## Decided Against (don't re-suggest)
 - Comping rhythm patterns
