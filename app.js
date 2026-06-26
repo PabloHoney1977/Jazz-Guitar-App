@@ -1744,7 +1744,7 @@ const NeckSVG=React.memo(function NeckSVG({arpPos,highlight,scalePos,extraDots,d
 // ── DetectNeckSVG ─────────────────────────────────────────────────────
 // Interactive fretboard for Find Chord mode. Tap any position to toggle
 // note selection; shows 5 frets at once, navigated via fretOffset.
-function DetectNeckSVG({selectedFrets,fretOffset,onToggle}){
+function DetectNeckSVG({selectedFrets,fretOffset,onToggle,completionPcs}){
   const FW=52,SH=38,PL=38,PT=26,PB=26;
   const NF=5;
   const W=PL+NF*FW+24,H=PT+5*SH+PB;
@@ -1753,6 +1753,8 @@ function DetectNeckSVG({selectedFrets,fretOffset,onToggle}){
   const nx=wf=>PL+(wf-0.5)*FW;
   const OPEN_X=PL-15;
   const sy=si=>PT+(5-si)*SH;
+  const cpSet=new Set(completionPcs||[]);
+  const COMP_C='#74C0FC'; // blue hint dots for missing chord tones
 
   function tap(si,fret){
     try{const ctx=_getPreviewCtx();if(ctx){const midi=OPEN_MIDI[si]+fret;if(_guitarBufs)_playSampledNote(ctx,midi,ctx.currentTime+0.04,0.5,1.6);else _playKSNote(ctx,midi,ctx.currentTime+0.04,0.45);}}catch(ex){}
@@ -1763,6 +1765,10 @@ function DetectNeckSVG({selectedFrets,fretOffset,onToggle}){
     e('defs',null,
       e('filter',{id:'dng',x:'-60%',y:'-60%',width:'220%',height:'220%'},
         e('feGaussianBlur',{stdDeviation:'3',result:'b'}),
+        e('feMerge',null,e('feMergeNode',{in:'b'}),e('feMergeNode',{in:'SourceGraphic'}))
+      ),
+      e('filter',{id:'dnh',x:'-60%',y:'-60%',width:'220%',height:'220%'},
+        e('feGaussianBlur',{stdDeviation:'2',result:'b'}),
         e('feMerge',null,e('feMergeNode',{in:'b'}),e('feMergeNode',{in:'SourceGraphic'}))
       ),
       e('linearGradient',{id:'dnBg',x1:'0',y1:'0',x2:'1',y2:'0'},
@@ -1793,18 +1799,22 @@ function DetectNeckSVG({selectedFrets,fretOffset,onToggle}){
     ...(showOpen?Array.from({length:6},(_,si)=>{
       const isSel=selectedFrets[si]===0;
       const pc=OPEN_PC[si];
+      const isHint=!isSel&&cpSet.has(pc);
       return e('g',{key:'dop'+si,onClick:()=>tap(si,0),style:{cursor:'pointer'}},
-        e('circle',{cx:OPEN_X,cy:sy(si),r:isSel?13:8,
-          fill:isSel?'var(--gold)':'transparent',
-          stroke:isSel?'var(--hi-dot-str)':'rgba(255,255,255,0.25)',strokeWidth:isSel?1.8:1}),
-        isSel?e('text',{x:OPEN_X,y:sy(si),textAnchor:'middle',dominantBaseline:'middle',
-          fill:'var(--dot-lbl)',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT,pointerEvents:'none'},DN[pc]):null
+        e('circle',{cx:OPEN_X,cy:sy(si),r:isSel?13:isHint?11:8,
+          fill:isSel?'var(--gold)':isHint?COMP_C+'33':'transparent',
+          stroke:isSel?'var(--hi-dot-str)':isHint?COMP_C:'rgba(255,255,255,0.25)',
+          strokeWidth:isSel?1.8:isHint?1.5:1,
+          strokeDasharray:isHint?'3 2':null}),
+        (isSel||isHint)?e('text',{x:OPEN_X,y:sy(si),textAnchor:'middle',dominantBaseline:'middle',
+          fill:isSel?'var(--dot-lbl)':COMP_C,fontSize:8,fontWeight:'bold',fontFamily:UI_FONT,pointerEvents:'none'},DN[pc]):null
       );
     }):[]),
     ...Array.from({length:NF},(_,wf)=>Array.from({length:6},(_,si)=>{
       const actF=fretOffset+wf+1;
       const isSel=selectedFrets[si]===actF;
       const pc=(OPEN_PC[si]+actF)%12;
+      const isHint=!isSel&&cpSet.has(pc);
       const cx=nx(wf+1),cy=sy(si);
       return e('g',{key:'dfp'+wf+'-'+si,onClick:()=>tap(si,actF),style:{cursor:'pointer'}},
         e('rect',{x:cx-FW*0.48,y:cy-SH*0.48,width:FW*0.96,height:SH*0.96,fill:'transparent',pointerEvents:'all'}),
@@ -1813,6 +1823,12 @@ function DetectNeckSVG({selectedFrets,fretOffset,onToggle}){
             e('circle',{cx,cy,r:13,fill:'var(--gold)',stroke:'var(--hi-dot-str)',strokeWidth:1.8}),
             e('text',{x:cx,y:cy,textAnchor:'middle',dominantBaseline:'middle',
               fill:'var(--dot-lbl)',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT,pointerEvents:'none'},DN[pc])
+          )
+          :isHint
+          ?e('g',{filter:'url(#dnh)'},
+            e('circle',{cx,cy,r:11,fill:COMP_C+'33',stroke:COMP_C,strokeWidth:1.5,strokeDasharray:'3 2'}),
+            e('text',{x:cx,y:cy,textAnchor:'middle',dominantBaseline:'middle',
+              fill:COMP_C,fontSize:8,fontWeight:'bold',fontFamily:UI_FONT,pointerEvents:'none'},DN[pc])
           )
           :e('circle',{cx,cy,r:7,fill:'transparent',stroke:'rgba(255,255,255,0.2)',strokeWidth:1})
       );
@@ -3402,6 +3418,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   const isEss=level==='essentials';
   const [detectMode,setDetectMode]=useState(false);
   const [selectedFrets,setSelectedFrets]=useState({}); // {stringIdx: fretNum}
+  const [completionChord,setCompletionChord]=useState(null);
   const detectFretPos=5; // how many frets shown at once
   const [fretOffset,setFretOffset]=useState(0);
   const [ssIdx,setSsIdx]=useState(2);
@@ -3482,6 +3499,12 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
 
   const detectPcs=Object.entries(selectedFrets).map(([s,f])=>(OPEN_PC[parseInt(s)]+parseInt(f))%12);
   const detectedChords=detectPcs.length>=2?detectChords(detectPcs):[];
+  // Pitch classes that would complete the user-selected incomplete chord
+  const completionPcs=useMemo(()=>{
+    if(!completionChord) return [];
+    const fullPcs=completionChord.iv.map(i=>(completionChord.root+i)%12);
+    return fullPcs.filter(pc=>!detectPcs.includes(pc));
+  },[completionChord,detectPcs]); // eslint-disable-line react-hooks/exhaustive-deps
   const DETECT_NOTE_NAMES=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
   // Lowest-pitched selected note → bass pitch-class, used to label inversion.
   const detectEntries=Object.entries(selectedFrets);
@@ -3520,20 +3543,20 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     e('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
       e('span',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT}},'Tap the notes you\'re playing'),
       e('div',{style:{display:'flex',gap:6,alignItems:'center'}},
-        e('button',{onClick:()=>{setFretOffset(f=>Math.max(0,f-5));setSelectedFrets({});},disabled:fretOffset===0,style:{
+        e('button',{onClick:()=>{setFretOffset(f=>Math.max(0,f-5));setSelectedFrets({});setCompletionChord(null);},disabled:fretOffset===0,style:{
           padding:'4px 10px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,opacity:fretOffset===0?0.4:1}},'↑'),
         e('span',{style:{fontSize:'0.72rem',color:HINT,minWidth:50,textAlign:'center'}},
           fretOffset===0?'Open':'+'+(fretOffset)),
-        e('button',{onClick:()=>{setFretOffset(f=>Math.min(7,f+5));setSelectedFrets({});},disabled:fretOffset>=7,style:{
+        e('button',{onClick:()=>{setFretOffset(f=>Math.min(7,f+5));setSelectedFrets({});setCompletionChord(null);},disabled:fretOffset>=7,style:{
           padding:'4px 10px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,opacity:fretOffset>=7?0.4:1}},'↓')
       )
     ),
-    e(DetectNeckSVG,{selectedFrets,fretOffset,
+    e(DetectNeckSVG,{selectedFrets,fretOffset,completionPcs,
       onToggle:(si,fret)=>setSelectedFrets(sf=>sf[si]===fret?Object.fromEntries(Object.entries(sf).filter(([k])=>parseInt(k)!==si)):({...sf,[si]:fret}))}),
     // Clear button
-    Object.keys(selectedFrets).length>0?e('button',{onClick:()=>setSelectedFrets({}),style:{
+    Object.keys(selectedFrets).length>0?e('button',{onClick:()=>{setSelectedFrets({});setCompletionChord(null);},style:{
       width:'100%',padding:'6px',background:'transparent',border:'1px solid '+BTN_BRD,
       borderRadius:6,color:BTN_OFF,fontFamily:UI_FONT,fontSize:'0.78rem',cursor:'pointer',minHeight:36,marginBottom:12}},
       'Clear all'):null,
@@ -3549,26 +3572,39 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       :detectedChords.length>0
       ?e('div',null,
         e('div',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,marginBottom:8}},
-          detectedChords[0].exact?'Exact match:':'Possible matches (incomplete voicing):'),
+          detectedChords[0].exact
+            ?'Exact match:'
+            :(completionChord
+              ?'Tap the highlighted notes to complete the voicing:'
+              :'Possible matches — tap to see missing notes:')),
         e('div',{style:{display:'flex',flexWrap:'wrap',gap:8}},
           detectedChords.map((ch,i)=>{
             const extIdx=DETECT_TO_EXT[ch.sym];
             const clickable=ch.exact&&extIdx!==undefined;
+            const isCompTarget=!ch.exact&&completionChord&&completionChord.name===ch.name;
             const bassInt=bassPc!=null?((bassPc-ch.root+12)%12):null;
             const invPos=(bassInt!=null&&ch.iv)?ch.iv.indexOf(bassInt):-1;
             const invLbl=invPos>=0?(INV_ORD[invPos]||null):null;
+            const cardBorder=ch.exact&&i===0?GOLD:isCompTarget?'#74C0FC':BTN_BRD;
+            const cardBg=ch.exact&&i===0?ACT_GOLD:isCompTarget?ACT_BLUE:BG2;
             return e('div',{key:i,
-              onClick:clickable?()=>{setDetectMode(false);setCustomRoot(ch.root);setCustomTypeIdx(extIdx);setInvIdx(0);window.scrollTo(0,0);}:null,
-              title:clickable?'Open '+ch.name+' on the Chords page':null,
+              onClick:clickable
+                ?()=>{setDetectMode(false);setCustomRoot(ch.root);setCustomTypeIdx(extIdx);setInvIdx(0);window.scrollTo(0,0);}
+                :!ch.exact
+                  ?()=>setCompletionChord(cc=>cc&&cc.name===ch.name?null:ch)
+                  :null,
+              title:clickable?'Open '+ch.name+' on the Chords page':(!ch.exact?'Show missing notes on fretboard':null),
               style:{
                 padding:'8px 14px',borderRadius:8,
-                border:'1px solid '+(ch.exact&&i===0?GOLD:BTN_BRD),
-                background:ch.exact&&i===0?ACT_GOLD:BG2,
-                cursor:clickable?'pointer':'default'}},
+                border:'1px solid '+cardBorder,
+                background:cardBg,
+                cursor:clickable||!ch.exact?'pointer':'default'}},
               e('div',{style:{display:'flex',alignItems:'baseline',gap:6}},
                 e('span',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,
-                  color:ch.exact&&i===0?GOLD:'var(--txt)'}},ch.name),
-                clickable?e('span',{style:{fontSize:'0.62rem',color:GOLD,fontFamily:UI_FONT}},'open ↗'):null
+                  color:ch.exact&&i===0?GOLD:isCompTarget?'#74C0FC':'var(--txt)'}},ch.name),
+                clickable?e('span',{style:{fontSize:'0.62rem',color:GOLD,fontFamily:UI_FONT}},'open ↗'):null,
+                (!ch.exact&&!isCompTarget)?e('span',{style:{fontSize:'0.62rem',color:'#74C0FC',fontFamily:UI_FONT}},'show missing ↓'):null,
+                isCompTarget?e('span',{style:{fontSize:'0.62rem',color:'#74C0FC',fontFamily:UI_FONT}},'showing ✓'):null
               ),
               e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT}},
                 ch.quality+(invLbl?'  ·  '+invLbl:'')+(ch.exact?'':'  ·  '+ch.matched+'/'+ch.total+' notes'))
