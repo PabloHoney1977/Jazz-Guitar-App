@@ -7,6 +7,11 @@
 - The app is served from `main`; always ensure finished work lands on `main` and is pushed. Merge finished fixes into `main` automatically without asking each time (commit on a feature branch, then merge to `main` and push).
 - **Git gotcha (remote-env quirk):** the fresh container clones a stray local `main` with unrelated history (just "Initial commit" / "Improve readability") — do NOT base work on it. The real served main is `origin/main`. A plain `git merge` of a feature branch into local main fails with "refusing to merge unrelated histories". To land work on main: `git fetch origin main`, then `git checkout -B main origin/main` (or `git reset --hard origin/main`), then bring in the fix (`git cherry-pick <fix-commit>` applies cleanly), then `git push origin main`. Other sessions push to `main` concurrently, so `git fetch origin main` again right before pushing and expect to merge `origin/main` before `git push` succeeds.
 
+### Git Workflow Notes (environment-specific)
+- No build step — `main` is served live, so landing on `main` = instantly live for testing.
+- **Rollback checkpoints use a branch, not a tag.** The session git proxy blocks tag pushes (HTTP 403) and there's no tag-creation API tool. Use a `baseline-YYYY-MM-DD` branch (e.g. via the GitHub `create_branch` API from `main`) as a named known-good restore point. Current baseline: `baseline-2026-06-26`.
+- **To undo a live change, use `git revert <sha>`** (creates a new undo commit, safe to push). Never `reset --hard` on shared `main`. Keep commits small and atomic so reverts are surgical.
+
 ## Big Picture Goal
 Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitarists who want to learn jazz harmony. Monetization: **free download** (Essentials tier) with a **$9.99 one-time IAP** to unlock Pro. No subscription.
 
