@@ -1514,37 +1514,37 @@ function TourOverlay({steps,step,onNext,onSkip}){
   const s=steps[step];
   useEffect(()=>{
     if(!s){setRect(null);return;}
+    let pollActive=true;
     let rafId=null;
     function measure(){
       const el=document.querySelector('[data-tour="'+s.target+'"]');
-      if(el){const r=el.getBoundingClientRect();setRect({top:r.top,left:r.left,w:r.width,h:r.height});}
-      else setRect(null);
+      if(el){
+        const r=el.getBoundingClientRect();
+        // Functional update: only triggers a re-render when the position actually changed.
+        setRect(prev=>{
+          if(prev&&Math.abs(prev.top-r.top)<0.5&&Math.abs(prev.left-r.left)<0.5
+            &&Math.abs(prev.w-r.width)<0.5&&Math.abs(prev.h-r.height)<0.5) return prev;
+          return {top:r.top,left:r.left,w:r.width,h:r.height};
+        });
+      } else setRect(null);
       return !!el;
     }
-    // Viewport resize/scroll events (e.g. iOS address-bar collapsing) fire during
-    // the animation and return intermediate coordinates. Defer through rAF so we
-    // only commit the rect after layout has fully settled.
-    function deferMeasure(){
-      cancelAnimationFrame(rafId);
-      rafId=requestAnimationFrame(measure);
-    }
-    // Immediate attempt; if target isn't in DOM yet (view just switched),
-    // retry at 150ms and 350ms to let React finish rendering the new view.
+    // Poll every frame for 2 s to reliably catch iOS address-bar collapse,
+    // late layout shifts, and any other timing-sensitive repositioning.
+    // The functional update above bails out with no re-render when nothing moved.
+    function poll(){if(!pollActive) return; measure(); rafId=requestAnimationFrame(poll);}
+    rafId=requestAnimationFrame(poll);
+    const stopPoll=setTimeout(()=>{pollActive=false;},2000);
+    // After the polling window, rely on scroll/resize events.
     const vv=window.visualViewport;
-    if(!measure()){
-      let t2=null;
-      const t1=setTimeout(()=>{if(!measure()) t2=setTimeout(measure,200);},150);
-      const raf=requestAnimationFrame(measure);
-      window.addEventListener('scroll',deferMeasure,{passive:true});
-      vv&&vv.addEventListener('resize',deferMeasure);vv&&vv.addEventListener('scroll',deferMeasure);
-      return ()=>{cancelAnimationFrame(raf);cancelAnimationFrame(rafId);clearTimeout(t1);clearTimeout(t2);
-        window.removeEventListener('scroll',deferMeasure);
-        vv&&vv.removeEventListener('resize',deferMeasure);vv&&vv.removeEventListener('scroll',deferMeasure);};
-    }
-    window.addEventListener('scroll',deferMeasure,{passive:true});
-    vv&&vv.addEventListener('resize',deferMeasure);vv&&vv.addEventListener('scroll',deferMeasure);
-    return ()=>{cancelAnimationFrame(rafId);window.removeEventListener('scroll',deferMeasure);
-      vv&&vv.removeEventListener('resize',deferMeasure);vv&&vv.removeEventListener('scroll',deferMeasure);};
+    function onEvent(){cancelAnimationFrame(rafId); rafId=requestAnimationFrame(measure);}
+    window.addEventListener('scroll',onEvent,{passive:true});
+    vv&&vv.addEventListener('resize',onEvent); vv&&vv.addEventListener('scroll',onEvent);
+    return ()=>{
+      pollActive=false; cancelAnimationFrame(rafId); clearTimeout(stopPoll);
+      window.removeEventListener('scroll',onEvent);
+      vv&&vv.removeEventListener('resize',onEvent); vv&&vv.removeEventListener('scroll',onEvent);
+    };
   },[step,s&&s.target]);
 
   if(!s) return null;
