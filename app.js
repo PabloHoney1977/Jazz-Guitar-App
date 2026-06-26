@@ -305,6 +305,13 @@ function calcVoicing(strings,assignment,tones,minFret){
         if(Math.min(...lf)>=minFret&&spanOK(lf)){
           return{frets:lf,midis:midis.map(m=>m-12),mn:mn-12,mx:mx-12};
         }
+        // The neck diagram only draws 15 frets. If the shape would otherwise
+        // land off the right edge, drop it an octave anyway (it stays on the
+        // board and span is preserved) even when that dips to an open string
+        // or a low-position stretch spanOK would normally reject.
+        if(mx>15&&Math.min(...lf)>=0){
+          return{frets:lf,midis:midis.map(m=>m-12),mn:mn-12,mx:mx-12};
+        }
       }
       return{frets,midis,mn,mx};
     }
@@ -634,7 +641,8 @@ function track(event,props){
 }
 
 // ── UpgradeSheet ──────────────────────────────────────────────────────
-function UpgradeSheet({feature,onClose,onUnlock}){
+function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial}){
+  const trialExpired=trialUsed&&!trialActive;
   const PERKS=[
     'Drop 2, Drop 3, and Rootless voicings in the Keys tab',
     'All play forms + 5 jazz standards — Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You',
@@ -678,15 +686,19 @@ function UpgradeSheet({feature,onClose,onUnlock}){
       border:'1px solid '+GOLD+'44',padding:'20px 20px 36px',
       boxShadow:'0 -8px 32px rgba(0,0,0,0.55)',maxHeight:'72vh',overflowY:'auto'}},
       e('div',{style:{width:40,height:4,background:BORDER,borderRadius:2,margin:'0 auto 18px'}}),
-      e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},'🔒'),
+      e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},trialExpired?'⏱️':'🔒'),
       e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
         color:'var(--scale-name)',textAlign:'center',marginBottom:4}},
-        feature+' is a Pro feature'),
-      desc?e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
-        marginBottom:16,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},desc):null,
+        trialExpired?'Your free trial has ended':feature+' is a Pro feature'),
+      trialExpired
+        ?e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
+            marginBottom:16,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},
+            'You had full access to everything. Unlock Pro to keep it — one price, forever.')
+        :desc?e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
+            marginBottom:16,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},desc):null,
       e('div',{style:{fontSize:'0.75rem',color:HINT,
         marginBottom:8,fontFamily:UI_FONT,fontWeight:600,letterSpacing:'0.05em',
-        textTransform:'uppercase'}},desc?'Pro also unlocks:':'Pro unlocks:'),
+        textTransform:'uppercase'}},desc&&!trialExpired?'Pro also unlocks:':'Pro unlocks:'),
       e('ul',{style:{listStyle:'none',margin:'0 0 22px',padding:0}},
         PERKS.map((p,i)=>e('li',{key:i,style:{display:'flex',gap:9,padding:'6px 0',
           fontSize:'0.82rem',
@@ -699,6 +711,12 @@ function UpgradeSheet({feature,onClose,onUnlock}){
         fontFamily:UI_FONT,fontSize:'1rem',fontWeight:700,
         background:GOLD,border:'none',color:'#07070f',minHeight:54,marginBottom:10}},
         'Unlock Pro — $9.99'),
+      !trialUsed?e('button',{onClick:onTrial,style:{
+        width:'100%',padding:'12px',borderRadius:10,cursor:'pointer',
+        fontFamily:UI_FONT,fontSize:'0.88rem',fontWeight:600,
+        background:'transparent',border:'1px solid '+GOLD+'66',
+        color:GOLD,minHeight:44,marginBottom:10}},
+        'Try Pro free for 7 days'):null,
       e('button',{onClick:onClose,style:{
         width:'100%',padding:'10px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.82rem',background:'transparent',
@@ -912,6 +930,8 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const [ivalTier,setIvalTier]=useState(()=>{const v=parseInt(safeLS('jg-ear-ival-tier','1'),10);return v>=1&&v<=3?v:1;});
   useEffect(()=>{safeLSSet('jg-ear-ival-tier',String(ivalTier));},[ivalTier]);
   const [autoMode,setAutoMode]=useState(false);
+  // Back-navigation history: snapshots of prior rounds so ← steps to the previous question
+  const historyRef=useRef([]);
   const autoTimerRef=useRef(null);
   const autoTimer2Ref=useRef(null);
   const bestVoiceRef=useRef(null);
@@ -1056,12 +1076,41 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
       });
     }catch(ex){}
   }
+  // Play the sound for an arbitrary round snapshot (used by replay + back navigation)
+  function playRound(r){
+    if(!r||!r.current) return;
+    if(r.mode==='intervals') playInterval(r.current.root,r.current.semitones,!!r.harmonic);
+    else if(r.mode==='triads') playTriad(r.current.root,r.current.quality);
+    else if(r.mode==='cadences') playCadence(r.current.root,r.current.cadence);
+    else playChord(r.current.root,r.current.quality);
+  }
   function replayCurrent(){
     if(!current) return;
-    if(mode==='intervals') playInterval(current.root,current.semitones,harmonic);
-    else if(mode==='triads') playTriad(current.root,current.quality);
-    else if(mode==='cadences') playCadence(current.root,current.cadence);
-    else playChord(current.root,current.quality);
+    playRound({mode,current,harmonic});
+  }
+  // Push the current round onto the back-history stack (bounded)
+  function pushHistory(){
+    if(!current) return;
+    historyRef.current.push({mode,current,choices,revealed,lastResult,wrongGuess,harmonic});
+    if(historyRef.current.length>50) historyRef.current.shift();
+  }
+  // User-initiated advance: remember the current round, then generate a fresh one
+  function nextRound(){
+    pushHistory();
+    newRound();
+  }
+  // Step back to the previous question, restoring its answered state and replaying it.
+  // Falls back to replaying the current sound when there's no history (e.g. first question).
+  function goBack(){
+    const h=historyRef.current.pop();
+    if(!h){replayCurrent();return;}
+    clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);
+    setCurrent(h.current);
+    setChoices(h.choices||[]);
+    setRevealed(h.revealed);
+    setLastResult(h.lastResult);
+    setWrongGuess(h.wrongGuess);
+    setTimeout(()=>playRound(h),150);
   }
   function autoReveal(){
     if(!current) return;
@@ -1165,6 +1214,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     if(seenIntro){
       if(levelChangingRef.current){levelChangingRef.current=false;return;}
       clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);
+      historyRef.current=[];
       newRound();
     }
   },[mode,seenIntro,ivalTier]);
@@ -1183,6 +1233,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     skipSaveRef.current+=2; // suppress the upcoming score+detail saves so Pro history survives
     setScores(s=>({...s,intervals:{r:0,w:0}}));
     setDetail(d=>({...d,intervals:{}}));
+    historyRef.current=[];
     newRound();
   },[level]);
   if(!seenIntro) return e('div',{style:{paddingTop:'25vh',paddingBottom:'20px',paddingLeft:'16px',paddingRight:'16px',textAlign:'center',maxWidth:420,margin:'0 auto'}},
@@ -1201,8 +1252,8 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   if(pedalRef) pedalRef.current={
     forward:autoMode
       ?(()=>{clearTimeout(autoTimerRef.current);clearTimeout(autoTimer2Ref.current);if(!revealed)autoReveal();else newRound();})
-      :(()=>revealed?newRound():replayCurrent()),
-    back:replayCurrent,
+      :(()=>revealed?nextRound():replayCurrent()),
+    back:autoMode?replayCurrent:goBack,
   };
 
   const sc=scores[mode];
@@ -1396,9 +1447,11 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
       ):null,
       e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:16}},
         e('div',{style:{display:'flex',alignItems:'center',gap:20}},
-          e('button',{onClick:replayCurrent,'aria-label':'Replay',style:{
+          e('button',{onClick:autoMode?replayCurrent:goBack,'aria-label':'Previous question',
+            disabled:autoMode,style:{
             width:44,height:44,borderRadius:'50%',border:'1px solid '+BTN_BRD,
-            background:'transparent',color:BTN_OFF,fontSize:'1.2rem',cursor:'pointer',
+            background:'transparent',color:BTN_OFF,fontSize:'1.2rem',
+            cursor:autoMode?'default':'pointer',opacity:autoMode?0.35:1,
             display:'flex',alignItems:'center',justifyContent:'center'
           }},'←'),
           e('button',{'data-tour':'ear-play-btn',onClick:replayCurrent,style:{
@@ -1407,7 +1460,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
             display:'flex',alignItems:'center',justifyContent:'center',
             boxShadow:'0 0 16px '+GOLD+'44',transition:'box-shadow 0.15s'
           }},'♪'),
-          e('button',{onClick:!autoMode&&revealed?newRound:replayCurrent,'aria-label':'Next',
+          e('button',{onClick:!autoMode&&revealed?nextRound:replayCurrent,'aria-label':'Next',
             disabled:autoMode,style:{
             width:44,height:44,borderRadius:'50%',
             border:'1px solid '+(!autoMode&&revealed?GOLD:BTN_BRD),
@@ -1465,11 +1518,13 @@ const OVERVIEW_STEPS=[
    text:'Play ii-V-Is and jazz standards with bass and drums. Set your key, choose a tempo, and practice playing along.'},
   {target:'nav-quiz',     view:'quiz',
    title:'Ear Training — recognize what you hear',
-   text:'Identify intervals and chord qualities by ear. Essentials starts with the five most consonant sounds; Pro unlocks all twelve.'},
+   text:'Identify intervals and chord qualities by ear. Essentials starts with the five most consonant sounds; Pro unlocks all twelve.',
+   proText:'Identify intervals and chord qualities by ear — all twelve intervals, plus triads, 7th chords, and cadences.'},
   {target:'page-tour-btn', view:'guide',
    title:'Page tours',
    text:'Each section has its own guided walkthrough. Tap the gold "? Tour" button at the top right whenever you want to learn what you\'re looking at.'},
   {target:'ear-mode-tabs', view:'quiz',
+   essentialsOnly:true,
    title:'One price, everything — forever',
    text:'Essentials is free: shells, major ii–V–I, 5 ear training intervals. Pro is $9.99 once — no subscription, no future paywalls. Every voicing, play form, standard, ear training mode, and chord type we ever add is included. Look for 🔒 to see what unlocks now.'},
 ];
@@ -1479,7 +1534,9 @@ const PAGE_TOURS={
     {target:'key-chip',       title:'Set your key',
      text:'Tap to pick any key. Every chord and scale in the app updates to match.'},
     {target:'voicing-tabs',   title:'Essentials vs Pro voicings',
-     text:'Shell voicings are free. Drop 2, Drop 3, and Rootless unlock with Pro — tap any 🔒 to learn more.'},
+     text:'Shell voicings are free. Drop 2, Drop 3, and Rootless unlock with Pro — tap any 🔒 to learn more.',
+     proTitle:'Voicing types',
+     proText:'Shell, Drop 2, Drop 3, and Rootless. Shell uses just 3 strings — the simplest start. Drop 2 gives the full comping sound. Tap each to see and hear it.'},
     {target:'chord-row',      title:'The 7 chords in a key',
      text:'Each button is one of the chords that naturally occurs in this key. Roman numerals (I–VII) show position — I is home, V is tension.'},
     {target:'voicing-tabs',   title:'How to play each chord',
@@ -1491,7 +1548,8 @@ const PAGE_TOURS={
   ],
   iivi:[
     {target:'play-form-row',  title:'Choose a progression',
-     text:'Pick a form — ii-V-I is the foundation of jazz harmony. Pro unlocks 5 jazz standards: Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, and There Will Never Be Another You.'},
+     text:'Pick a form — ii-V-I is the foundation of jazz harmony. Pro unlocks 5 jazz standards: Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, and There Will Never Be Another You.',
+     proText:'Pick a form — ii-V-I is the foundation of jazz harmony. You\'ve also got 5 jazz standards: Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, and There Will Never Be Another You.'},
     {target:'play-transport', title:'Play controls',
      text:'Hit the green button for a 4-count-in, then the loop begins. BPM knob sets tempo — start at 60 and build up.'},
     {target:'bar-grid',       title:'Follow the chord changes',
@@ -1511,7 +1569,8 @@ const PAGE_TOURS={
   ],
   quiz:[
     {target:'ear-mode-tabs', title:'Three training modes',
-     text:'Start with Intervals — they\'re the building blocks. Triads and 7th Chords unlock in Pro.'},
+     text:'Start with Intervals — they\'re the building blocks. Triads and 7th Chords unlock in Pro.',
+     proText:'Start with Intervals — they\'re the building blocks. Triads, 7th Chords, and Cadences are here too.'},
     {target:'ear-play-btn',  title:'Listen, then answer',
      text:'Tap the gold circle to hear the sound. Replay as many times as you need before choosing.'},
     {target:'ear-choices',   title:'Learn from every answer',
@@ -1519,13 +1578,26 @@ const PAGE_TOURS={
   ],
   custom:[
     {target:'chord-type-tabs', title:'Pick any chord type',
-     text:'Choose a quality — major 7, minor 7, dominant, and more in Pro.'},
+     text:'Choose a quality — major 7, minor 7, dominant, and more in Pro.',
+     proText:'Choose a quality — major 7, minor 7, dominant, and every extended chord.'},
     {target:'neck-area',       title:'See all voicings',
      text:'Every playable shape appears below. Tap any diagram to hear it. Tap any dot on the neck to hear that individual note.'},
     {target:'custom-inkey',    title:'Find this chord in a key',
      text:'Tap "In a key ↗" to jump to the Keys view and see where this exact chord naturally fits in the diatonic harmony of any key.'},
   ],
 };
+
+// Adapt tour steps to the user's tier. Pro users already paid — drop the
+// pricing pitch entirely and swap any "unlocks with Pro" copy for plain
+// descriptions of what they have.
+function tourStepsFor(steps,isPro){
+  if(!isPro) return steps;
+  return steps
+    .filter(s=>!s.essentialsOnly)
+    .map(s=>(s.proText||s.proTitle)
+      ?{...s,...(s.proTitle?{title:s.proTitle}:null),...(s.proText?{text:s.proText}:null)}
+      :s);
+}
 
 function TourOverlay({steps,step,onNext,onSkip}){
   const [rect,setRect]=useState(null);
@@ -1659,7 +1731,7 @@ const NeckSVG=React.memo(function NeckSVG({arpPos,highlight,scalePos,extraDots,d
   const OPEN_X=PL-5; // x-position for fret-0 (open string) indicators, sits within nut
   const SINGLE_INLAYS=[3,5,7,9,15];
 
-  return e('svg',{width:'100%',viewBox:`0 0 ${W} ${H}`,style:{display:'block'}},
+  return e('svg',{width:'100%',viewBox:`0 0 ${W} ${H}`,style:{display:'block',WebkitTransform:'translateZ(0)',transform:'translateZ(0)'}},
     e('defs',null,
       e('filter',{id:'ng',x:'-60%',y:'-60%',width:'220%',height:'220%'},
         e('feGaussianBlur',{stdDeviation:'3.5',result:'b'}),
@@ -1744,7 +1816,7 @@ const NeckSVG=React.memo(function NeckSVG({arpPos,highlight,scalePos,extraDots,d
 // ── DetectNeckSVG ─────────────────────────────────────────────────────
 // Interactive fretboard for Find Chord mode. Tap any position to toggle
 // note selection; shows 5 frets at once, navigated via fretOffset.
-function DetectNeckSVG({selectedFrets,fretOffset,onToggle}){
+function DetectNeckSVG({selectedFrets,fretOffset,onToggle,completionPcs}){
   const FW=52,SH=38,PL=38,PT=26,PB=26;
   const NF=5;
   const W=PL+NF*FW+24,H=PT+5*SH+PB;
@@ -1753,6 +1825,8 @@ function DetectNeckSVG({selectedFrets,fretOffset,onToggle}){
   const nx=wf=>PL+(wf-0.5)*FW;
   const OPEN_X=PL-15;
   const sy=si=>PT+(5-si)*SH;
+  const cpSet=new Set(completionPcs||[]);
+  const COMP_C='#74C0FC'; // blue hint dots for missing chord tones
 
   function tap(si,fret){
     try{const ctx=_getPreviewCtx();if(ctx){const midi=OPEN_MIDI[si]+fret;if(_guitarBufs)_playSampledNote(ctx,midi,ctx.currentTime+0.04,0.5,1.6);else _playKSNote(ctx,midi,ctx.currentTime+0.04,0.45);}}catch(ex){}
@@ -1763,6 +1837,10 @@ function DetectNeckSVG({selectedFrets,fretOffset,onToggle}){
     e('defs',null,
       e('filter',{id:'dng',x:'-60%',y:'-60%',width:'220%',height:'220%'},
         e('feGaussianBlur',{stdDeviation:'3',result:'b'}),
+        e('feMerge',null,e('feMergeNode',{in:'b'}),e('feMergeNode',{in:'SourceGraphic'}))
+      ),
+      e('filter',{id:'dnh',x:'-60%',y:'-60%',width:'220%',height:'220%'},
+        e('feGaussianBlur',{stdDeviation:'2',result:'b'}),
         e('feMerge',null,e('feMergeNode',{in:'b'}),e('feMergeNode',{in:'SourceGraphic'}))
       ),
       e('linearGradient',{id:'dnBg',x1:'0',y1:'0',x2:'1',y2:'0'},
@@ -1793,18 +1871,22 @@ function DetectNeckSVG({selectedFrets,fretOffset,onToggle}){
     ...(showOpen?Array.from({length:6},(_,si)=>{
       const isSel=selectedFrets[si]===0;
       const pc=OPEN_PC[si];
+      const isHint=!isSel&&cpSet.has(pc);
       return e('g',{key:'dop'+si,onClick:()=>tap(si,0),style:{cursor:'pointer'}},
-        e('circle',{cx:OPEN_X,cy:sy(si),r:isSel?13:8,
-          fill:isSel?'var(--gold)':'transparent',
-          stroke:isSel?'var(--hi-dot-str)':'rgba(255,255,255,0.25)',strokeWidth:isSel?1.8:1}),
-        isSel?e('text',{x:OPEN_X,y:sy(si),textAnchor:'middle',dominantBaseline:'middle',
-          fill:'var(--dot-lbl)',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT,pointerEvents:'none'},DN[pc]):null
+        e('circle',{cx:OPEN_X,cy:sy(si),r:isSel?13:isHint?11:8,
+          fill:isSel?'var(--gold)':isHint?COMP_C+'33':'transparent',
+          stroke:isSel?'var(--hi-dot-str)':isHint?COMP_C:'rgba(255,255,255,0.25)',
+          strokeWidth:isSel?1.8:isHint?1.5:1,
+          strokeDasharray:isHint?'3 2':null}),
+        (isSel||isHint)?e('text',{x:OPEN_X,y:sy(si),textAnchor:'middle',dominantBaseline:'middle',
+          fill:isSel?'var(--dot-lbl)':COMP_C,fontSize:8,fontWeight:'bold',fontFamily:UI_FONT,pointerEvents:'none'},DN[pc]):null
       );
     }):[]),
     ...Array.from({length:NF},(_,wf)=>Array.from({length:6},(_,si)=>{
       const actF=fretOffset+wf+1;
       const isSel=selectedFrets[si]===actF;
       const pc=(OPEN_PC[si]+actF)%12;
+      const isHint=!isSel&&cpSet.has(pc);
       const cx=nx(wf+1),cy=sy(si);
       return e('g',{key:'dfp'+wf+'-'+si,onClick:()=>tap(si,actF),style:{cursor:'pointer'}},
         e('rect',{x:cx-FW*0.48,y:cy-SH*0.48,width:FW*0.96,height:SH*0.96,fill:'transparent',pointerEvents:'all'}),
@@ -1813,6 +1895,12 @@ function DetectNeckSVG({selectedFrets,fretOffset,onToggle}){
             e('circle',{cx,cy,r:13,fill:'var(--gold)',stroke:'var(--hi-dot-str)',strokeWidth:1.8}),
             e('text',{x:cx,y:cy,textAnchor:'middle',dominantBaseline:'middle',
               fill:'var(--dot-lbl)',fontSize:8,fontWeight:'bold',fontFamily:UI_FONT,pointerEvents:'none'},DN[pc])
+          )
+          :isHint
+          ?e('g',{filter:'url(#dnh)'},
+            e('circle',{cx,cy,r:11,fill:COMP_C+'33',stroke:COMP_C,strokeWidth:1.5,strokeDasharray:'3 2'}),
+            e('text',{x:cx,y:cy,textAnchor:'middle',dominantBaseline:'middle',
+              fill:COMP_C,fontSize:8,fontWeight:'bold',fontFamily:UI_FONT,pointerEvents:'none'},DN[pc])
           )
           :e('circle',{cx,cy,r:7,fill:'transparent',stroke:'rgba(255,255,255,0.2)',strokeWidth:1})
       );
@@ -2106,7 +2194,8 @@ const CPROG_QUALS=['maj7','m7','dom7','m7b5']; // available qualities in custom 
 
 // ── IIVIView ──────────────────────────────────────────────────────────
 // Guitar-pedal-style LED toggle for transport controls
-function LedToggle({label,enabled,onToggle,color,compact}){
+function LedToggle({label,enabled,onToggle,color,textColor,compact}){
+  textColor=textColor||color;
   return e('button',{onClick:onToggle,style:{
     display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
     gap:compact?3:5,padding:compact?'4px 8px':'6px 12px',borderRadius:8,cursor:'pointer',
@@ -2124,7 +2213,7 @@ function LedToggle({label,enabled,onToggle,color,compact}){
     }}),
     e('span',{style:{
       fontSize:compact?'0.55rem':'0.62rem',letterSpacing:'0.8px',fontWeight:enabled?700:400,
-      color:enabled?color:BTN_OFF,transition:'color 0.15s'
+      color:enabled?textColor:BTN_OFF,transition:'color 0.15s'
     }},label)
   );
 }
@@ -2890,13 +2979,13 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       :e('div',{'data-tour':'play-form-row',style:{marginBottom:10}},
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',marginBottom:5}},
             e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Progressions'),
-            ['major','minor','turn','blues','minblues','custom'].map(f=>
+            ['major','minor','turn','blues','minblues','tritone','secdom','custom'].map(f=>
               e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
             )
           ),
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}},
             e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Standards'),
-            ['bluebossa','autumn','attya','stella','twnbay','tritone','secdom'].map(f=>
+            ['bluebossa','autumn','attya','stella','twnbay'].map(f=>
               e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
             ),
             e('button',{
@@ -2966,30 +3055,30 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
         // BASS + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
-          e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:'#74C0FC',compact:isPlaying}),
+          e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:'#74C0FC',textColor:'var(--led-bass-fg)',compact:isPlaying}),
           e('button',{onClick:()=>{setShowEq(v=>!v);setShowGuitarEq(false);setShowRideEq(false);},'aria-label':'Bass Mix',title:'Bass EQ & Volume',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
-            background:showEq?'#74C0FC22':'transparent',color:showEq?'#74C0FC':eqGains.some(v=>v!==0)||bassVolume!==80?'#74C0FC99':BTN_OFF,
+            background:showEq?'#74C0FC22':'transparent',color:showEq||eqGains.some(v=>v!==0)||bassVolume!==80?'var(--led-bass-fg)':BTN_OFF,
             fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
           }},isPlaying?(showEq?'▴':'▾'):(showEq?'MIX ▴':'MIX ▾'))
         ),
         // COMP + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
-          e(LedToggle,{label:'GUITAR',enabled:guitarEnabled,onToggle:()=>setGuitarEnabled(v=>!v),color:'#86EFAC',compact:isPlaying}),
+          e(LedToggle,{label:'GUITAR',enabled:guitarEnabled,onToggle:()=>setGuitarEnabled(v=>!v),color:'#86EFAC',textColor:'var(--led-guitar-fg)',compact:isPlaying}),
           e('button',{onClick:()=>{setShowGuitarEq(v=>!v);setShowEq(false);setShowRideEq(false);},'aria-label':'Comp Mix',title:'Comp EQ & Volume',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
-            background:showGuitarEq?'#86EFAC22':'transparent',color:showGuitarEq?'#86EFAC':guitarEqGains.some(v=>v!==0)||guitarVolume!==80?'#86EFAC99':BTN_OFF,
+            background:showGuitarEq?'#86EFAC22':'transparent',color:showGuitarEq||guitarEqGains.some(v=>v!==0)||guitarVolume!==80?'var(--led-guitar-fg)':BTN_OFF,
             fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
           }},isPlaying?(showGuitarEq?'▴':'▾'):(showGuitarEq?'MIX ▴':'MIX ▾'))
         ),
         // RIDE + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
-          e(LedToggle,{label:'RIDE',enabled:rideEnabled,onToggle:()=>setRideEnabled(v=>!v),color:'#FFD43B',compact:isPlaying}),
+          e(LedToggle,{label:'RIDE',enabled:rideEnabled,onToggle:()=>setRideEnabled(v=>!v),color:'#FFD43B',textColor:'var(--led-ride-fg)',compact:isPlaying}),
           e('button',{onClick:()=>{setShowRideEq(v=>!v);setShowEq(false);setShowGuitarEq(false);},'aria-label':'Ride Mix',title:'Ride EQ & Volume',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
-            background:showRideEq?'#FFD43B22':'transparent',color:showRideEq?'#FFD43B':rideEqGains.some(v=>v!==0)||rideVolume!==80?'#FFD43B99':BTN_OFF,
+            background:showRideEq?'#FFD43B22':'transparent',color:showRideEq||rideEqGains.some(v=>v!==0)||rideVolume!==80?'var(--led-ride-fg)':BTN_OFF,
             fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
           }},isPlaying?(showRideEq?'▴':'▾'):(showRideEq?'MIX ▴':'MIX ▾'))
         ),
@@ -3406,22 +3495,32 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
 // ── CustomChordView ───────────────────────────────────────────────────
 // Reuses the same voicing UI as the diatonic view. Receives the active
 // chord data as props and renders controls + neck + chord boxes.
-function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey,vType,setVType,onUpgrade}){
+function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey,vType,setVType,onUpgrade,ssIdx,setSsIdx,invIdx,setInvIdx,shellIdx,setShellIdx}){
   dotMode=dotMode||'interval';
   const isEss=level==='essentials';
   const [detectMode,setDetectMode]=useState(false);
   const [selectedFrets,setSelectedFrets]=useState({}); // {stringIdx: fretNum}
+  const [completionChord,setCompletionChord]=useState(null);
   const detectFretPos=5; // how many frets shown at once
   const [fretOffset,setFretOffset]=useState(0);
-  const [ssIdx,setSsIdx]=useState(2);
-  const [invIdx,setInvIdx]=useState(0);
-  const [shellIdx,setShellIdx]=useState(0);
+  // ssIdx / invIdx / shellIdx are lifted to App state (shared with the Keys
+  // view) so the chosen voicing — string set, inversion, shell shape —
+  // survives switching between Any Chord and Keys via "In a key ↗" /
+  // "Explore ↗". The index tables (DROP_DATA, D2_INV, SHELLS) are identical
+  // across both views, so the values transfer directly.
   const [extOpt,setExtOpt]=useState(null); // active extension id or null
+  const typeChangeMount=useRef(false); // skip the reset-on-mount run
+  const shellResetMount=useRef(false);
   useEffect(()=>{
     if(isEss&&(vType==='drop3'||vType==='drop24'||vType==='drop23'||vType==='drop2'))setVType('shell');
     if(isEss)setExtOpt(null);
   },[level]);
-  useEffect(()=>{setExtOpt(null);setInvIdx(0);setScaleHintCustom(null);},[customTypeIdx,customRoot]);
+  useEffect(()=>{
+    // Skip the mount run so a voicing carried in from the Keys view (via
+    // "Explore ↗") isn't reset; only reset when the user picks a new chord here.
+    if(!typeChangeMount.current){typeChangeMount.current=true;return;}
+    setExtOpt(null);setInvIdx(0);setScaleHintCustom(null);
+  },[customTypeIdx,customRoot]);
 
   const [scaleHintCustom,setScaleHintCustom]=useState(null);
   const scaleHintQKey={'maj7':'maj7','m7':'m7','dom7':'dom7','m7b5':'m7b5','maj9':'maj7','m9':'m7','dom9':'dom7','7alt':'dom7','7b9':'dom7','9sus':'dom7'};
@@ -3441,6 +3540,22 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   // Build chord name using enharmonic spelling matching the root (Ab not G#, Bb not A#)
   const chordName=nn(customRoot,customRoot)+baseType.sym+(extDef?extDef.sym:'');
 
+  // Audio preview for the root/type/extension selectors — mirrors the diatonic
+  // chord cards, which play a shell voicing on tap. Computed from the passed
+  // values (not state) since setState is async and tones lag a render behind.
+  const previewSelection=(root,typeIdx,extId)=>{
+    try{
+      const bt=EXT_TYPES[typeIdx];if(!bt) return;
+      const exts=CHORD_EXTS[typeIdx]||[];
+      const ed=extId?exts.find(x=>x.id===extId):null;
+      const iv=ed?bt.iv.map((x,i)=>i===2?ed.tone:x):bt.iv;
+      const tns=iv.map(i=>(root+i)%12);
+      const vs=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tns,1));
+      const vi=vs.findIndex(v=>v!==null);
+      if(vi>=0)playChordPreview(vs[vi],SHELLS[vi].s);
+    }catch(ex){}
+  };
+
   const dropD=DROP_DATA[vType]||DROP_DATA.drop2;
   const invData=dropD.inv, setsData=dropD.sets;
   const safeSSIdx=Math.min(ssIdx,setsData.length-1);
@@ -3456,7 +3571,13 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     const vs=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,1));
     const f=vs.findIndex(v=>v!==null); return f>=0?f:0;
   },[tones]);
-  useEffect(()=>{if(vType==='shell') setShellIdx(firstValidShell);},[firstValidShell,vType]);
+  useEffect(()=>{
+    // Skip the mount run so a shell shape carried in from the Keys view isn't
+    // snapped back to the first playable one; safeShellIdx still guards an
+    // index that's invalid for the current chord.
+    if(!shellResetMount.current){shellResetMount.current=true;return;}
+    if(vType==='shell') setShellIdx(firstValidShell);
+  },[firstValidShell,vType]);
   const safeShellIdx=allVoicings[shellIdx]?shellIdx:firstValidShell;
   const selIdx=vType==='shell'?safeShellIdx:invIdx;
 
@@ -3506,6 +3627,12 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
 
   const detectPcs=Object.entries(selectedFrets).map(([s,f])=>(OPEN_PC[parseInt(s)]+parseInt(f))%12);
   const detectedChords=detectPcs.length>=2?detectChords(detectPcs):[];
+  // Pitch classes that would complete the user-selected incomplete chord
+  const completionPcs=useMemo(()=>{
+    if(!completionChord) return [];
+    const fullPcs=completionChord.iv.map(i=>(completionChord.root+i)%12);
+    return fullPcs.filter(pc=>!detectPcs.includes(pc));
+  },[completionChord,detectPcs]); // eslint-disable-line react-hooks/exhaustive-deps
   const DETECT_NOTE_NAMES=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
   // Lowest-pitched selected note → bass pitch-class, used to label inversion.
   const detectEntries=Object.entries(selectedFrets);
@@ -3544,20 +3671,20 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     e('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
       e('span',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT}},'Tap the notes you\'re playing'),
       e('div',{style:{display:'flex',gap:6,alignItems:'center'}},
-        e('button',{onClick:()=>{setFretOffset(f=>Math.max(0,f-5));setSelectedFrets({});},disabled:fretOffset===0,style:{
+        e('button',{onClick:()=>{setFretOffset(f=>Math.max(0,f-5));setSelectedFrets({});setCompletionChord(null);},disabled:fretOffset===0,style:{
           padding:'4px 10px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,opacity:fretOffset===0?0.4:1}},'↑'),
         e('span',{style:{fontSize:'0.72rem',color:HINT,minWidth:50,textAlign:'center'}},
           fretOffset===0?'Open':'+'+(fretOffset)),
-        e('button',{onClick:()=>{setFretOffset(f=>Math.min(7,f+5));setSelectedFrets({});},disabled:fretOffset>=7,style:{
+        e('button',{onClick:()=>{setFretOffset(f=>Math.min(7,f+5));setSelectedFrets({});setCompletionChord(null);},disabled:fretOffset>=7,style:{
           padding:'4px 10px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           border:'1px solid '+BTN_BRD,background:'transparent',color:BTN_OFF,opacity:fretOffset>=7?0.4:1}},'↓')
       )
     ),
-    e(DetectNeckSVG,{selectedFrets,fretOffset,
+    e(DetectNeckSVG,{selectedFrets,fretOffset,completionPcs,
       onToggle:(si,fret)=>setSelectedFrets(sf=>sf[si]===fret?Object.fromEntries(Object.entries(sf).filter(([k])=>parseInt(k)!==si)):({...sf,[si]:fret}))}),
     // Clear button
-    Object.keys(selectedFrets).length>0?e('button',{onClick:()=>setSelectedFrets({}),style:{
+    Object.keys(selectedFrets).length>0?e('button',{onClick:()=>{setSelectedFrets({});setCompletionChord(null);},style:{
       width:'100%',padding:'6px',background:'transparent',border:'1px solid '+BTN_BRD,
       borderRadius:6,color:BTN_OFF,fontFamily:UI_FONT,fontSize:'0.78rem',cursor:'pointer',minHeight:36,marginBottom:12}},
       'Clear all'):null,
@@ -3573,26 +3700,39 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       :detectedChords.length>0
       ?e('div',null,
         e('div',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,marginBottom:8}},
-          detectedChords[0].exact?'Exact match:':'Possible matches (incomplete voicing):'),
+          detectedChords[0].exact
+            ?'Exact match:'
+            :(completionChord
+              ?'Tap the highlighted notes to complete the voicing:'
+              :'Possible matches — tap to see missing notes:')),
         e('div',{style:{display:'flex',flexWrap:'wrap',gap:8}},
           detectedChords.map((ch,i)=>{
             const extIdx=DETECT_TO_EXT[ch.sym];
             const clickable=ch.exact&&extIdx!==undefined;
+            const isCompTarget=!ch.exact&&completionChord&&completionChord.name===ch.name;
             const bassInt=bassPc!=null?((bassPc-ch.root+12)%12):null;
             const invPos=(bassInt!=null&&ch.iv)?ch.iv.indexOf(bassInt):-1;
             const invLbl=invPos>=0?(INV_ORD[invPos]||null):null;
+            const cardBorder=ch.exact&&i===0?GOLD:isCompTarget?'#74C0FC':BTN_BRD;
+            const cardBg=ch.exact&&i===0?ACT_GOLD:isCompTarget?ACT_BLUE:BG2;
             return e('div',{key:i,
-              onClick:clickable?()=>{setDetectMode(false);setCustomRoot(ch.root);setCustomTypeIdx(extIdx);setInvIdx(0);window.scrollTo(0,0);}:null,
-              title:clickable?'Open '+ch.name+' on the Chords page':null,
+              onClick:clickable
+                ?()=>{setDetectMode(false);setCustomRoot(ch.root);setCustomTypeIdx(extIdx);setInvIdx(0);window.scrollTo(0,0);}
+                :!ch.exact
+                  ?()=>setCompletionChord(cc=>cc&&cc.name===ch.name?null:ch)
+                  :null,
+              title:clickable?'Open '+ch.name+' on the Chords page':(!ch.exact?'Show missing notes on fretboard':null),
               style:{
                 padding:'8px 14px',borderRadius:8,
-                border:'1px solid '+(ch.exact&&i===0?GOLD:BTN_BRD),
-                background:ch.exact&&i===0?ACT_GOLD:BG2,
-                cursor:clickable?'pointer':'default'}},
+                border:'1px solid '+cardBorder,
+                background:cardBg,
+                cursor:clickable||!ch.exact?'pointer':'default'}},
               e('div',{style:{display:'flex',alignItems:'baseline',gap:6}},
                 e('span',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,
-                  color:ch.exact&&i===0?GOLD:'var(--txt)'}},ch.name),
-                clickable?e('span',{style:{fontSize:'0.62rem',color:GOLD,fontFamily:UI_FONT}},'open ↗'):null
+                  color:ch.exact&&i===0?GOLD:isCompTarget?'#74C0FC':'var(--txt)'}},ch.name),
+                clickable?e('span',{style:{fontSize:'0.62rem',color:GOLD,fontFamily:UI_FONT}},'open ↗'):null,
+                (!ch.exact&&!isCompTarget)?e('span',{style:{fontSize:'0.62rem',color:'#74C0FC',fontFamily:UI_FONT}},'show missing ↓'):null,
+                isCompTarget?e('span',{style:{fontSize:'0.62rem',color:'#74C0FC',fontFamily:UI_FONT}},'showing ✓'):null
               ),
               e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT}},
                 ch.quality+(invLbl?'  ·  '+invLbl:'')+(ch.exact?'':'  ·  '+ch.matched+'/'+ch.total+' notes'))
@@ -3612,7 +3752,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         e('div',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',marginBottom:6,fontWeight:600}},'Root'),
         e('div',{style:{display:'flex',flexWrap:'wrap',gap:3}},
           KEYS.map((k,i)=>
-            e('button',{key:i,onClick:()=>{setCustomRoot(k.root);setInvIdx(0);},style:{
+            e('button',{key:i,onClick:()=>{setCustomRoot(k.root);setInvIdx(0);previewSelection(k.root,customTypeIdx,extOpt);},style:{
               padding:'4px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
               border:'1px solid '+(customRoot===k.root?GOLD:BTN_BRD),
               background:customRoot===k.root?ACT_GOLD:BG2,
@@ -3626,7 +3766,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         e('div',{'data-tour':'chord-type-tabs',style:{display:'flex',flexWrap:'wrap',gap:3,marginBottom:4}},
           EXT_TYPES.map((t,i)=>{
             const locked=isEss&&i>=4;
-            return e('button',{key:i,onClick:locked?()=>onUpgrade(t.sym+' chords'):()=>{setCustomTypeIdx(i);setInvIdx(0);},style:{
+            return e('button',{key:i,onClick:locked?()=>onUpgrade(t.sym+' chords'):()=>{setCustomTypeIdx(i);setInvIdx(0);previewSelection(customRoot,i,null);},style:{
               padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
               border:'1px solid '+(customTypeIdx===i?'#C084FC':BTN_BRD),
               background:customTypeIdx===i?ACT_PUR:BG2,
@@ -3653,7 +3793,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     availExts.length>0&&!isEss?e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12,alignItems:'center'}},
       e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Extension'),
       availExts.map(ex=>
-        e('button',{key:ex.id,onClick:()=>setExtOpt(extOpt===ex.id?null:ex.id),style:{
+        e('button',{key:ex.id,onClick:()=>{const ne=extOpt===ex.id?null:ex.id;setExtOpt(ne);previewSelection(customRoot,customTypeIdx,ne);},style:{
           padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
           border:'1px solid '+(extOpt===ex.id?'#F4A261':BTN_BRD),
           background:extOpt===ex.id?ACT_GOLD:BG2,
@@ -3676,7 +3816,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       ),
       onFindInKey&&customTypeIdx<4?e('button',{'data-tour':'custom-inkey',
         onClick:()=>onFindInKey(customRoot,customTypeIdx),
-        title:'Find this chord in the diatonic key map — see which key it belongs to and at what position',
+        title:'Open this chord in a key — keeps your voicing (string set & inversion). The key map covers the seven 7th chords, so any extension shows as its base 7th.',
         style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
           fontSize:'0.7rem',border:'1px solid '+BTN_BRD,background:'transparent',
           color:BTN_OFF,minHeight:0,flexShrink:0,whiteSpace:'nowrap'}
@@ -4559,7 +4699,7 @@ function App(){
   const [pageTourId,setPageTourId]=useState(null);
 
   function overviewNext(){
-    if(overviewStep>=OVERVIEW_STEPS.length-1){
+    if(overviewStep>=tourStepsFor(OVERVIEW_STEPS,level==='pro').length-1){
       setOverviewStep(null);safeLSSet('jg-toured','1');
       setViewMode('guide');window.scrollTo(0,0);
     } else setOverviewStep(s=>s+1);
@@ -4567,7 +4707,7 @@ function App(){
   function overviewSkip(){setOverviewStep(null);safeLSSet('jg-toured','1');}
 
   function pageTourNext(){
-    const steps=PAGE_TOURS[pageTourId]||[];
+    const steps=tourStepsFor(PAGE_TOURS[pageTourId]||[],level==='pro');
     setPageTourStep(s=>{
       if(s===null||s>=steps.length-1){
         safeLSSet('jg-toured-'+pageTourId,'1');
@@ -4590,6 +4730,12 @@ function App(){
   // Level: Essentials hides the advanced half of the app. New users start
   // in Essentials; anyone who used the app before the level existed keeps Full.
   const [level,setLevel]=useState(()=>safeLS('jg-level','essentials'));
+  const [trialActive,setTrialActive]=useState(()=>{
+    const ts=safeLS('jg-trial-start','');
+    return!!ts&&Math.floor((Date.now()-new Date(ts).getTime())/86400000)<7;
+  });
+  const trialUsed=!!safeLS('jg-trial-start','');
+  const effectiveLevel=(level==='essentials'&&trialActive)?'pro':level;
   const [upgradeSheet,setUpgradeSheet]=useState(null); // feature name string, or null
   const [popTerm,setPopTerm]=useState(null); // glossary term key, or null
   const [aboutOpen,setAboutOpen]=useState(false);
@@ -4604,7 +4750,13 @@ function App(){
     // TODO: replace with RevenueCat restorePurchases() when IAP is ready
     setLevel('pro');safeLSSet('jg-level','pro');
   }
-  const isEss=level==='essentials';
+  function startTrial(){
+    safeLSSet('jg-trial-start',localDateStr());
+    setTrialActive(true);
+    setUpgradeSheet(null);
+    track('trial.started',{});
+  }
+  const isEss=effectiveLevel==='essentials';
   useEffect(()=>{track('app.loaded',{level});},[]);
   const [iiviPlaying,setIiviPlaying]=useState(false);
   // Clear playing state when navigating away from the play tab
@@ -4687,7 +4839,7 @@ function App(){
       if(viewMode==='diatonic'){
         setDeg(d=>fwd?(d+1)%7:(d+6)%7);
       } else if(viewMode==='custom'){
-        const len=safeLS('jg-level')==='essentials'?4:EXT_TYPES.length;
+        const len=isEss?4:EXT_TYPES.length;
         setCustomTypeIdx(i=>fwd?(i+1)%len:(i-1+len)%len);
       } else if(viewMode==='guide'){
         window.scrollBy({top:fwd?350:-350,behavior:'smooth'});
@@ -4725,7 +4877,7 @@ function App(){
       if(vType==='drop2'||vType==='drop3'||vType==='drop24'||vType==='drop23'||vType==='rootless') setVType('shell');
       if(customTypeIdx>3) setCustomTypeIdx(2);
     }
-  },[level]);
+  },[effectiveLevel]);// eslint-disable-line react-hooks/exhaustive-deps
 
   // Jump from a Path stage into a live view with everything preset.
   // bpm/minor belong to IIVIView, which is unmounted while the Path is
@@ -4747,6 +4899,8 @@ function App(){
     if(!quality) return;
     // Carry the voicing style across so Chords ↔ Keys stay consistent.
     // m7b5 has no Rootless tab in Keys, but Chords can't be Rootless anyway.
+    // String set / inversion / shell index are shared App state, so they
+    // carry over automatically — no need to copy them here.
     setVType(customVType);
     // Prefer current key — search its degrees first
     for(let d=0;d<7;d++){
@@ -4873,11 +5027,16 @@ function App(){
         color:'var(--lbl)',minHeight:0,flexShrink:0}},
         theme==='dark'?'☀':'☾'),
       e('div',{style:{flex:1}}),
-      level==='pro'?e('div',{'data-tour':'level-switch',onClick:()=>{setLevel('essentials');safeLSSet('jg-level','essentials');},
-        title:'Tap to switch back to Essentials',
+      (level==='pro'||trialActive)?e('div',{'data-tour':'level-switch',
+        onClick:()=>{
+          if(trialActive){setTrialActive(false);}
+          else{setLevel('essentials');safeLSSet('jg-level','essentials');}
+        },
+        title:trialActive?'7-day trial active — tap to preview Essentials':'Tap to switch back to Essentials',
         style:{fontSize:'0.72rem',fontWeight:700,fontFamily:UI_FONT,color:GOLD,
           border:'1px solid '+GOLD+'66',borderRadius:10,padding:'3px 10px',cursor:'pointer',
-          background:ACT_GOLD,flexShrink:0}},'Pro ✦'):null,
+          background:ACT_GOLD,flexShrink:0}},
+        trialActive?'Trial ✦':'Pro ✦'):null,
       streak>0?e('div',{
         title:'Practice streak — '+streak+' day'+(streak!==1?'s':'')+'. Next badge at day '+nextMil+' ('+daysToNextMil+' day'+(daysToNextMil===1?'':'s')+' away). Practice daily to keep it going.',
         style:{display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:10,
@@ -4939,20 +5098,20 @@ function App(){
     ):null,
 
     // ── IIVI VIEW ────────────────────────────────────────────────────
-    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level,onPlayStateChange:setIiviPlaying,pedalRef:iiviPedalRef,onUpgrade:showUpgrade,
+    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level:effectiveLevel,onPlayStateChange:setIiviPlaying,pedalRef:iiviPedalRef,onUpgrade:showUpgrade,
       onPracticed:()=>{
         setPlaySessions(s=>{const ns=s+1;safeLSSet('jg-play-sessions',ns);return ns;});
         markPracticed();
       }}):null,
 
     // ── CUSTOM CHORD VIEW ────────────────────────────────────────────
-    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey:findInKey,vType:customVType,setVType:setCustomVType,onUpgrade:showUpgrade}):null,
+    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level:effectiveLevel,dotMode,setDotMode,onFindInKey:findInKey,vType:customVType,setVType:setCustomVType,onUpgrade:showUpgrade,ssIdx,setSsIdx,invIdx,setInvIdx,shellIdx,setShellIdx}):null,
 
     // ── GUIDE / PATH VIEW ────────────────────────────────────────────
-    viewMode==='guide'?e(GuideView,{openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade:showUpgrade,onPracticed:markPracticed}):null,
+    viewMode==='guide'?e(GuideView,{openPreset,level:effectiveLevel,streak,lastPracticeDay,bestStreak,onUpgrade:showUpgrade,onPracticed:markPracticed}):null,
 
     // ── TRAIN HUB (Ear + Fretboard) ──────────────────────────────────
-    viewMode==='quiz'?e(TrainView,{level,onPracticed:markPracticed,onUpgrade:showUpgrade,pedalRef:earPedalRef}):null,
+    viewMode==='quiz'?e(TrainView,{level:effectiveLevel,onPracticed:markPracticed,onUpgrade:showUpgrade,pedalRef:earPedalRef}):null,
 
     // ── DIATONIC VIEW ────────────────────────────────────────────────
     viewMode==='diatonic'?e('div',null,
@@ -5016,7 +5175,7 @@ function App(){
             setCustomVType(cv);
             setViewMode('custom');window.scrollTo(0,0);
           },
-          title:'Open this chord in the Chord Explorer — extensions, voicing types, and key lookup',
+          title:'Open this chord in the Chord Explorer — keeps your voicing (string set & inversion); add extensions, change voicing type, or look up another key.',
           style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
             fontSize:'0.7rem',border:'1px solid '+BTN_BRD,background:'transparent',
             color:BTN_OFF,minHeight:0,flexShrink:0,whiteSpace:'nowrap'}
@@ -5132,7 +5291,7 @@ function App(){
         ' = major 7th (Δ7 interval).  Shell Form A: skip-string.  Shell Form B: adjacent-string R-3-7.  Drop 2: 2nd-highest note dropped an octave.  Drop 3: 3rd-highest dropped.  Rootless: 9th replaces root.')
     ):null,
 
-    upgradeSheet?e(UpgradeSheet,{feature:upgradeSheet,onClose:()=>setUpgradeSheet(null),onUnlock:doUpgrade}):null,
+    upgradeSheet?e(UpgradeSheet,{feature:upgradeSheet,onClose:()=>setUpgradeSheet(null),onUnlock:doUpgrade,trialUsed,trialActive,onTrial:startTrial}):null,
     aboutOpen?e(AboutSheet,{onClose:()=>setAboutOpen(false),level,onRestore:doRestore}):null,
     popTerm&&GLOSS_DEFS[popTerm]?e(React.Fragment,null,
       e('div',{onClick:()=>setPopTerm(null),style:{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,0.35)'}}),
@@ -5200,9 +5359,9 @@ function App(){
 
     // ── Tour overlay ─────────────────────────────────────────────────
     overviewStep!==null
-      ?e(TourOverlay,{steps:OVERVIEW_STEPS,step:overviewStep,onNext:overviewNext,onSkip:overviewSkip})
+      ?e(TourOverlay,{steps:tourStepsFor(OVERVIEW_STEPS,level==='pro'),step:overviewStep,onNext:overviewNext,onSkip:overviewSkip})
       :pageTourStep!==null&&pageTourId&&PAGE_TOURS[pageTourId]
-        ?e(TourOverlay,{steps:PAGE_TOURS[pageTourId],step:pageTourStep,onNext:pageTourNext,onSkip:pageTourSkip})
+        ?e(TourOverlay,{steps:tourStepsFor(PAGE_TOURS[pageTourId],level==='pro'),step:pageTourStep,onNext:pageTourNext,onSkip:pageTourSkip})
         :null,
 
     // ── Bottom tab bar ───────────────────────────────────────────────

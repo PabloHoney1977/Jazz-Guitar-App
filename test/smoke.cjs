@@ -594,6 +594,13 @@ const IPHONE14 = {
       const chordsBefore = await page.$$eval('button', btns =>
         btns.map(b => b.textContent?.trim()).filter(t => /^(vii|iii|ii|vi|IV|V|I)[A-G]/.test(t))
       );
+      // Record neck highlight dot positions before key change
+      const neckDotsBefore = await page.evaluate(() => {
+        const neck = document.querySelector('[data-tour="neck-area"]');
+        if (!neck) return '';
+        const gs = neck.querySelectorAll('g[filter] circle');
+        return Array.from(gs).map(c => c.getAttribute('cx')).join(',');
+      });
 
       // Open key picker and select G (index 7 = G)
       const keyChip = await page.$('[data-tour="key-chip"] button');
@@ -610,10 +617,20 @@ const IPHONE14 = {
         btns.map(b => b.textContent?.trim()).filter(t => /^(vii|iii|ii|vi|IV|V|I)[A-G]/.test(t))
       );
 
+      // Record neck highlight dot positions after key change
+      const neckDotsAfter = await page.evaluate(() => {
+        const neck = document.querySelector('[data-tour="neck-area"]');
+        if (!neck) return '';
+        const gs = neck.querySelectorAll('g[filter] circle');
+        return Array.from(gs).map(c => c.getAttribute('cx')).join(',');
+      });
+
       ok('key change: still 7 chord buttons after switching to G', chordsAfter.length === 7,
          `got ${chordsAfter.length}: ${chordsAfter.join(', ')}`);
       ok('key change: chord labels differ from C key', JSON.stringify(chordsBefore) !== JSON.stringify(chordsAfter),
          `before=${chordsBefore.join(',')}, after=${chordsAfter.join(',')}`);
+      ok('key change: neck highlight dots moved (fret positions updated)', neckDotsBefore !== neckDotsAfter,
+         `dots unchanged: ${neckDotsBefore}`);
 
       const screenshotFile = path.join(SHOTS_DIR, 'keys-key-change.png');
       await page.screenshot({ path: screenshotFile, fullPage: true });
