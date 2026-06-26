@@ -55,8 +55,8 @@ test('play forms — only major is free; all others route to upgrade', () => {
   // collapsed into a single upgrade-prompt button (not enumerated individually).
   assert.ok(has("e('button',{onClick:()=>setForm('major'),style:modeBtn(form==='major',FORM_DEFS.major.col,FORM_DEFS.major.bg)},FORM_DEFS.major.lbl),"),
     'essentials major-form button missing');
-  // The upgrade prompt calls onUpgrade.
-  assert.ok(has("onClick:()=>onUpgrade('progressions')"),
+  // The upgrade prompt calls onUpgrade with the form label.
+  assert.ok(has('onClick:()=>onUpgrade(FORM_DEFS[f].lbl)'),
     'essentials upgrade prompt should call onUpgrade');
   // Runtime guard forces major if the level flips while on a Pro form.
   assert.ok(has("if(form!=='major'){setForm('major');setIsPlaying(false);}"),

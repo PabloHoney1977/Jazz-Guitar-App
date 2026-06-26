@@ -632,7 +632,7 @@ function GuitarToggle({level,setLevel}){
 function UpgradeSheet({feature,onClose,onUnlock}){
   const PERKS=[
     'Drop 2, Drop 3, and Rootless voicings in the Keys tab',
-    'All play forms — minor ii–V–i, jazz blues, tritone sub, secondary dominants, custom progressions',
+    'All play forms + 3 jazz standards — Autumn Leaves, All The Things You Are, There Will Never Be Another You',
     'All 12 ear training intervals + harmonic mode, triads, 7th chords, and cadence recognition',
     'All extended chord types (9ths, 11ths, 13ths, altered) in the Any Chord tab',
   ];
@@ -644,10 +644,21 @@ function UpgradeSheet({feature,onClose,onUnlock}){
     '7th Chords':'Identify maj7, m7, dom7, and half-dim chords by ear — the core vocabulary of jazz harmony.',
     'Auto ear training':'Listen without scoring pressure — the app plays, speaks the answer, and moves on automatically.',
     'Find Chord':'Tap any notes on the fretboard and instantly see what chord you\'re playing.',
+    'AUTUMN LEAVES':'32-bar AABA in G major/E minor. Practice the descending ii–V–I–IV motion and the minor ii–V–i in the bridge.',
+    'ALL THINGS':'Two ii–V–I cycles descending a fourth apart — the root motion that shows up in countless standards. Set key to Ab.',
+    'ANOTHER YOU':'Backdoor ii–V, secondary dominants, and a turnaround all in one 12-bar A section. Set key to Eb.',
+    'MINOR ii–V–i':'The half-diminished iim7♭5 creates stronger pull than a plain m7 — the ear hears it lean hard into im7.',
+    'JAZZ BLUES':'12-bar blues transformed: VI7 in bar 8, iim7–V7 in bars 9–10, turnaround in bar 12.',
+    'I–VI–ii–V':'The engine of rhythm changes and endless standards. The VI is dominant so it pulls harder into ii.',
+    'MINOR BLUES':'im7 throughout, iiø7–V7 in bars 9–10 — the minor ii–V you already know drops right in.',
+    'TRITONE SUB':'Hear the chromatic bass D♭→C vs. the fifth-down G→C. Same resolution, totally different color.',
+    'SEC. DOM.':'E7 pulls to Am7, A7 pulls to Dm7 — each a mini ii–V before the main ii–V–I resolves home.',
   };
   // Map partial feature strings to a perk index (0-3) so that perk gets highlighted
   const PERK_IDX={'Drop 2':0,'Drop 3':0,'Rootless':0,'drop2':0,'drop3':0,'rootless':0,
-    'minor ii':1,'Jazz Blues':1,'Tritone':1,'Sec. Dom':1,'Tritone Sub':1,'Turnaround':1,
+    'minor ii':1,'MINOR ii':1,'Jazz Blues':1,'JAZZ BLUES':1,'Tritone':1,'TRITONE':1,
+    'Sec. Dom':1,'SEC. DOM':1,'Turnaround':1,'I–VI':1,'MINOR BLUES':1,'Minor Blues':1,
+    'AUTUMN':1,'ALL THINGS':1,'ANOTHER YOU':1,
     'Triads':2,'7th Chords':2,'Auto ear':2,'auto ear':2,
     '△':3,'ø':3,'9sus':3};
   const featureKey=Object.keys(PERK_IDX).find(k=>feature&&feature.toLowerCase().includes(k.toLowerCase()));
@@ -2819,7 +2830,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
           e('div',{style:{position:'relative'}},
             e('div',{style:{display:'flex',gap:6,overflowX:'auto',paddingBottom:2,scrollbarWidth:'none',msOverflowStyle:'none'}},
               ['minor','turn','blues','minblues','tritone','secdom','autumn','attya','twnbay'].map(f=>
-                e('button',{key:f,onClick:()=>onUpgrade('progressions'),style:{
+                e('button',{key:f,onClick:()=>onUpgrade(FORM_DEFS[f].lbl),style:{
                   padding:'4px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,
                   fontSize:'0.72rem',border:'1px solid '+BORDER,background:'transparent',
                   color:HINT,fontWeight:600,minHeight:36,letterSpacing:'0.2px',
