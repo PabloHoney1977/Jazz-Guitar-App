@@ -1494,6 +1494,10 @@ const PAGE_TOURS={
      text:'Pick a form — ii-V-I is the foundation of jazz harmony. Pro unlocks 5 jazz standards: Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, and There Will Never Be Another You.'},
     {target:'play-transport', title:'Play controls',
      text:'Hit the green button for a 4-count-in, then the loop begins. BPM knob sets tempo — start at 60 and build up.'},
+    {target:'play-mix',       title:'Dial in the sound',
+     text:'Each instrument — Bass, Guitar, Ride — has its own MIX button. Tap it to toggle the instrument or open a 5-band EQ and volume slider, so you can shape the tone to taste or mute parts to focus your practice.'},
+    {target:'play-faves',     title:'Save your favorites',
+     text:'Found a progression, tempo, and voicing you like? Tap ★ to save it. Saved setups appear in a row below — tap one to instantly restore the form, BPM, and voicing in one click.'},
     {target:'bar-grid',       title:'Follow the chord changes',
      text:'The gold-pulsing bar shows the current chord. Watch it cycle and play along.'},
     {target:'neck-area',      title:'Comp along',
@@ -2891,6 +2895,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
               e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
             ),
             e('button',{
+              'data-tour':'play-faves',
               title:'Save current progression as a favorite',
               onClick:()=>{
                 const lbl=(FORM_DEFS[form]?.lbl||form)+' · '+bpm+'bpm · '+vType;
@@ -2953,7 +2958,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
         e(BpmKnob,{bpm,setBpm,onTap:handleTap})
       ),
       // Right: instruments (with Mix sub-buttons), separator, click
-      e('div',{style:{display:'flex',gap:4,marginLeft:'auto',alignItems:'flex-end'}},
+      e('div',{'data-tour':'play-mix',style:{display:'flex',gap:4,marginLeft:'auto',alignItems:'flex-end'}},
         // BASS + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
