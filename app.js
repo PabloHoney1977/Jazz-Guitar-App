@@ -1515,12 +1515,13 @@ function TourOverlay({steps,step,onNext,onSkip}){
   useEffect(()=>{
     if(!s){setRect(null);return;}
     let pollActive=true;
-    let rafId=null;
+    let pollRafId=null;
+    let eventRafId=null;
     function measure(){
       const el=document.querySelector('[data-tour="'+s.target+'"]');
       if(el){
         const r=el.getBoundingClientRect();
-        // Functional update: only triggers a re-render when the position actually changed.
+        // Functional update: only triggers a re-render when position actually changed.
         setRect(prev=>{
           if(prev&&Math.abs(prev.top-r.top)<0.5&&Math.abs(prev.left-r.left)<0.5
             &&Math.abs(prev.w-r.width)<0.5&&Math.abs(prev.h-r.height)<0.5) return prev;
@@ -1529,20 +1530,26 @@ function TourOverlay({steps,step,onNext,onSkip}){
       } else setRect(null);
       return !!el;
     }
-    // Poll every frame for 2 s to reliably catch iOS address-bar collapse,
-    // late layout shifts, and any other timing-sensitive repositioning.
-    // The functional update above bails out with no re-render when nothing moved.
-    function poll(){if(!pollActive) return; measure(); rafId=requestAnimationFrame(poll);}
-    rafId=requestAnimationFrame(poll);
+    // Poll every frame for 2 s to catch iOS address-bar / Shared-with-You banner
+    // collapse and any late layout shifts. Uses a separate rAF chain so events
+    // below don't accidentally cancel the poll loop.
+    function poll(){if(!pollActive) return; measure(); pollRafId=requestAnimationFrame(poll);}
+    pollRafId=requestAnimationFrame(poll);
     const stopPoll=setTimeout(()=>{pollActive=false;},2000);
-    // After the polling window, rely on scroll/resize events.
+    // After the poll window, events keep the rect current. window.resize catches
+    // browser-chrome changes (address bar, iOS Shared-with-You banner, keyboard)
+    // that visualViewport.resize might not fire for.
     const vv=window.visualViewport;
-    function onEvent(){cancelAnimationFrame(rafId); rafId=requestAnimationFrame(measure);}
+    function onEvent(){cancelAnimationFrame(eventRafId); eventRafId=requestAnimationFrame(measure);}
     window.addEventListener('scroll',onEvent,{passive:true});
+    window.addEventListener('resize',onEvent);
     vv&&vv.addEventListener('resize',onEvent); vv&&vv.addEventListener('scroll',onEvent);
     return ()=>{
-      pollActive=false; cancelAnimationFrame(rafId); clearTimeout(stopPoll);
+      pollActive=false;
+      cancelAnimationFrame(pollRafId); cancelAnimationFrame(eventRafId);
+      clearTimeout(stopPoll);
       window.removeEventListener('scroll',onEvent);
+      window.removeEventListener('resize',onEvent);
       vv&&vv.removeEventListener('resize',onEvent); vv&&vv.removeEventListener('scroll',onEvent);
     };
   },[step,s&&s.target]);
