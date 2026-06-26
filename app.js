@@ -1486,7 +1486,7 @@ const PAGE_TOURS={
   ],
   iivi:[
     {target:'play-form-row',  title:'Choose a progression',
-     text:'Pick a form — ii-V-I is the foundation of jazz harmony. Standards like Autumn Leaves are in Pro.'},
+     text:'Pick a form — ii-V-I is the foundation of jazz harmony. Pro unlocks 5 jazz standards: Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, and There Will Never Be Another You.'},
     {target:'play-transport', title:'Play controls',
      text:'Hit the green button for a 4-count-in, then the loop begins. BPM knob sets tempo — start at 60 and build up.'},
     {target:'bar-grid',       title:'Follow the chord changes',
