@@ -44,7 +44,7 @@ Steps completed and still needed to ship:
 
 ## What's Built (current `app.js` features)
 - **5 nav tabs:** Guide, Chords (Diatonic), Any Chord (Custom), Play (II-V-I), Ear Training
-- **Freemium paywall:** `UpgradeSheet` bottom sheet triggered by 🔒 lock badges on gated features. `showUpgrade(feature)` / `doUpgrade()` in App. Currently calls `setLevel('full')` directly — TODO: wire to RevenueCat/StoreKit IAP. Pro ✦ chip in header (tap to revert to Essentials for testing).
+- **Freemium paywall:** `UpgradeSheet` bottom sheet triggered by 🔒 lock badges on gated features. `showUpgrade(feature)` / `doUpgrade()` in App. Currently calls `setLevel('pro')` directly — TODO: wire to RevenueCat/StoreKit IAP. Pro ✦ chip in header (tap to revert to Essentials for testing).
 - **First-time onboarding:** Brand-new users (no `jg-viewMode` saved, no `jg-path` progress) land on the Guide tab. Returning users go straight to their last view. Logic in `viewMode` useState init.
 - **Guide tab:** 16 ordered learning stages with expandable content, tappable checklist items (persisted to `jg-path-items`), resume card, phase labels, links to live presets
 - **Chords tab:** All 7 diatonic chords in any key, shell/drop2/drop3/rootless voicings, scale overlay, guide tones, fingering numbers
@@ -53,7 +53,9 @@ Steps completed and still needed to ship:
 - **Ear Training tab:** Interval recognition (melodic + harmonic), triads, 7th chords, cadence recognition (II-V, V-I, II-V-I, I-VI, iv-I). Essentials: consonant intervals (melodic) only, single "3 more modes 🔒" upgrade CTA (not individual per-tab badges). Pro: all 12 intervals + harmonic mode + triads + 7th chords + cadences. Nav row uses ← ♪ → circle buttons (always in viewport, no scroll needed).
 - **Two-tier tour system:** App overview tour (5 steps across nav tabs) + per-page contextual tour for each tab
 - **Streak tracking:** 🔥 Xd badge in header. Fires when Play tab session starts OR first Ear Training answer. Resets if day is skipped. `playSessions` counted in localStorage. Push notification reminders deferred to Capacitor build.
-- **Streak milestones:** Celebration card slides up at days 3, 7, 14, 30. Auto-dismisses at 5.4s. Tap to dismiss early. `streakMilestone` state, `STREAK_MILESTONES=[3,7,14,30]`, `milestoneUp` CSS animation in index.html.
+- **Streak milestones:** Celebration card slides up at days 3, 7, 14, 30. Auto-dismisses at 5.4s. Tap to dismiss early. `streakMilestone` state, `STREAK_MILESTONES=[3,7,14,30]`, `milestoneUp` CSS animation in index.html. Days 7 and 30 show an inline upgrade nudge for essentials users.
+- **CRO upgrade CTAs:** Guide Stage 16 ("standard") shows a gold upgrade card before "I've got this" (essentials only). Guide allDone graduation card has an Unlock Pro button (essentials only).
+- **Analytics:** PostHog CDN snippet in `index.html` with `__POSTHOG_KEY__` placeholder (no-ops until key is set — user must replace after signing up at posthog.com). `track(event, props)` helper in `app.js`. Events tracked: `app.loaded`, `paywall.shown {feature}`, `upgrade.completed {feature}`, `guide.stage.completed {stage_id}`, `streak.milestone {days, level}`.
 - **Dark/light theme toggle**
 - **Bluetooth page-turner pedal support** (AirTurn / PageFlip keyboard events)
 - **PWA:** `manifest.json` + `sw.js` service worker for offline caching
@@ -91,8 +93,9 @@ Steps completed and still needed to ship:
 - Subscription pricing (one-time $9.99 is the model)
 
 ## Pending / Next Session Priorities
-1. **IAP implementation** — Replace `setLevel('full')` in `doUpgrade()` with RevenueCat/StoreKit purchase call. Product ID: `pro_unlock`. Use `@capacitor/purchases` or RevenueCat SDK.
-2. **App Store assets** — app icon in all required sizes, screenshots, store description copywriting
-3. **Apple Developer enrollment** — user action required, $99, developer.apple.com
-4. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`
-5. **Add Capacitor Local Notifications** — practice streak reminders (defer until after first TestFlight build)
+1. **PostHog key** — user action: sign up at posthog.com, create project, replace `__POSTHOG_KEY__` in `index.html` with the real API key. Once live, paywall funnel (paywall.shown → upgrade.completed) will be visible.
+2. **IAP implementation** — Replace `setLevel('pro')` in `doUpgrade()` with RevenueCat/StoreKit purchase call. Product ID: `pro_unlock`. Use `@capacitor/purchases` or RevenueCat SDK.
+3. **App Store assets** — app icon in all required sizes, screenshots, store description copywriting
+4. **Apple Developer enrollment** — user action required, $99, developer.apple.com. Also enroll in Small Business Program (15% cut → ~$8.49 net per sale).
+5. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`
+6. **Add Capacitor Local Notifications** — practice streak reminders (defer until after first TestFlight build)
