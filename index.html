@@ -12,6 +12,13 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg"/>
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
   <title>Jazz Guitar Lab</title>
+  <!-- PostHog analytics — replace __POSTHOG_KEY__ after signing up at posthog.com -->
+  <script>
+  (function(){var t='__POSTHOG_KEY__';if(!t||t.startsWith('__'))return;
+  !function(e,t){var o,n,p,r;t.__SV||(window.posthog=t,t._i=[],t.init=function(i,s,a){function g(e,t){var o=t.split(".");2==o.length&&(e=e[o[0]],t=o[1]),e[t]=function(){e.push([t].concat(Array.prototype.slice.call(arguments,0)))}}(p=e.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","")+(s.api_host.match(/\.i\.posthog\.com/)?"/static/array.js":"/static/array.js"),(r=e.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=t;void 0!==a?u=t[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(e){var t="posthog";return"posthog"!==a&&(t+="."+a),e||(t+=" (stub)"),t},u.people.toString=function(){return u.toString(1)+" (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags".split(" ");for(var l=0;l<o.length;l++)g(u,o[l]);t._i.push([i,s,a])},t.__SV=1)}(document,window.posthog||(window.posthog=[]));
+  posthog.init(t,{api_host:'https://us.i.posthog.com',person_profiles:'identified_only',capture_pageview:false});
+  })();
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { -webkit-text-size-adjust: 100%; font-size: 16px; }

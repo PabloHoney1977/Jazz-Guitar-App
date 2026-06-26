@@ -628,6 +628,11 @@ function GuitarToggle({level,setLevel}){
   );
 }
 
+// ── Analytics ─────────────────────────────────────────────────────────
+function track(event,props){
+  try{if(window.posthog&&typeof window.posthog.capture==='function')window.posthog.capture(event,props||{});}catch(e){}
+}
+
 // ── UpgradeSheet ──────────────────────────────────────────────────────
 function UpgradeSheet({feature,onClose,onUnlock}){
   const PERKS=[
@@ -3818,7 +3823,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
   function togDone(id){
     setDone(s=>{
       const isNowDone=!s[id];
-      if(isNowDone){setJustDone(id);setTimeout(()=>setJustDone(d=>d===id?null:d),1200);}
+      if(isNowDone){setJustDone(id);setTimeout(()=>setJustDone(d=>d===id?null:d),1200);track('guide.stage.completed',{stage_id:id});}
       return {...s,[id]:isNowDone?true:undefined};
     });
   }
@@ -4150,6 +4155,19 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
               :e('p',{key:'bt'+i,style:{...P,marginBottom:5}},...[].concat(t)))
           ):null
         ):null,
+        // Stage 16 upgrade CTA — shown only for essentials users on the last stage
+        st.id==='standard'&&isEss?e('div',{style:{
+          marginTop:14,padding:'14px 16px',borderRadius:8,
+          border:'1px solid '+GOLD+'80',background:ACT_GOLD}},
+          e('div',{style:{fontFamily:SERIF,fontSize:'1rem',fontWeight:700,color:GOLD,marginBottom:5}},
+            '🎵 Ready to play real jazz standards?'),
+          e('div',{style:{fontSize:'0.78rem',lineHeight:1.65,color:'var(--txt)',fontFamily:UI_FONT,marginBottom:10}},
+            'You\'ve completed the full learning path. Pro unlocks Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, and There Will Never Be Another You — plus Drop 2/3/Rootless voicings and all ear training modes. One price, forever.'),
+          e('button',{onClick:()=>onUpgrade('Jazz Standards'),style:{
+            width:'100%',padding:'11px 14px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.85rem',fontWeight:700,
+            border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:44}},
+            'Unlock Pro — $9.99 once, forever')
+        ):null,
         // "I've got this" — quieter, after the checklist (it's the last thing you do)
         e('button',{onClick:()=>{
           togDone(st.id);
@@ -4181,7 +4199,12 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
         e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:GOLD,marginBottom:6}},'🎉 You\'ve worked the whole Path'),
         p('You\'ve covered the core of jazz harmony — the four qualities, shells, Drop 2, the ii–V–I and its variations, the common forms, and a standard. That\'s a real foundation. The road from here is open-ended:'),
         ul('Drop 3 and Rootless voicings add harmonic depth (Pro)','Chord melody (the tune inside the chords) and reharmonization (re-coloring the chords)','Learn more standards — every tune you know is a new entry point','Play with other people — the single most accelerating thing you can do'),
-        streak>0?e('div',{style:{fontSize:'0.74rem',color:GOLD,fontWeight:700,fontFamily:UI_FONT,marginTop:4}},'🔥 '+streak+'-day streak — keep it going'):null)
+        streak>0?e('div',{style:{fontSize:'0.74rem',color:GOLD,fontWeight:700,fontFamily:UI_FONT,marginTop:4}},'🔥 '+streak+'-day streak — keep it going'):null,
+        isEss?e('button',{onClick:()=>onUpgrade('Jazz Standards'),style:{
+          marginTop:10,width:'100%',padding:'11px 14px',borderRadius:6,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.85rem',fontWeight:700,
+          border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:44}},
+          'Unlock Pro — $9.99 once, forever'):null)
       :nextStage?e('div',{style:{marginBottom:14,padding:'12px 14px',background:BG2,border:'1px solid '+GOLD+'66',borderRadius:8,
         display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
         e('div',{style:{flex:1,minWidth:170}},
@@ -4542,8 +4565,9 @@ function App(){
   const [upgradeSheet,setUpgradeSheet]=useState(null); // feature name string, or null
   const [popTerm,setPopTerm]=useState(null); // glossary term key, or null
   const [aboutOpen,setAboutOpen]=useState(false);
-  function showUpgrade(feature){setUpgradeSheet(feature);}
+  function showUpgrade(feature){setUpgradeSheet(feature);track('paywall.shown',{feature});}
   function doUpgrade(){
+    track('upgrade.completed',{feature:upgradeSheet});
     // TODO: replace the two lines below with RevenueCat/StoreKit purchase call when IAP is ready
     setLevel('pro');safeLSSet('jg-level','pro');
     setUpgradeSheet(null);
@@ -4553,6 +4577,7 @@ function App(){
     setLevel('pro');safeLSSet('jg-level','pro');
   }
   const isEss=level==='essentials';
+  useEffect(()=>{track('app.loaded',{level});},[]);
   const [iiviPlaying,setIiviPlaying]=useState(false);
   // Clear playing state when navigating away from the play tab
   useEffect(()=>{ if(viewMode!=='iivi') setIiviPlaying(false); },[viewMode]);
@@ -4596,6 +4621,7 @@ function App(){
     if(isStreakMilestone(newStreak)){
       setStreakMilestone(newStreak);
       setTimeout(()=>setStreakMilestone(null),5400);
+      track('streak.milestone',{days:newStreak,level});
     }
     if(iiviPlaying){
       setStreakAnimPending(true);
@@ -5109,6 +5135,17 @@ function App(){
             streakMilestone===180?'Six months of daily practice. Your hands know things your brain hasn\'t named yet.':
             streakMilestone===365?'Three hundred sixty-five days. One full year. This is rare. You\'re a jazz guitarist.':
             streakMilestone%30===0?streakMilestone+' days and counting. Consistency is the rarest skill there is.':''),
+          (streakMilestone===7||streakMilestone===30)&&isEss?e('div',{style:{marginTop:14,paddingTop:12,borderTop:'1px solid '+GOLD+'40'}},
+            e('div',{style:{fontSize:'0.77rem',lineHeight:1.55,color:'var(--txt)',fontFamily:UI_FONT,textAlign:'center',marginBottom:8}},
+              streakMilestone===7
+                ?'A 7-day streak shows real commitment. Pro unlocks jazz standards, advanced voicings, and all ear training modes.'
+                :'30 days. You\'ve earned it — Pro unlocks Blue Bossa, Autumn Leaves, Stella, and more. One price, forever.'),
+            e('button',{onClick:()=>{setStreakMilestone(null);onUpgrade('Pro');},style:{
+              display:'block',margin:'0 auto',padding:'9px 24px',borderRadius:6,cursor:'pointer',
+              fontFamily:UI_FONT,fontSize:'0.82rem',fontWeight:700,
+              border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:40}},
+              'Unlock Pro — $9.99 once')
+          ):null,
           e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT,
             textAlign:'center',marginTop:12}},'Tap to dismiss')
         )

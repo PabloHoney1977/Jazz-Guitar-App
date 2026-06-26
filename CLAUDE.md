@@ -1,6 +1,7 @@
 # Jazz Guitar Lab — Project Context
 
 ## Workflow Preferences
+- Always use model **claude-opus-4-8** (set in `.claude/settings.json`).
 - After committing, always push to the appropriate branch immediately — do not wait to be asked.
 - The app is served from `main`; always ensure finished work lands on `main` and is pushed.
 
@@ -12,11 +13,11 @@ Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitari
 - **Paid Pro ($9.99):** Drop 2/3/Rootless voicings, minor II-V-I + jazz blues + I-VI-ii-V turnaround + tritone sub + sec dom + custom + 5 jazz standards (Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You), all 12 intervals + harmonic mode + triads + 7th chords + cadences + Auto ear training in Ear Training, all extended chord types (9ths, 11ths, 13ths, altered) in Any Chord
 
 **Destination:** Apple App Store via Capacitor (web→native wrapper) + Codemagic (cloud CI/CD build — no Mac required).
-**Timeline:** Ship as soon as the product is ready. User has no existing audience and is willing to spend on paid acquisition.
-**Apple Developer account:** Not yet set up ($99/year enrollment needed).
+**Timeline:** Ship as soon as the product is ready.
+**Apple Developer account:** Not yet set up ($99/year enrollment needed). Also enroll in the Apple Small Business Program (15% cut instead of 30% — raises net per sale from $7 to $8.49 on a $9.99 purchase).
 **Bundle ID:** `com.pablohoney.jazzguitarlab`
 **Support:** Simple email channel (no dedicated support infrastructure needed pre-launch).
-**Marketing:** Paid ads (Instagram/TikTok/YouTube targeting guitarists). No prior audience to leverage.
+**Marketing:** Organic only — ASO (App Store search optimization), YouTube guitar community, Reddit (r/jazzguitar, r/guitarlessons), musician forums. No paid ads — one-time IAP economics don't support paid acquisition (CPI would exceed LTV). Build audience through content and community.
 
 ## Stack
 Single-file React 18 PWA. No build step. CDN React, all inline styles, ~5100 lines in `app.js`. Serve from `main` branch, develop on feature branches. Target: iPad (720px content width) primary, iPhone secondary.
