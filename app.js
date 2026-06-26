@@ -305,6 +305,13 @@ function calcVoicing(strings,assignment,tones,minFret){
         if(Math.min(...lf)>=minFret&&spanOK(lf)){
           return{frets:lf,midis:midis.map(m=>m-12),mn:mn-12,mx:mx-12};
         }
+        // The neck diagram only draws 15 frets. If the shape would otherwise
+        // land off the right edge, drop it an octave anyway (it stays on the
+        // board and span is preserved) even when that dips to an open string
+        // or a low-position stretch spanOK would normally reject.
+        if(mx>15&&Math.min(...lf)>=0){
+          return{frets:lf,midis:midis.map(m=>m-12),mn:mn-12,mx:mx-12};
+        }
       }
       return{frets,midis,mn,mx};
     }
