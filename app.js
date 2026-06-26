@@ -634,7 +634,8 @@ function track(event,props){
 }
 
 // ── UpgradeSheet ──────────────────────────────────────────────────────
-function UpgradeSheet({feature,onClose,onUnlock}){
+function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial}){
+  const trialExpired=trialUsed&&!trialActive;
   const PERKS=[
     'Drop 2, Drop 3, and Rootless voicings in the Keys tab',
     'All play forms + 5 jazz standards — Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You',
@@ -678,15 +679,19 @@ function UpgradeSheet({feature,onClose,onUnlock}){
       border:'1px solid '+GOLD+'44',padding:'20px 20px 36px',
       boxShadow:'0 -8px 32px rgba(0,0,0,0.55)',maxHeight:'72vh',overflowY:'auto'}},
       e('div',{style:{width:40,height:4,background:BORDER,borderRadius:2,margin:'0 auto 18px'}}),
-      e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},'🔒'),
+      e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},trialExpired?'⏱️':'🔒'),
       e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
         color:'var(--scale-name)',textAlign:'center',marginBottom:4}},
-        feature+' is a Pro feature'),
-      desc?e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
-        marginBottom:16,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},desc):null,
+        trialExpired?'Your free trial has ended':feature+' is a Pro feature'),
+      trialExpired
+        ?e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
+            marginBottom:16,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},
+            'You had full access to everything. Unlock Pro to keep it — one price, forever.')
+        :desc?e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
+            marginBottom:16,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},desc):null,
       e('div',{style:{fontSize:'0.75rem',color:HINT,
         marginBottom:8,fontFamily:UI_FONT,fontWeight:600,letterSpacing:'0.05em',
-        textTransform:'uppercase'}},desc?'Pro also unlocks:':'Pro unlocks:'),
+        textTransform:'uppercase'}},desc&&!trialExpired?'Pro also unlocks:':'Pro unlocks:'),
       e('ul',{style:{listStyle:'none',margin:'0 0 22px',padding:0}},
         PERKS.map((p,i)=>e('li',{key:i,style:{display:'flex',gap:9,padding:'6px 0',
           fontSize:'0.82rem',
@@ -699,6 +704,12 @@ function UpgradeSheet({feature,onClose,onUnlock}){
         fontFamily:UI_FONT,fontSize:'1rem',fontWeight:700,
         background:GOLD,border:'none',color:'#07070f',minHeight:54,marginBottom:10}},
         'Unlock Pro — $9.99'),
+      !trialUsed?e('button',{onClick:onTrial,style:{
+        width:'100%',padding:'12px',borderRadius:10,cursor:'pointer',
+        fontFamily:UI_FONT,fontSize:'0.88rem',fontWeight:600,
+        background:'transparent',border:'1px solid '+GOLD+'66',
+        color:GOLD,minHeight:44,marginBottom:10}},
+        'Try Pro free for 7 days'):null,
       e('button',{onClick:onClose,style:{
         width:'100%',padding:'10px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.82rem',background:'transparent',
@@ -4562,6 +4573,12 @@ function App(){
   // Level: Essentials hides the advanced half of the app. New users start
   // in Essentials; anyone who used the app before the level existed keeps Full.
   const [level,setLevel]=useState(()=>safeLS('jg-level','essentials'));
+  const [trialActive,setTrialActive]=useState(()=>{
+    const ts=safeLS('jg-trial-start','');
+    return!!ts&&Math.floor((Date.now()-new Date(ts).getTime())/86400000)<7;
+  });
+  const trialUsed=!!safeLS('jg-trial-start','');
+  const effectiveLevel=(level==='essentials'&&trialActive)?'pro':level;
   const [upgradeSheet,setUpgradeSheet]=useState(null); // feature name string, or null
   const [popTerm,setPopTerm]=useState(null); // glossary term key, or null
   const [aboutOpen,setAboutOpen]=useState(false);
@@ -4576,7 +4593,13 @@ function App(){
     // TODO: replace with RevenueCat restorePurchases() when IAP is ready
     setLevel('pro');safeLSSet('jg-level','pro');
   }
-  const isEss=level==='essentials';
+  function startTrial(){
+    safeLSSet('jg-trial-start',localDateStr());
+    setTrialActive(true);
+    setUpgradeSheet(null);
+    track('trial.started',{});
+  }
+  const isEss=effectiveLevel==='essentials';
   useEffect(()=>{track('app.loaded',{level});},[]);
   const [iiviPlaying,setIiviPlaying]=useState(false);
   // Clear playing state when navigating away from the play tab
@@ -4659,7 +4682,7 @@ function App(){
       if(viewMode==='diatonic'){
         setDeg(d=>fwd?(d+1)%7:(d+6)%7);
       } else if(viewMode==='custom'){
-        const len=safeLS('jg-level')==='essentials'?4:EXT_TYPES.length;
+        const len=isEss?4:EXT_TYPES.length;
         setCustomTypeIdx(i=>fwd?(i+1)%len:(i-1+len)%len);
       } else if(viewMode==='guide'){
         window.scrollBy({top:fwd?350:-350,behavior:'smooth'});
@@ -4697,7 +4720,7 @@ function App(){
       if(vType==='drop2'||vType==='drop3'||vType==='drop24'||vType==='drop23'||vType==='rootless') setVType('shell');
       if(customTypeIdx>3) setCustomTypeIdx(2);
     }
-  },[level]);
+  },[effectiveLevel]);// eslint-disable-line react-hooks/exhaustive-deps
 
   // Jump from a Path stage into a live view with everything preset.
   // bpm/minor belong to IIVIView, which is unmounted while the Path is
@@ -4831,11 +4854,16 @@ function App(){
         color:'var(--lbl)',minHeight:0,flexShrink:0}},
         theme==='dark'?'☀':'☾'),
       e('div',{style:{flex:1}}),
-      level==='pro'?e('div',{'data-tour':'level-switch',onClick:()=>{setLevel('essentials');safeLSSet('jg-level','essentials');},
-        title:'Tap to switch back to Essentials',
+      (level==='pro'||trialActive)?e('div',{'data-tour':'level-switch',
+        onClick:()=>{
+          if(trialActive){setTrialActive(false);}
+          else{setLevel('essentials');safeLSSet('jg-level','essentials');}
+        },
+        title:trialActive?'7-day trial active — tap to preview Essentials':'Tap to switch back to Essentials',
         style:{fontSize:'0.72rem',fontWeight:700,fontFamily:UI_FONT,color:GOLD,
           border:'1px solid '+GOLD+'66',borderRadius:10,padding:'3px 10px',cursor:'pointer',
-          background:ACT_GOLD,flexShrink:0}},'Pro ✦'):null,
+          background:ACT_GOLD,flexShrink:0}},
+        trialActive?'Trial ✦':'Pro ✦'):null,
       streak>0?e('div',{
         title:'Practice streak — '+streak+' day'+(streak!==1?'s':'')+'. Next badge at day '+nextMil+' ('+daysToNextMil+' day'+(daysToNextMil===1?'':'s')+' away). Practice daily to keep it going.',
         style:{display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:10,
@@ -4897,20 +4925,20 @@ function App(){
     ):null,
 
     // ── IIVI VIEW ────────────────────────────────────────────────────
-    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level,onPlayStateChange:setIiviPlaying,pedalRef:iiviPedalRef,onUpgrade:showUpgrade,
+    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level:effectiveLevel,onPlayStateChange:setIiviPlaying,pedalRef:iiviPedalRef,onUpgrade:showUpgrade,
       onPracticed:()=>{
         setPlaySessions(s=>{const ns=s+1;safeLSSet('jg-play-sessions',ns);return ns;});
         markPracticed();
       }}):null,
 
     // ── CUSTOM CHORD VIEW ────────────────────────────────────────────
-    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level,dotMode,setDotMode,onFindInKey:findInKey,vType:customVType,setVType:setCustomVType,onUpgrade:showUpgrade}):null,
+    viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level:effectiveLevel,dotMode,setDotMode,onFindInKey:findInKey,vType:customVType,setVType:setCustomVType,onUpgrade:showUpgrade}):null,
 
     // ── GUIDE / PATH VIEW ────────────────────────────────────────────
-    viewMode==='guide'?e(GuideView,{openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade:showUpgrade,onPracticed:markPracticed}):null,
+    viewMode==='guide'?e(GuideView,{openPreset,level:effectiveLevel,streak,lastPracticeDay,bestStreak,onUpgrade:showUpgrade,onPracticed:markPracticed}):null,
 
     // ── TRAIN HUB (Ear + Fretboard) ──────────────────────────────────
-    viewMode==='quiz'?e(TrainView,{level,onPracticed:markPracticed,onUpgrade:showUpgrade,pedalRef:earPedalRef}):null,
+    viewMode==='quiz'?e(TrainView,{level:effectiveLevel,onPracticed:markPracticed,onUpgrade:showUpgrade,pedalRef:earPedalRef}):null,
 
     // ── DIATONIC VIEW ────────────────────────────────────────────────
     viewMode==='diatonic'?e('div',null,
@@ -5086,7 +5114,7 @@ function App(){
         ' = major 7th (Δ7 interval).  Shell Form A: skip-string.  Shell Form B: adjacent-string R-3-7.  Drop 2: 2nd-highest note dropped an octave.  Drop 3: 3rd-highest dropped.  Rootless: 9th replaces root.')
     ):null,
 
-    upgradeSheet?e(UpgradeSheet,{feature:upgradeSheet,onClose:()=>setUpgradeSheet(null),onUnlock:doUpgrade}):null,
+    upgradeSheet?e(UpgradeSheet,{feature:upgradeSheet,onClose:()=>setUpgradeSheet(null),onUnlock:doUpgrade,trialUsed,trialActive,onTrial:startTrial}):null,
     aboutOpen?e(AboutSheet,{onClose:()=>setAboutOpen(false),level,onRestore:doRestore}):null,
     popTerm&&GLOSS_DEFS[popTerm]?e(React.Fragment,null,
       e('div',{onClick:()=>setPopTerm(null),style:{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,0.35)'}}),
