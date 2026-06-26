@@ -1659,7 +1659,7 @@ const NeckSVG=React.memo(function NeckSVG({arpPos,highlight,scalePos,extraDots,d
   const OPEN_X=PL-5; // x-position for fret-0 (open string) indicators, sits within nut
   const SINGLE_INLAYS=[3,5,7,9,15];
 
-  return e('svg',{width:'100%',viewBox:`0 0 ${W} ${H}`,style:{display:'block'}},
+  return e('svg',{width:'100%',viewBox:`0 0 ${W} ${H}`,style:{display:'block',WebkitTransform:'translateZ(0)',transform:'translateZ(0)'}},
     e('defs',null,
       e('filter',{id:'ng',x:'-60%',y:'-60%',width:'220%',height:'220%'},
         e('feGaussianBlur',{stdDeviation:'3.5',result:'b'}),
