@@ -10,7 +10,7 @@ Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitari
 
 **Freemium split:**
 - **Free (Essentials):** Shell voicings only, major II-V-I only, melodic intervals (5 consonant intervals), first 4 chord types in Any Chord tab, all 16 Guide stages (no feature gating in Guide)
-- **Paid Pro ($9.99):** Drop 2/3/Rootless voicings, minor II-V-I + jazz blues + I-VI-ii-V turnaround + tritone sub + sec dom + custom + 5 jazz standards (Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You), all 12 intervals + harmonic mode + triads + 7th chords + cadences + Auto ear training in Ear Training, all extended chord types (9ths, 11ths, 13ths, altered) in Any Chord
+- **Paid Pro ($9.99):** Drop 2/3/Rootless voicings, minor II-V-I + jazz blues + I-VI-ii-V turnaround + tritone sub + sec dom + custom + 5 jazz standards (Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You), all 12 intervals + harmonic mode + triads + 7th chords + cadences + Auto ear training in Ear Training, all extended chord types (9ths, 11ths, 13ths, altered) in Any Chord, Favorites (save/restore progressions) in Play
 
 **Destination:** Apple App Store via Capacitor (web→native wrapper) + Codemagic (cloud CI/CD build — no Mac required).
 **Timeline:** Ship as soon as the product is ready.
@@ -49,7 +49,7 @@ Steps completed and still needed to ship:
 - **Guide tab:** 16 ordered learning stages with expandable content, tappable checklist items (persisted to `jg-path-items`), resume card, phase labels, links to live presets
 - **Chords tab:** All 7 diatonic chords in any key, shell/drop2/drop3/rootless voicings, scale overlay, guide tones, fingering numbers
 - **Any Chord tab:** All chord types including extensions, find-in-key, custom root picker
-- **Play tab (IIVIView):** Backing track with walking bass, ride cymbal, jazz guitar comping. Forms: major/minor II-V-I, jazz blues, I-VI-ii-V turnaround, tritone sub, sec. dom., custom. Standards (Pro): Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You. Swing feel, variable BPM (35–150). Voice leading, pinned chords, bar-level voicing override.
+- **Play tab (IIVIView):** Backing track with walking bass, ride cymbal, jazz guitar comping. Forms: major/minor II-V-I, jazz blues, I-VI-ii-V turnaround, tritone sub, sec. dom., custom. Standards (Pro): Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You. Swing feel, variable BPM (35–150). Voice leading, pinned chords, bar-level voicing override. Per-instrument **MIX controls** (Bass/Guitar/Ride): each has a LED enable toggle + MIX button that opens a 5-band EQ + volume slider (keys `jg-eq`/`jg-geq`/`jg-req`, plus volume state). **Favorites (Pro):** ★ saves current form+BPM+voicing (+custom prog / bar voicings); saved chips restore in one tap (`jg-faves`). In Essentials, Favorites shows as a locked dashed "🔒 Pro" discovery card that opens the UpgradeSheet. Both MIX (`play-mix`) and Favorites (`play-faves`) have contextual tour steps.
 - **Ear Training tab:** Interval recognition (melodic + harmonic), triads, 7th chords, cadence recognition (II-V, V-I, II-V-I, I-VI, iv-I). Essentials: consonant intervals (melodic) only, single "3 more modes 🔒" upgrade CTA (not individual per-tab badges). Pro: all 12 intervals + harmonic mode + triads + 7th chords + cadences. Nav row uses ← ♪ → circle buttons (always in viewport, no scroll needed).
 - **Two-tier tour system:** App overview tour (5 steps across nav tabs) + per-page contextual tour for each tab
 - **Streak tracking:** 🔥 Xd badge in header. Fires when Play tab session starts OR first Ear Training answer. Resets if day is skipped. `playSessions` counted in localStorage. Push notification reminders deferred to Capacitor build.
@@ -79,7 +79,7 @@ Steps completed and still needed to ship:
 - CSS variables in `index.html` for dark/light theme
 - Tonal center colors: `TC = ['#FF6B6B','#4ECDC4','#74C0FC','#FFD43B']` (Root, 3rd, 5th, 7th) — teal restricted to chord-tone contexts only
 - `e()` = `React.createElement` alias used throughout
-- `localStorage` keys: `jg-path` (guide done), `jg-streak`, `jg-last-practice`, `jg-play-sessions`, `jg-level`, `jg-key`, `jg-bpm`, `jg-form`, `jg-toured`, etc.
+- `localStorage` keys: `jg-path` (guide done), `jg-streak`, `jg-last-practice`, `jg-play-sessions`, `jg-level`, `jg-key`, `jg-bpm`, `jg-form`, `jg-toured`, `jg-eq`/`jg-geq`/`jg-req` (bass/guitar/ride EQ), `jg-faves` (Play favorites), etc.
 - `SCALE_HINTS` has dom7 with 4 options including Phrygian Dom
 - Essentials tier: shell voicings only, major II-V-I only, melodic intervals (consonant) only in ear training, first 4 chord types in Any Chord; gated features show 🔒 badges that trigger UpgradeSheet
 - Pro tier: all voicings, all play forms, all ear training modes, all chord types
