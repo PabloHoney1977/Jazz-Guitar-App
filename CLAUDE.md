@@ -5,6 +5,7 @@
 - When making a fix, always commit it without being asked — only skip committing if explicitly told not to.
 - After committing, always push to the appropriate branch immediately — do not wait to be asked.
 - The app is served from `main`; always ensure finished work lands on `main` and is pushed. Merge finished fixes into `main` automatically without asking each time (commit on a feature branch, then merge to `main` and push).
+- **Remote-env git quirk:** the fresh container sometimes clones a stale local `main` (a 2-commit unrelated history) instead of the real `origin/main`. Before merging a feature branch into `main`, run `git fetch origin main` then `git reset --hard origin/main` first — otherwise the merge fails with "refusing to merge unrelated histories." Also `git fetch origin main` again right before pushing, since other sessions push to `main` concurrently (expect to merge `origin/main` before `git push` succeeds).
 
 ## Big Picture Goal
 Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitarists who want to learn jazz harmony. Monetization: **free download** (Essentials tier) with a **$9.99 one-time IAP** to unlock Pro. No subscription.
@@ -84,6 +85,7 @@ Steps completed and still needed to ship:
 - `SCALE_HINTS` has dom7 with 4 options including Phrygian Dom
 - Essentials tier: shell voicings only, major II-V-I only, melodic intervals (consonant) only in ear training, first 4 chord types in Any Chord; gated features show 🔒 badges that trigger UpgradeSheet
 - Pro tier: all voicings, all play forms, all ear training modes, all chord types
+- **iOS Safari SVG repaint gotcha:** SVG elements that use a `filter` (e.g. the `url(#ng)` blur/glow on NeckSVG highlight dots) do NOT visually repaint on iOS Safari/WebKit when React updates their attributes — they stay stale until a user gesture forces a reflow. This caused the "Keys page chords don't update until I tap them" bug. Fix is to force a GPU compositing layer on the affected `<svg>` via `style:{transform:'translateZ(0)',WebkitTransform:'translateZ(0)'}`. Chromium does not reproduce this — only real iOS Safari does, so it can't be caught by the headless Playwright smoke tests. Apply the same `translateZ(0)` hint to any new filtered SVG that re-renders on state change.
 
 ## Decided Against (don't re-suggest)
 - Comping rhythm patterns
