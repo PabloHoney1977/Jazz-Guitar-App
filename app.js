@@ -1997,10 +1997,19 @@ function DiagSection({title,children}){
   );
 }
 
-// Shown when every shape in a section failed the playability check
+// Shown when every shape in a section failed the playability check.
+// Rendered on its own (the neck is hidden in this case), so it's a full-width
+// block rather than a stray line of muted text that reads like a render bug.
 function NoShapes(){
-  return e('span',{style:{fontSize:'0.75rem',color:HINT,fontFamily:UI_FONT,padding:'8px 0'}},
-    'No playable shape here — this voicing needs a stretch wider than a hand allows. Try another string set.');
+  return e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+    gap:6,width:'100%',padding:'26px 18px',textAlign:'center',
+    background:BG2,border:'1px dashed '+BORDER,borderRadius:8}},
+    e('span',{style:{fontSize:'1.5rem',lineHeight:1}},'🤚'),
+    e('span',{style:{fontSize:'0.85rem',color:'var(--txt)',fontFamily:UI_FONT,fontWeight:700}},
+      'No playable shape for this voicing'),
+    e('span',{style:{fontSize:'0.75rem',color:HINT,fontFamily:UI_FONT,maxWidth:340,lineHeight:1.5}},
+      'This combination needs a stretch wider than a hand allows. Try a different voicing type or another string set.')
+  );
 }
 
 // ── Shared button style helpers ───────────────────────────────────────
@@ -3451,6 +3460,21 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   const safeShellIdx=allVoicings[shellIdx]?shellIdx:firstValidShell;
   const selIdx=vType==='shell'?safeShellIdx:invIdx;
 
+  // Which string sets yield at least one playable inversion for this chord.
+  const playableSets=useMemo(()=>DROP_TYPES.has(vType)
+    ?setsData.map(ss=>invData.some(inv=>calcVoicing(ss.s,inv.a,tones)!==null)):[]
+  ,[vType,setsData,invData,tones]);
+  const firstPlayableSet=useMemo(()=>{const f=playableSets.findIndex(Boolean);return f>=0?f:0;},[playableSets]);
+  // If the picked string set has no shape for this chord, snap to one that does
+  // so the dead-end empty state is never reached in normal use.
+  useEffect(()=>{
+    if(DROP_TYPES.has(vType)&&playableSets.length&&!playableSets[safeSSIdx]&&playableSets[firstPlayableSet]){
+      setSsIdx(firstPlayableSet);setInvIdx(0);
+    }
+  },[vType,playableSets,safeSSIdx,firstPlayableSet]);
+  // True only when no string set works at all — then we hide the neck and show the notice.
+  const noDropShape=DROP_TYPES.has(vType)&&playableSets.length>0&&!playableSets.some(Boolean);
+
   const highlight=useMemo(()=>{
     if(vType==='arpeggio') return null;
     const v=allVoicings[selIdx]; if(!v) return null;
@@ -3668,13 +3692,17 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',minHeight:36}},
       DROP_TYPES.has(vType)?[
         e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
-        setsData.map((ss,i)=>e('button',{key:i,onClick:()=>{setSsIdx(i);setInvIdx(0);},style:mkSsBtn(safeSSIdx===i)},ss.lbl))
+        setsData.map((ss,i)=>{const ok=playableSets[i]!==false;return e('button',{key:i,disabled:!ok,
+          onClick:ok?()=>{setSsIdx(i);setInvIdx(0);}:undefined,
+          title:ok?undefined:'No playable shape for this chord on these strings',
+          style:{...mkSsBtn(safeSSIdx===i),opacity:ok?1:0.4,cursor:ok?'pointer':'not-allowed'}},ss.lbl);})
       ]:null,
       vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'3-note voicing: root, 3rd & 7th — the 5th is omitted (it\'s implied by the context)'):null,
       vType==='arpeggio'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'All chord-tone positions on neck'):null
     ),
-    // Neck (with dot-mode toggle inside)
-    e('div',{style:{border:'1px solid '+BORDER,borderRadius:6,overflow:'hidden',marginBottom:10}},
+    // Neck (with dot-mode toggle inside) — hidden when no shape exists, so the
+    // notice below isn't sitting under an empty fretboard that looks broken.
+    noDropShape?null:e('div',{style:{border:'1px solid '+BORDER,borderRadius:6,overflow:'hidden',marginBottom:10}},
       e(ScrollNeck,{arpPos,highlight,scalePos:customScalePos,degNames,dotMode,dotKeyIdx:customRoot}),
       setDotMode?e('div',{style:{borderTop:'1px solid '+BORDER,padding:'4px 10px',background:BG2}},
         e(DotModeToggle,{dotMode,setDotMode})
@@ -4770,6 +4798,20 @@ function App(){
   useEffect(()=>{if(vType==='shell') setShellIdx(firstValidShell);},[firstValidShell]);
   const safeShellIdx=allVoicings[shellIdx]?shellIdx:firstValidShell;
 
+  // Which string sets yield at least one playable inversion for this chord.
+  const playableSets=useMemo(()=>DROP_TYPES.has(vType)
+    ?setsData.map(ss=>invData.some(inv=>calcVoicing(ss.s,inv.a,tones)!==null)):[]
+  ,[vType,setsData,invData,tones]);
+  const firstPlayableSet=useMemo(()=>{const f=playableSets.findIndex(Boolean);return f>=0?f:0;},[playableSets]);
+  // Snap away from a dead string set so the empty state is never reached normally.
+  useEffect(()=>{
+    if(DROP_TYPES.has(vType)&&playableSets.length&&!playableSets[safeSSIdx]&&playableSets[firstPlayableSet]){
+      setSsIdx(firstPlayableSet);setInvIdx(0);
+    }
+  },[vType,playableSets,safeSSIdx,firstPlayableSet]);
+  // True only when no string set works at all — then the neck is hidden.
+  const noDropShape=DROP_TYPES.has(vType)&&playableSets.length>0&&!playableSets.some(Boolean);
+
   const allRootless=useMemo(()=>
     ROOTLESS.map(cfg=>calcVoicing(cfg.s,cfg.a,rlTones,1)),[rlTones]);
   const firstValidRl=useMemo(()=>{const f=allRootless.findIndex(v=>v!==null);return f>=0?f:0;},[allRootless]);
@@ -4997,7 +5039,10 @@ function App(){
         display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',minHeight:36}},
         DROP_TYPES.has(vType)?[
           e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
-          setsData.map((ss,i)=>e('button',{key:i,onClick:()=>{setSsIdx(i);setInvIdx(0);},style:mkSsBtn(safeSSIdx===i)},ss.lbl)),
+          setsData.map((ss,i)=>{const ok=playableSets[i]!==false;return e('button',{key:i,disabled:!ok,
+            onClick:ok?()=>{setSsIdx(i);setInvIdx(0);}:undefined,
+            title:ok?undefined:'No playable shape for this chord on these strings',
+            style:{...mkSsBtn(safeSSIdx===i),opacity:ok?1:0.4,cursor:ok?'pointer':'not-allowed'}},ss.lbl);}),
           voiceOrder?e('span',{key:'vo',style:{marginLeft:'auto',fontSize:'0.7rem',color:LBL}},'voices: '+voiceOrder):null
         ]:null,
         vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:quality==='m7b5'?'#FFD43B':HINT,fontFamily:UI_FONT}},
@@ -5010,8 +5055,9 @@ function App(){
         vType==='drop23'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'Drop 2+3: spread voicing — voices 2 and 3 from top both dropped  ·  guide tones on top'):null,
         vType==='arpeggio'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'All chord-tone positions · scale tones shown faintly'):null
       ),
-      // Neck (with dot-mode toggle inside)
-      e('div',{style:{border:'1px solid '+BORDER,borderRadius:6,overflow:'hidden',marginBottom:10}},
+      // Neck (with dot-mode toggle inside) — hidden when no shape exists so the
+      // notice isn't sitting under an empty fretboard that looks broken.
+      noDropShape?null:e('div',{style:{border:'1px solid '+BORDER,borderRadius:6,overflow:'hidden',marginBottom:10}},
         e(ScrollNeck,{arpPos,highlight,scalePos,degNames,hlTc,dotMode,dotKeyIdx:key,dataTour:'neck-area'}),
         e('div',{style:{borderTop:'1px solid '+BORDER,padding:'4px 10px',background:BG2}},
           e(DotModeToggle,{dotMode,setDotMode})
