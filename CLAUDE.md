@@ -85,8 +85,9 @@ Steps completed and still needed to ship:
 
 ## Key Architecture Notes
 - `app.js` is the only source file — all components, data, audio, styles in one place
-- CSS variables in `index.html` for dark/light theme
+- CSS variables in `index.html` for dark/light theme (two blocks: `:root` dark, `:root[data-theme="light"]` light). Theme set via `document.documentElement.dataset.theme`.
 - Tonal center colors: `TC = ['#FF6B6B','#4ECDC4','#74C0FC','#FFD43B']` (Root, 3rd, 5th, 7th) — teal restricted to chord-tone contexts only
+- **Light-mode contrast:** bright pastels (the TC colors, instrument LED hexes `#74C0FC`/`#86EFAC`/`#FFD43B`) are legible on the dark bg but wash out as *text* on the light bg. Pattern: keep the bright hex for dots/glyphs/glows, but route label/text color through a theme-aware CSS var that darkens in light mode (e.g. `--led-bass-fg`/`--led-guitar-fg`/`--led-ride-fg` for the Play tab BASS/GUITAR/RIDE + MIX labels; `--dot-lbl` for dark-on-pastel chord-tone dots). Add new such vars to **both** `:root` blocks.
 - `e()` = `React.createElement` alias used throughout
 - `localStorage` keys: `jg-path` (guide done), `jg-streak`, `jg-last-practice`, `jg-play-sessions`, `jg-level`, `jg-trial-start` (7-day Pro trial start date), `jg-key`, `jg-bpm`, `jg-form`, `jg-toured`, etc.
 - `SCALE_HINTS` has dom7 with 4 options including Phrygian Dom
