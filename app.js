@@ -1452,8 +1452,8 @@ const OVERVIEW_STEPS=[
    title:'Page tours',
    text:'Each section has its own guided walkthrough. Tap the gold "? Tour" button at the top right whenever you want to learn what you\'re looking at.'},
   {target:'ear-mode-tabs', view:'quiz',
-   title:'Essentials vs Pro',
-   text:'Essentials is free forever — shells, major ii–V–I, and 5 ear training intervals. Pro ($9.99 one-time) unlocks Drop 2/3/Rootless voicings, all play forms, all 12 intervals, triads, 7th chords, and extended chord types. Look for 🔒 to see what unlocks.'},
+   title:'One price, everything — forever',
+   text:'Essentials is free: shells, major ii–V–I, 5 ear training intervals. Pro is $9.99 once — no subscription, no future paywalls. Every voicing, play form, standard, ear training mode, and chord type we ever add is included. Look for 🔒 to see what unlocks now.'},
 ];
 
 const PAGE_TOURS={
@@ -2812,14 +2812,28 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     !isPlaying?(
     level==='essentials'
       ?e('div',{'data-tour':'play-form-row',style:{marginBottom:10}},
-          e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}},
+          e('div',{style:{display:'flex',gap:6,alignItems:'center',marginBottom:5}},
             e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Progression'),
             e('button',{onClick:()=>setForm('major'),style:modeBtn(form==='major',FORM_DEFS.major.col,FORM_DEFS.major.bg)},FORM_DEFS.major.lbl),
-            e('button',{onClick:()=>onUpgrade('progressions'),style:{
-              padding:'4px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,
-              fontSize:'0.72rem',border:'1px solid '+GOLD+'66',background:GOLD+'18',
-              color:GOLD,fontWeight:600,minHeight:36,letterSpacing:'0.2px'
-            }},'🔒 Unlock 8 more — Pro')
+          ),
+          e('div',{style:{position:'relative'}},
+            e('div',{style:{display:'flex',gap:6,overflowX:'auto',paddingBottom:2,scrollbarWidth:'none',msOverflowStyle:'none'}},
+              ['minor','turn','blues','minblues','tritone','secdom','autumn','attya','twnbay'].map(f=>
+                e('button',{key:f,onClick:()=>onUpgrade('progressions'),style:{
+                  padding:'4px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,
+                  fontSize:'0.72rem',border:'1px solid '+BORDER,background:'transparent',
+                  color:HINT,fontWeight:600,minHeight:36,letterSpacing:'0.2px',
+                  flexShrink:0,opacity:0.55,
+                }},
+                  '🔒 ',FORM_DEFS[f].lbl
+                )
+              )
+            ),
+            e('div',{style:{
+              position:'absolute',top:0,right:0,width:40,height:'100%',
+              background:'linear-gradient(to right, transparent, var(--bg))',
+              pointerEvents:'none',
+            }})
           )
         )
       :e('div',{'data-tour':'play-form-row',style:{marginBottom:10}},
