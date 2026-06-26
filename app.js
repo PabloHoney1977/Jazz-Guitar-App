@@ -2881,13 +2881,13 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       :e('div',{'data-tour':'play-form-row',style:{marginBottom:10}},
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',marginBottom:5}},
             e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Progressions'),
-            ['major','minor','turn','blues','minblues','custom'].map(f=>
+            ['major','minor','turn','blues','minblues','tritone','secdom','custom'].map(f=>
               e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
             )
           ),
           e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}},
             e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Standards'),
-            ['bluebossa','autumn','attya','stella','twnbay','tritone','secdom'].map(f=>
+            ['bluebossa','autumn','attya','stella','twnbay'].map(f=>
               e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
             ),
             e('button',{
