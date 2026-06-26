@@ -5,6 +5,7 @@
 - When making a fix, always commit it without being asked — only skip committing if explicitly told not to.
 - After committing, always push to the appropriate branch immediately — do not wait to be asked.
 - The app is served from `main`; always ensure finished work lands on `main` and is pushed. Merge finished fixes into `main` automatically without asking each time (commit on a feature branch, then merge to `main` and push).
+- **Git gotcha:** the *local* `main` branch is a stray, unrelated-history branch (just "Initial commit" / "Improve readability") — do NOT base work on it. The real served main is `origin/main`. A plain `git merge` of a feature branch into local main fails with "refusing to merge unrelated histories". To land work on main: `git fetch origin main`, then `git checkout -B main origin/main`, then `git cherry-pick <fix-commit>` (applies cleanly), then `git push origin main`.
 
 ## Big Picture Goal
 Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitarists who want to learn jazz harmony. Monetization: **free download** (Essentials tier) with a **$9.99 one-time IAP** to unlock Pro. No subscription.
