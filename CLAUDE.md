@@ -84,6 +84,7 @@ Steps completed and still needed to ship:
 - `e()` = `React.createElement` alias used throughout
 - `localStorage` keys: `jg-path` (guide done), `jg-streak`, `jg-last-practice`, `jg-play-sessions`, `jg-level`, `jg-trial-start` (7-day Pro trial start date), `jg-key`, `jg-bpm`, `jg-form`, `jg-toured`, etc.
 - `SCALE_HINTS` has dom7 with 4 options including Phrygian Dom
+- **Fretboard display invariant:** `NeckSVG` only draws 15 frets (`NF=15`), so `calcVoicing` must never return a shape whose max fret exceeds 15 — anything higher renders as a dot floating off the right edge of the neck. When a computed voicing lands above fret 15, `calcVoicing` drops it an octave (even if that introduces an open string or a low-position stretch `spanOK` would otherwise reject) to keep all dots on the board.
 - Essentials tier: shell voicings only, major II-V-I only, melodic intervals (consonant) only in ear training, first 4 chord types in Any Chord; gated features show 🔒 badges that trigger UpgradeSheet
 - Pro tier: all voicings, all play forms, all ear training modes, all chord types
 
