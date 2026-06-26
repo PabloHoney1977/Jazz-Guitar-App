@@ -1465,11 +1465,13 @@ const OVERVIEW_STEPS=[
    text:'Play ii-V-Is and jazz standards with bass and drums. Set your key, choose a tempo, and practice playing along.'},
   {target:'nav-quiz',     view:'quiz',
    title:'Ear Training — recognize what you hear',
-   text:'Identify intervals and chord qualities by ear. Essentials starts with the five most consonant sounds; Pro unlocks all twelve.'},
+   text:'Identify intervals and chord qualities by ear. Essentials starts with the five most consonant sounds; Pro unlocks all twelve.',
+   proText:'Identify intervals and chord qualities by ear — all twelve intervals, plus triads, 7th chords, and cadences.'},
   {target:'page-tour-btn', view:'guide',
    title:'Page tours',
    text:'Each section has its own guided walkthrough. Tap the gold "? Tour" button at the top right whenever you want to learn what you\'re looking at.'},
   {target:'ear-mode-tabs', view:'quiz',
+   essentialsOnly:true,
    title:'One price, everything — forever',
    text:'Essentials is free: shells, major ii–V–I, 5 ear training intervals. Pro is $9.99 once — no subscription, no future paywalls. Every voicing, play form, standard, ear training mode, and chord type we ever add is included. Look for 🔒 to see what unlocks now.'},
 ];
@@ -1479,7 +1481,9 @@ const PAGE_TOURS={
     {target:'key-chip',       title:'Set your key',
      text:'Tap to pick any key. Every chord and scale in the app updates to match.'},
     {target:'voicing-tabs',   title:'Essentials vs Pro voicings',
-     text:'Shell voicings are free. Drop 2, Drop 3, and Rootless unlock with Pro — tap any 🔒 to learn more.'},
+     text:'Shell voicings are free. Drop 2, Drop 3, and Rootless unlock with Pro — tap any 🔒 to learn more.',
+     proTitle:'Voicing types',
+     proText:'Shell, Drop 2, Drop 3, and Rootless. Shell uses just 3 strings — the simplest start. Drop 2 gives the full comping sound. Tap each to see and hear it.'},
     {target:'chord-row',      title:'The 7 chords in a key',
      text:'Each button is one of the chords that naturally occurs in this key. Roman numerals (I–VII) show position — I is home, V is tension.'},
     {target:'voicing-tabs',   title:'How to play each chord',
@@ -1491,7 +1495,8 @@ const PAGE_TOURS={
   ],
   iivi:[
     {target:'play-form-row',  title:'Choose a progression',
-     text:'Pick a form — ii-V-I is the foundation of jazz harmony. Pro unlocks 5 jazz standards: Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, and There Will Never Be Another You.'},
+     text:'Pick a form — ii-V-I is the foundation of jazz harmony. Pro unlocks 5 jazz standards: Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, and There Will Never Be Another You.',
+     proText:'Pick a form — ii-V-I is the foundation of jazz harmony. You\'ve also got 5 jazz standards: Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, and There Will Never Be Another You.'},
     {target:'play-transport', title:'Play controls',
      text:'Hit the green button for a 4-count-in, then the loop begins. BPM knob sets tempo — start at 60 and build up.'},
     {target:'bar-grid',       title:'Follow the chord changes',
@@ -1511,7 +1516,8 @@ const PAGE_TOURS={
   ],
   quiz:[
     {target:'ear-mode-tabs', title:'Three training modes',
-     text:'Start with Intervals — they\'re the building blocks. Triads and 7th Chords unlock in Pro.'},
+     text:'Start with Intervals — they\'re the building blocks. Triads and 7th Chords unlock in Pro.',
+     proText:'Start with Intervals — they\'re the building blocks. Triads, 7th Chords, and Cadences are here too.'},
     {target:'ear-play-btn',  title:'Listen, then answer',
      text:'Tap the gold circle to hear the sound. Replay as many times as you need before choosing.'},
     {target:'ear-choices',   title:'Learn from every answer',
@@ -1519,13 +1525,26 @@ const PAGE_TOURS={
   ],
   custom:[
     {target:'chord-type-tabs', title:'Pick any chord type',
-     text:'Choose a quality — major 7, minor 7, dominant, and more in Pro.'},
+     text:'Choose a quality — major 7, minor 7, dominant, and more in Pro.',
+     proText:'Choose a quality — major 7, minor 7, dominant, and every extended chord.'},
     {target:'neck-area',       title:'See all voicings',
      text:'Every playable shape appears below. Tap any diagram to hear it. Tap any dot on the neck to hear that individual note.'},
     {target:'custom-inkey',    title:'Find this chord in a key',
      text:'Tap "In a key ↗" to jump to the Keys view and see where this exact chord naturally fits in the diatonic harmony of any key.'},
   ],
 };
+
+// Adapt tour steps to the user's tier. Pro users already paid — drop the
+// pricing pitch entirely and swap any "unlocks with Pro" copy for plain
+// descriptions of what they have.
+function tourStepsFor(steps,isPro){
+  if(!isPro) return steps;
+  return steps
+    .filter(s=>!s.essentialsOnly)
+    .map(s=>(s.proText||s.proTitle)
+      ?{...s,...(s.proTitle?{title:s.proTitle}:null),...(s.proText?{text:s.proText}:null)}
+      :s);
+}
 
 function TourOverlay({steps,step,onNext,onSkip}){
   const [rect,setRect]=useState(null);
@@ -4531,7 +4550,7 @@ function App(){
   const [pageTourId,setPageTourId]=useState(null);
 
   function overviewNext(){
-    if(overviewStep>=OVERVIEW_STEPS.length-1){
+    if(overviewStep>=tourStepsFor(OVERVIEW_STEPS,level==='pro').length-1){
       setOverviewStep(null);safeLSSet('jg-toured','1');
       setViewMode('guide');window.scrollTo(0,0);
     } else setOverviewStep(s=>s+1);
@@ -4539,7 +4558,7 @@ function App(){
   function overviewSkip(){setOverviewStep(null);safeLSSet('jg-toured','1');}
 
   function pageTourNext(){
-    const steps=PAGE_TOURS[pageTourId]||[];
+    const steps=tourStepsFor(PAGE_TOURS[pageTourId]||[],level==='pro');
     setPageTourStep(s=>{
       if(s===null||s>=steps.length-1){
         safeLSSet('jg-toured-'+pageTourId,'1');
@@ -5154,9 +5173,9 @@ function App(){
 
     // ── Tour overlay ─────────────────────────────────────────────────
     overviewStep!==null
-      ?e(TourOverlay,{steps:OVERVIEW_STEPS,step:overviewStep,onNext:overviewNext,onSkip:overviewSkip})
+      ?e(TourOverlay,{steps:tourStepsFor(OVERVIEW_STEPS,level==='pro'),step:overviewStep,onNext:overviewNext,onSkip:overviewSkip})
       :pageTourStep!==null&&pageTourId&&PAGE_TOURS[pageTourId]
-        ?e(TourOverlay,{steps:PAGE_TOURS[pageTourId],step:pageTourStep,onNext:pageTourNext,onSkip:pageTourSkip})
+        ?e(TourOverlay,{steps:tourStepsFor(PAGE_TOURS[pageTourId],level==='pro'),step:pageTourStep,onNext:pageTourNext,onSkip:pageTourSkip})
         :null,
 
     // ── Bottom tab bar ───────────────────────────────────────────────
