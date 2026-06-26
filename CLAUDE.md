@@ -2,6 +2,7 @@
 
 ## Workflow Preferences
 - Always use model **claude-opus-4-8** (set in `.claude/settings.json`).
+- When making a fix, always commit it without being asked — only skip committing if explicitly told not to.
 - After committing, always push to the appropriate branch immediately — do not wait to be asked.
 - The app is served from `main`; always ensure finished work lands on `main` and is pushed.
 
