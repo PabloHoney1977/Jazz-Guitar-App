@@ -1497,7 +1497,7 @@ const PAGE_TOURS={
     {target:'play-mix',       title:'Dial in the sound',
      text:'Each instrument — Bass, Guitar, Ride — has its own MIX button. Tap it to toggle the instrument or open a 5-band EQ and volume slider, so you can shape the tone to taste or mute parts to focus your practice.'},
     {target:'play-faves',     title:'Save your favorites',
-     text:'Found a progression, tempo, and voicing you like? Tap ★ to save it. Saved setups appear in a row below — tap one to instantly restore the form, BPM, and voicing in one click.'},
+     text:'Found a progression, tempo, and voicing you like? Save it as a favorite and it appears in a row below — tap one to instantly restore the form, BPM, and voicing in one click. (Favorites is a Pro feature.)'},
     {target:'bar-grid',       title:'Follow the chord changes',
      text:'The gold-pulsing bar shows the current chord. Watch it cycle and play along.'},
     {target:'neck-area',      title:'Comp along',
@@ -2880,6 +2880,16 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
               background:'linear-gradient(to right, transparent, var(--bg))',
               pointerEvents:'none',
             }})
+          ),
+          // Favorites — Pro only; shown locked so Essentials users can discover it
+          e('div',{'data-tour':'play-faves',onClick:()=>onUpgrade('Favorites'),style:{
+            display:'flex',alignItems:'center',gap:8,marginTop:8,cursor:'pointer',
+            padding:'6px 10px',borderRadius:6,border:'1px dashed '+BTN_BRD,background:'transparent',
+          }},
+            e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Favorites'),
+            e('span',{style:{fontSize:'0.7rem',color:HINT,opacity:0.7,lineHeight:1.3}},
+              'Save a progression, tempo & voicing to recall in one tap'),
+            e('span',{style:{marginLeft:'auto',fontSize:'0.72rem',color:GOLD,fontWeight:700,whiteSpace:'nowrap',flexShrink:0}},'🔒 Pro')
           )
         )
       :e('div',{'data-tour':'play-form-row',style:{marginBottom:10}},
