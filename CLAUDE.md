@@ -41,7 +41,7 @@ Steps completed and still needed to ship:
 - [ ] Register bundle ID in Apple Developer portal
 - [ ] Create App Store Connect API key, paste into Codemagic dashboard
 - [ ] Create App Store listing (name, screenshots, description, pricing)
-- [ ] Set up $9.99 one-time IAP in App Store Connect (product ID: `pro_unlock`)
+- [ ] Set up $9.99 one-time IAP in App Store Connect (product ID: `pro_unlock`) — client code is wired (RevenueCat); still need the App Store product + RevenueCat project/key
 - [ ] Add Capacitor Local Notifications plugin (for practice streak reminders — defer until after first build succeeds)
 - [ ] App icon: needs all required sizes (currently have `icon.svg` and `icons/` — need to verify App Store required sizes)
 - [ ] Splash screen: review default Capacitor splash, customize if needed
@@ -51,7 +51,7 @@ Steps completed and still needed to ship:
 
 ## What's Built (current `app.js` features)
 - **5 nav tabs:** Guide, Chords (Diatonic), Any Chord (Custom), Play (II-V-I), Ear Training
-- **Freemium paywall:** `UpgradeSheet` bottom sheet triggered by 🔒 lock badges on gated features. `showUpgrade(feature)` / `doUpgrade()` in App. Currently calls `setLevel('pro')` directly — TODO: wire to RevenueCat/StoreKit IAP. Pro ✦ chip in header (tap to revert to Essentials for testing).
+- **Freemium paywall:** `UpgradeSheet` bottom sheet triggered by 🔒 lock badges on gated features. `showUpgrade(feature)` / `doUpgrade()` in App. **IAP wired via RevenueCat** (`IAP` module near top of `app.js`, mirrors the `Notif` no-op-on-web pattern): `doUpgrade`/`doRestore` run a real `purchasePackage`/`restorePurchases` on a native build once `__REVENUECAT_IOS_KEY__` is filled in; otherwise (web/PWA, or native pre-key) they fall back to the dev-unlock `setLevel('pro')`. A launch effect re-grants Pro from the receipt. Entitlement id `pro`, product `pro_unlock`. Pro ✦ chip in header (tap to revert to Essentials for testing).
 - **7-day Pro trial ("taste of Pro"):** `UpgradeSheet` shows a "Try Pro free for 7 days" secondary button, only when no trial started yet. Stored as `jg-trial-start` (date string). `trialActive` is computed from that date (<7 days). KEY ARCHITECTURE: `effectiveLevel = (level==='essentials' && trialActive) ? 'pro' : level` is what gets passed to ALL four child views (Guide, Play, Keys/CustomChord, Train) and drives `isEss`. The purchased `level`/`jg-level` is NEVER set to 'pro' during a trial — only `effectiveLevel` lifts gates, so an expired trial cleanly reverts without a stale 'pro' confusing future IAP wiring. Header shows "Trial ✦" (vs "Pro ✦"); tap toggles `trialActive` off to preview Essentials. When trial expired, `UpgradeSheet` shows "Your free trial has ended" copy. `trial.started` tracked via PostHog.
 - **First-time onboarding:** Brand-new users (no `jg-viewMode` saved, no `jg-path` progress) land on the Guide tab. Returning users go straight to their last view. Logic in `viewMode` useState init.
 - **Guide tab:** 16 ordered learning stages with expandable content, tappable checklist items (persisted to `jg-path-items`), resume card, phase labels, links to live presets. Collapsible "Start Here" intro (open for new users, collapsed once there's progress; choice persisted to `jg-guide-intro`). **Scroll-restore on return:** GuideView unmounts on tab switch, so a module-level `guideReturn` snapshots scroll position + open stages on unmount and restores them on remount within the session (fresh reload still jumps to current stage). Scroll is captured via a scroll listener, not `window.scrollY` at unmount, because nav-away calls `window.scrollTo(0,0)` synchronously first.
@@ -110,7 +110,7 @@ Steps completed and still needed to ship:
 
 ## Pending / Next Session Priorities
 1. **PostHog key** — user action: sign up at posthog.com, create project, replace `__POSTHOG_KEY__` in `index.html` with the real API key. Once live, paywall funnel (paywall.shown → upgrade.completed) will be visible.
-2. **IAP implementation** — Replace `setLevel('pro')` in `doUpgrade()` with RevenueCat/StoreKit purchase call. Product ID: `pro_unlock`. Use `@capacitor/purchases` or RevenueCat SDK. NOTE: the 7-day trial is currently honor-system / client-side only (`jg-trial-start` in localStorage — a savvy user could reset it). Fine for launch; if abuse shows up, gate the trial server-side or via StoreKit's intro-offer / free-trial mechanism.
+2. **IAP implementation** — DONE in code (RevenueCat, `IAP` module in `app.js`, `@revenuecat/purchases-capacitor` dep). Remaining is config, not code: (a) enroll in Apple Developer, (b) create the `pro_unlock` non-consumable in App Store Connect, (c) create a RevenueCat project with entitlement `pro` + default offering, (d) replace `__REVENUECAT_IOS_KEY__` in `app.js` with the public iOS SDK key (`appl_…`). NOTE: the 7-day trial is honor-system / client-side only (`jg-trial-start` in localStorage). Fine for launch; if abused, gate via StoreKit intro-offer.
 3. **App Store assets** — app icon in all required sizes, screenshots, store description copywriting
 4. **Apple Developer enrollment** — user action required, $99, developer.apple.com. Also enroll in Small Business Program (15% cut → ~$8.49 net per sale).
 5. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`
