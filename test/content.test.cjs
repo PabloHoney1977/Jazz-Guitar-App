@@ -46,9 +46,15 @@ test('FORM_DEFS — display symbol matches the chord quality', () => {
 test('FORM_DEFS — every bar points at a real chord', () => {
   for (const [name, form] of Object.entries(JG.FORM_DEFS)) {
     if (!form.bars || !form.bars.length) continue;
-    for (const b of form.bars) {
-      assert.ok(Number.isInteger(b) && b >= 0 && b < form.chords.length,
-        `${name}: bar index ${b} has no chord (chords: ${form.chords.length})`);
+    // A bar entry is a chord index, or [idxA,idxB] for a split (two chords to a bar).
+    for (const entry of form.bars) {
+      const idxs = Array.isArray(entry) ? entry : [entry];
+      assert.ok(!Array.isArray(entry) || entry.length === 2,
+        `${name}: split bar must have exactly two chords`);
+      for (const b of idxs) {
+        assert.ok(Number.isInteger(b) && b >= 0 && b < form.chords.length,
+          `${name}: bar index ${b} has no chord (chords: ${form.chords.length})`);
+      }
     }
     // 12-bar forms must actually be 12 (or a multiple), 32-bar likewise.
     if (name === 'blues' || name === 'minblues' || name === 'twnbay') {
@@ -87,9 +93,20 @@ test('minor blues — im7 throughout, iiø–V7 in 9–10', () => {
     [[0, 'm7'], [5, 'm7'], [2, 'm7b5'], [7, 'dom7']]);
 });
 
-test('Autumn Leaves A section — Am7 D7 Gmaj7 Cmaj7 F#m7b5 B7 Em7 (in G)', () => {
+test('Autumn Leaves — A-section chords + last-A turnaround chords (in G)', () => {
+  // A: Am7 D7 Gmaj7 Cmaj7 F#m7b5 B7 Em7, then turnaround chords A7 Dm7 G7
   same(seq(JG.FORM_DEFS.autumn),
-    [[2, 'm7'], [7, 'dom7'], [0, 'maj7'], [5, 'maj7'], [11, 'm7b5'], [4, 'dom7'], [9, 'm7']]);
+    [[2, 'm7'], [7, 'dom7'], [0, 'maj7'], [5, 'maj7'], [11, 'm7b5'], [4, 'dom7'], [9, 'm7'],
+     [2, 'dom7'], [7, 'm7'], [0, 'dom7']]);
+});
+
+test('Autumn Leaves — 32 bars with the last-A turnaround split into half bars', () => {
+  const bars = JG.FORM_DEFS.autumn.bars;
+  assert.equal(bars.length, 32, 'expected a 32-bar form');
+  // Bars 27–28 (Em7|A7, Dm7|G7) and bar 30 (F#m7b5|B7) hold two chords each
+  same(bars[26], [6, 7]);
+  same(bars[27], [8, 9]);
+  same(bars[29], [4, 5]);
 });
 
 test('All The Things You Are A section — descending-4ths cycle (in Ab)', () => {

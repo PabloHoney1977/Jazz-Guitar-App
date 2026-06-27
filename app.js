@@ -2115,7 +2115,12 @@ const mkSsBtn=(active)=>({
 
 // ── Play-along forms ──────────────────────────────────────────────────
 // chords: [semitones above key root, quality, symbol, roman]
-// bars: chord index per bar
+// bars: one entry per 4/4 bar. An entry is either a chord index (the chord
+//   fills the whole bar) or a two-element array [idxA,idxB] (a split bar:
+//   idxA sounds on beats 1–2, idxB on beats 3–4 — two chords to a bar).
+const isSplitBar=(en)=>Array.isArray(en);
+const barChordAt=(en,beatInBar)=>isSplitBar(en)?(beatInBar<2?en[0]:en[1]):en;
+const barFirstChord=(en)=>isSplitBar(en)?en[0]:en;
 const FORM_DEFS={
   major:{lbl:'ii–V–I',col:'var(--gold)',bg:'var(--act-gold)',
     chords:[[2,'m7','m7','ii'],[7,'dom7','7','V'],[0,'maj7','maj7','I']],
@@ -2135,9 +2140,10 @@ const FORM_DEFS={
     tip:'Jazz blues = the 12-bar you know plus three moves: bar 8 picks up a VI7, bars 9–10 swap the old V–IV for a iim7–V7, and bar 12 turns around on V7. Spot the ii–V–I hiding in bars 9–11.'},
   autumn:{lbl:'AUTUMN LEAVES',col:'#F4A261',bg:ACT_GOLD,
     chords:[[2,'m7','m7','iim7'],[7,'dom7','7','V7'],[0,'maj7','maj7','Imaj7'],[5,'maj7','maj7','IVmaj7'],
-            [11,'m7b5','ø7','viiø7'],[4,'dom7','7','III7'],[9,'m7','m7','vim7']],
-    bars:[0,1,2,3,4,5,6,6,0,1,2,3,4,5,6,6,4,5,6,6,0,1,2,2,0,1,2,3,4,5,6,6],
-    tip:'Autumn Leaves — AABA, 32 bars (key of G major / E minor). A: iim7→V7→Imaj7→IVmaj7→viiø7→III7→vim7. B: minor ii–V–i then major ii–V–I. Root motion descends in 4ths. Set key to G.'},
+            [11,'m7b5','ø7','viiø7'],[4,'dom7','7','III7'],[9,'m7','m7','vim7'],
+            [2,'dom7','7','II7'],[7,'m7','m7','vm7'],[0,'dom7','7','I7']],
+    bars:[0,1,2,3,4,5,6,6, 0,1,2,3,4,5,6,6, 4,5,6,6,0,1,2,3, 4,5,[6,7],[8,9],3,[4,5],6,6],
+    tip:'Autumn Leaves — AABA, 32 bars (key of G major / E minor). A: iim7→V7→Imaj7→IVmaj7→viiø7→III7→vim7. The last A has the classic turnaround — two chords per bar (vim7 II7 | vm7 I7), a chain of ii–Vs descending in 4ths. Set key to G.'},
   minblues:{lbl:'MINOR BLUES',col:'#FF6B6B',bg:ACT_RED,
     chords:[[0,'m7','m7','im7'],[5,'m7','m7','ivm7'],[2,'m7b5','ø7','iiø7'],[7,'dom7','7','V7']],
     bars:[0,0,0,0, 1,1,0,0, 2,3,0,3],
@@ -2433,13 +2439,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   const ssIdx=Math.min(strSetIdx,dropD.sets.length-1);
   const ss=vType==='shell'?null:dropD.sets[ssIdx].s;
   const safeBarIdx=Math.min(activeChordIdx||0,bars.length-1);
-  const ac=chords[bars[safeBarIdx]];
-  // Keep compMidiRef current (per-bar) so tick() plays the right voicing per bar
-  compMidiRef.current=bars.map((ci,barIdx)=>{
-    const chord=chords[ci];
-    const bvt=barVTypes[barIdx]||null;
-    const bt=bvt?bvt.vType:vType;
-    const bsi=bvt?bvt.strSetIdx:strSetIdx;
+  const ac=chords[barFirstChord(bars[safeBarIdx])];
+  // Compute the sounding voicing for one chord, given a voicing type/string-set/inversion
+  const voiceMidi=(chord,bt,bsi,invIdx)=>{
     const bD=DROP_DATA[bt]||DROP_DATA.drop2;
     const bsIdx=Math.min(bsi,bD.sets.length-1);
     let vx;
@@ -2448,9 +2450,18 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       if(!ROOTLESS_OK.has(chord.quality)){vx=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,chord.tones,1));}
       else{const rl=[(chord.tones[0]+2)%12,chord.tones[1],chord.tones[2],chord.tones[3]];vx=ROOTLESS.map(cfg=>calcVoicing(cfg.s,cfg.a,rl,1));}
     } else {vx=bD.inv.map(inv=>calcVoicing(bD.sets[bsIdx].s,inv.a,chord.tones));}
-    const maxI=vx.length-1;
-    const v=vx[Math.min(invIdxs[barIdx]||0,maxI)];
+    const v=vx[Math.min(invIdx||0,vx.length-1)];
     return v?[...v.midis].sort((a,b)=>a-b):[];
+  };
+  // Keep compMidiRef current (per-bar) so tick() plays the right voicing per bar.
+  // Split bars carry {split:true,a,b} — one voicing per half-bar chord.
+  compMidiRef.current=bars.map((en,barIdx)=>{
+    const bvt=barVTypes[barIdx]||null;
+    const bt=bvt?bvt.vType:vType;
+    const bsi=bvt?bvt.strSetIdx:strSetIdx;
+    const invIdx=invIdxs[barIdx]||0;
+    if(isSplitBar(en)) return {split:true,a:voiceMidi(chords[en[0]],bt,bsi,invIdx),b:voiceMidi(chords[en[1]],bt,bsi,invIdx)};
+    return voiceMidi(chords[en],bt,bsi,invIdx);
   });
 
   const arpPos=useMemo(()=>getArpPos(ac.tones),[activeChordIdx,keyIdx,form,customProg]);
@@ -2664,7 +2675,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       const rawBeat=beatRef.current;
       const beat=rawBeat%(bars.length*4);
       const bar=Math.floor(beat/4);
-      const ci=bars[bar];
+      const entry=bars[bar];
+      const ci=barChordAt(entry,beat%4);
       // Loop counter — increment when the form wraps around
       if(rawBeat>0 && rawBeat%(barsRef.current.length*4)===0){
         loopCountRef.current++;
@@ -2683,9 +2695,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       const barPat=barPatternRef.current[bar]||{comp:0,ride:0,bass:0};
       // Bass line — 5 patterns, each 4 beats, with approach note into chord changes
       const ct=chordsRef.current[ci].tones; // [root,3rd,5th,7th]
-      const nextChordRoot=chordsRef.current[bars[(bar+1)%bars.length]].tones[0];
-      const isDifferentChord=bars[(bar+1)%bars.length]!==ci;
       const b=beat%4;
+      // Next sounding chord: the back half of a split bar, else the next bar's first chord
+      const nextCi=(isSplitBar(entry)&&b<2)?entry[1]:barFirstChord(bars[(bar+1)%bars.length]);
+      const nextChordRoot=chordsRef.current[nextCi].tones[0];
+      const isDifferentChord=nextCi!==ci;
       const chrBelow=(nextChordRoot-1+12)%12;
       const chrAbove=(nextChordRoot+1)%12;
       let bassPC;
@@ -2710,8 +2724,13 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
         const idxs=isDifferentChord&&b===3?null:(lastSame?[0,2,1,0]:[0,1,2,3]);
         bassPC=idxs?ct[idxs[b]]:chrBelow;
       }
+      // Split bar: each chord gets 2 beats — root on its downbeat, walk into the next
+      if(isSplitBar(entry)){
+        bassPC=(b===0||b===2)?ct[0]:(isDifferentChord?chrBelow:ct[2]);
+      }
       if(guitarEnabledRef.current){
-        const midi=compMidiRef.current[bar]||[];
+        const cm=compMidiRef.current[bar];
+        const midi=(cm&&cm.split)?(beat%4<2?cm.a:cm.b):(cm||[]);
         if(midi.length>0){
           const b=beat%4;
           const sustLong=Math.min(beatDur*2.6,bpmRef.current<70?3.4:2.6);
@@ -2889,7 +2908,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
 
   function computeAllVoicings(cs,brs,bvts){
     return brs.map((ci,barIdx)=>{
-      const chord=cs[ci];
+      const chord=cs[barFirstChord(ci)];
       const bvt=(bvts&&bvts[barIdx])||null;
       const bt=bvt?bvt.vType:vType;
       const bsi=bvt?bvt.strSetIdx:strSetIdx;
@@ -3344,10 +3363,23 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
                 background:'#74C0FC',opacity:0.7,borderRadius:'0 0 0 0'}}):null,
               e('div',{style:{position:'absolute',top:4,left:hasBarOverride?8:6,fontSize:'0.5rem',lineHeight:1,
                 color:lit?'#FFD43Baa':HINT,fontFamily:UI_FONT}},barIdx+1),
-              e('div',{style:{fontSize:'0.62rem',fontWeight:600,lineHeight:1,marginBottom:2,textAlign:'center',
-                color:lit?'#FFD43B':isSel||isEditing?GOLD:HINT,fontFamily:UI_FONT}},chords[ci].roman),
-              e('div',{style:{fontSize:'0.82rem',fontWeight:lit||isSel?700:400,lineHeight:1.1,textAlign:'center',
-                color:lit?'#FFD43B':isSel||isEditing?GOLD:BTN_OFF,fontFamily:SERIF}},chords[ci].name),
+              (()=>{
+                const romanCol=lit?'#FFD43B':isSel||isEditing?GOLD:HINT;
+                const nameCol=lit?'#FFD43B':isSel||isEditing?GOLD:BTN_OFF;
+                const half=(cx)=>e('div',{style:{flex:1,minWidth:0,textAlign:'center'}},
+                  e('div',{style:{fontSize:'0.58rem',fontWeight:600,lineHeight:1,marginBottom:2,color:romanCol,fontFamily:UI_FONT}},chords[cx].roman),
+                  e('div',{style:{fontSize:'0.7rem',fontWeight:lit||isSel?700:400,lineHeight:1.1,color:nameCol,fontFamily:SERIF}},chords[cx].name));
+                return isSplitBar(ci)
+                  ?e('div',{style:{display:'flex',width:'100%',alignItems:'center',justifyContent:'center'}},
+                      half(ci[0]),
+                      e('div',{style:{width:1,alignSelf:'stretch',background:BORDER,opacity:0.7,margin:'2px 2px'}}),
+                      half(ci[1]))
+                  :e(React.Fragment,null,
+                      e('div',{style:{fontSize:'0.62rem',fontWeight:600,lineHeight:1,marginBottom:2,textAlign:'center',
+                        color:romanCol,fontFamily:UI_FONT}},chords[ci].roman),
+                      e('div',{style:{fontSize:'0.82rem',fontWeight:lit||isSel?700:400,lineHeight:1.1,textAlign:'center',
+                        color:nameCol,fontFamily:SERIF}},chords[ci].name));
+              })(),
               isPinned&&!lit?e('div',{style:{position:'absolute',top:4,right:4,
                 width:5,height:5,borderRadius:'50%',background:GOLD,opacity:0.9}}):null
             );
