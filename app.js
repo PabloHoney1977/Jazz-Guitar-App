@@ -544,7 +544,16 @@ function _loadGuitar(ctx){
     catch(e){return null;}
   })).then(res=>{
     const raw={};res.forEach(r=>{if(r)raw[r.midi]=r.data;});
-    if(Object.keys(raw).length){_guitarRaw=raw;if(ctx)_reDecodeGuitar(ctx);}
+    if(Object.keys(raw).length){
+      _guitarRaw=raw;
+      // Decode eagerly so the FIRST note already has warm samples instead of
+      // the brash Karplus-Strong fallback. decodeAudioData works on a
+      // suspended context, so create the preview ctx now (pre-gesture); the
+      // first tap just resumes it with _guitarBufs already populated.
+      if(!ctx&&!_previewCtx){try{_previewCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+      const c=ctx||_previewCtx;
+      if(c)_reDecodeGuitar(c);
+    }
     _guitarLoading=false;
   });
 }
