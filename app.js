@@ -792,10 +792,40 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial}){
   );
 }
 
+// Classify a keyboard event as a Bluetooth page-turner gesture.
+// Generic pedals emit a wide range of keys depending on their (often hidden)
+// mode — arrows on either axis, Page Up/Down, Space, Backspace, Enter, or media
+// keys — and some cheap ones don't populate ev.key, so we also fall back to
+// ev.code and ev.keyCode. Returns 'fwd', 'bwd', or null.
+// NOTE: volume-key mode (AudioVolumeUp/Down) is the common "for iPad" default,
+// but browsers don't deliver those to JS — users must switch the pedal off it.
+function pedalDir(ev){
+  const k=ev.key, c=ev.code, n=ev.keyCode;
+  const FWD_KEY=['ArrowRight','ArrowDown','PageDown',' ','Spacebar','Enter','MediaTrackNext','MediaPlayPause'];
+  const BWD_KEY=['ArrowLeft','ArrowUp','PageUp','Backspace','MediaTrackPrevious'];
+  const FWD_CODE=['ArrowRight','ArrowDown','PageDown','Space','Enter','NumpadEnter'];
+  const BWD_CODE=['ArrowLeft','ArrowUp','PageUp','Backspace'];
+  const FWD_N=[39,40,34,32,13];
+  const BWD_N=[37,38,33,8];
+  if(FWD_KEY.includes(k)||FWD_CODE.includes(c)||FWD_N.includes(n)) return 'fwd';
+  if(BWD_KEY.includes(k)||BWD_CODE.includes(c)||BWD_N.includes(n)) return 'bwd';
+  return null;
+}
+
 // ── AboutSheet ────────────────────────────────────────────────────────
 function AboutSheet({onClose,level,onRestore}){
   const [restored,setRestored]=React.useState(false);
+  const [pedalSeen,setPedalSeen]=React.useState(null);
   function handleRestore(){onRestore();setRestored(true);}
+  // Live pedal tester: shows whether the pedal's key events reach the page at all.
+  React.useEffect(()=>{
+    function onKey(ev){
+      if(ev.target.tagName==='INPUT'||ev.target.tagName==='TEXTAREA'||ev.target.isContentEditable) return;
+      setPedalSeen({label:ev.key||ev.code||('keyCode '+ev.keyCode),dir:pedalDir(ev)});
+    }
+    window.addEventListener('keydown',onKey);
+    return ()=>window.removeEventListener('keydown',onKey);
+  },[]);
   return e(React.Fragment,null,
     e('div',{onClick:onClose,style:{position:'fixed',inset:0,zIndex:299,background:'rgba(0,0,0,0.5)'}}),
     e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:300,
@@ -822,7 +852,20 @@ function AboutSheet({onClose,level,onRestore}){
         restored?'Purchase restored ✓':'Restore Purchase'):null,
       e('div',{style:{borderTop:'1px solid '+BORDER,marginTop:14,paddingTop:14,
         fontSize:'0.75rem',color:HINT,fontFamily:UI_FONT,lineHeight:1.6}},
-        '🦶 Bluetooth pedal: AirTurn or PageFlip works in all tabs. Forward = next chord / next question. Back = previous chord / replay sound.'),
+        '🦶 Bluetooth pedal: works in all tabs. Forward = next chord / next question. Back = previous chord / replay sound. ',
+        e('span',{style:{color:LBL}},'Most pedals have several modes — use an ',
+          e('b',null,'arrow-keys'),' or ',e('b',null,'Page Up/Down'),
+          ' mode. The "Volume" mode many pedals ship with won\'t reach a web page.')),
+      // Live tester — press the pedal and see whether anything arrives.
+      e('div',{style:{marginTop:12,padding:'10px 12px',borderRadius:10,
+        border:'1px dashed '+BORDER,background:'var(--bg)',fontFamily:UI_FONT,fontSize:'0.74rem'}},
+        e('div',{style:{color:HINT,marginBottom:6}},'Pedal tester — press a pedal button now:'),
+        pedalSeen===null
+          ? e('div',{style:{color:LBL,fontStyle:'italic'}},'waiting for a key…')
+          : e('div',{style:{color:pedalSeen.dir?'var(--scale-name)':'#FF6B6B',fontWeight:700}},
+              pedalSeen.dir
+                ? '✓ "'+pedalSeen.label+'" → '+(pedalSeen.dir==='fwd'?'Forward':'Back')
+                : '✗ "'+pedalSeen.label+'" — not a page-turn key (try another pedal mode)')),
       e('button',{onClick:onClose,style:{
         width:'100%',padding:'10px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.82rem',background:'transparent',
@@ -5012,9 +5055,9 @@ function App(){
   useEffect(()=>{
     function onPedal(ev){
       if(ev.target.tagName==='INPUT'||ev.target.tagName==='TEXTAREA'||ev.target.isContentEditable) return;
-      const fwd=ev.key==='ArrowRight'||ev.key==='ArrowDown'||ev.key==='PageDown'||ev.key===' ';
-      const bwd=ev.key==='ArrowLeft'||ev.key==='ArrowUp'||ev.key==='PageUp'||ev.key==='Backspace';
-      if(!fwd&&!bwd) return;
+      const dir=pedalDir(ev);
+      if(!dir) return;
+      const fwd=dir==='fwd', bwd=dir==='bwd';
       ev.preventDefault();
       if(viewMode==='diatonic'){
         setDeg(d=>fwd?(d+1)%7:(d+6)%7);
