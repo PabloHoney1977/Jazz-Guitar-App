@@ -3947,6 +3947,11 @@ function VoiceLeadingDiagram(){
 }
 
 // ── GuideView — the Path + glossary ──────────────────────────────────
+// Remembers scroll position + which stages are expanded across tab switches
+// within a session (the component unmounts when you leave the Guide tab, so
+// this lives at module scope to survive the remount). Cleared on full reload,
+// so a fresh app open still starts you at your current stage.
+let guideReturn=null; // {scrollY, stagesOpen} | null
 function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade,onPracticed}){
   const daysSince=lastPracticeDay?Math.round((Date.now()-new Date(lastPracticeDay+'T00:00:00'))/86400000):0;
   const [expanded,setExpanded]=useState({});
@@ -3960,6 +3965,15 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
   const [doneItems,setDoneItems]=useState(()=>{try{return JSON.parse(safeLS('jg-path-items','{}'));}catch(ex){return{};}});
   useEffect(()=>{safeLSSet('jg-path-items',JSON.stringify(doneItems));},[doneItems]);
   function toggleItem(stId,i){setDoneItems(s=>{const k=stId+':'+i;const wasUnchecked=!s[k];if(wasUnchecked)onPracticed?.();return {...s,[k]:wasUnchecked?true:undefined};});}
+  // "Start Here" intro: a one-time read for most users. Open by default only for
+  // brand-new users; collapsed for anyone with progress. Choice is remembered.
+  const [introOpen,setIntroOpen]=useState(()=>{
+    const sv=safeLS('jg-guide-intro',null);
+    if(sv!=null) return sv==='1';
+    const hasProgress=Object.values(done).some(Boolean)||Object.values(doneItems).some(Boolean);
+    return !hasProgress;
+  });
+  useEffect(()=>{safeLSSet('jg-guide-intro',introOpen?'1':'0');},[introOpen]);
   const [justDone,setJustDone]=useState(null);
   const prevStreakRef=useRef(streak);
   const [streakBump,setStreakBump]=useState(false);
@@ -3973,22 +3987,47 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
   },[streak]);
   const firstIncomplete=()=>{try{const d=JSON.parse(safeLS('jg-path','{}'));return STAGE_IDS.find(id=>!d[id]);}catch(ex){return null;}};
   const [stagesOpen,setStagesOpen]=useState(()=>{
+    if(guideReturn&&guideReturn.stagesOpen) return guideReturn.stagesOpen; // returning mid-session — keep what was open
     const first=firstIncomplete();
     return first?{[first]:true}:{}; // all done → start fully collapsed
   });
+  // Keep the latest expanded state reachable from the unmount cleanup below.
+  const stagesOpenRef=useRef(stagesOpen);
+  stagesOpenRef.current=stagesOpen;
+  // Track the user's live scroll position. We can't read window.scrollY in the
+  // unmount cleanup because navigating away (openPreset / nav tap) calls
+  // window.scrollTo(0,0) synchronously first — so we'd snapshot 0. A scroll
+  // listener captures the real position before that programmatic reset, and the
+  // reset's scroll event is async (fires after this listener is detached).
+  const scrollPosRef=useRef(0);
+  useEffect(()=>{
+    const onScroll=()=>{scrollPosRef.current=window.scrollY;};
+    window.addEventListener('scroll',onScroll,{passive:true});
+    return()=>window.removeEventListener('scroll',onScroll);
+  },[]);
   function toggleStage(id){setStagesOpen(s=>({...s,[id]:!s[id]}));}
   function jumpTo(id){
     setStagesOpen(s=>({...s,[id]:true}));
     setTimeout(()=>{const el=document.getElementById('guide-stage-'+id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},70);
   }
+  // On mount: if we're returning to the Guide within the session, restore the
+  // exact scroll position the user left from. Otherwise (first open / reload)
+  // bring them to their current stage. On unmount, snapshot where they are.
   useEffect(()=>{
-    const first=firstIncomplete();
-    const anyDone=Object.values(done).some(Boolean);
     const t=setTimeout(()=>{
-      if(first&&anyDone){const el=document.getElementById('guide-stage-'+first);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
-      else window.scrollTo(0,0);
+      if(guideReturn){
+        window.scrollTo(0,guideReturn.scrollY||0);
+      } else {
+        const first=firstIncomplete();
+        const anyDone=Object.values(done).some(Boolean)||Object.values(doneItems).some(Boolean);
+        if(first&&anyDone){const el=document.getElementById('guide-stage-'+first);if(el)el.scrollIntoView({behavior:'auto',block:'start'});}
+        else window.scrollTo(0,0);
+      }
     },80);
-    return()=>clearTimeout(t);
+    return()=>{
+      clearTimeout(t);
+      guideReturn={scrollY:scrollPosRef.current,stagesOpen:stagesOpenRef.current};
+    };
   },[]);// eslint-disable-line react-hooks/exhaustive-deps
   function togDone(id){
     setDone(s=>{
@@ -3997,15 +4036,6 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
       return {...s,[id]:isNowDone?true:undefined};
     });
   }
-  useEffect(()=>{
-    const first=firstIncomplete();
-    const anyDone=Object.values(done).some(Boolean)||Object.values(doneItems).some(Boolean);
-    const t=setTimeout(()=>{
-      if(first&&anyDone){const el=document.getElementById('guide-stage-'+first);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
-      else window.scrollTo(0,0);
-    },80);
-    return()=>clearTimeout(t);
-  },[]);// eslint-disable-line react-hooks/exhaustive-deps
   const S={marginBottom:14,padding:'14px 16px',background:BG2,border:'1px solid '+BORDER,borderRadius:8};
   const H={fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,color:'var(--scale-name)',marginBottom:8};
   const P={fontSize:'0.80rem',lineHeight:1.75,color:'var(--txt)',fontFamily:UI_FONT,marginBottom:8};
@@ -4391,7 +4421,15 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
           border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,minHeight:44,flexShrink:0}},
           doneCount===0?'Start →':'Jump back in →'))
       :null,
-    sec('Start Here',
+    e('div',{style:S},
+      e('div',{onClick:()=>setIntroOpen(o=>!o),
+        style:{display:'flex',alignItems:'baseline',gap:8,cursor:'pointer'}},
+        e('span',{style:{color:GOLD,fontSize:'0.8rem',flexShrink:0}},introOpen?'▾':'▸'),
+        e('div',{style:{flex:1}},
+          e('div',{style:{...H,marginBottom:introOpen?8:0}},'Start Here'),
+          !introOpen?e('div',{style:{fontSize:'0.74rem',lineHeight:1.5,color:HINT,fontFamily:UI_FONT}},
+            'What this guide assumes · reading chord symbols · how to use this page'):null)),
+      introOpen?e('div',null,
       p('The only thing this guide assumes is that you can play guitar chords — open chords, barre chords, however you\'ve learned them. If you know that some chords sound bright and happy while others sound dark or tense, you already have the ear for this. No other music theory background is required.'),
       p('What you\'ll learn here: jazz uses ',e('b',{style:HL},'four-note chords'),' where most styles use three-note chords. The extra note is what gives jazz its characteristic richness. You\'ll learn to recognize these chord types by ear, play them in multiple positions, and connect them smoothly — the skills that make jazz harmony feel natural rather than academic.'),
       p('Every term that might be unfamiliar — ',term('inv','inversion'),', ',term('modes','mode'),', ',term('guide','guide tone'),', ',term('vl','voice leading'),' — is defined in plain English in the Glossary at the bottom of this page. You do not need to know them before you start. Meet them as they come up.'),
@@ -4399,6 +4437,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
       callout(e('b',null,'Coming from rock? '),'Jazz uses the same I–IV–V relationships you already know — just with four-note chords instead of three, and more intentional movement between them. The dominant 7 (V7) you already bend notes over is the engine of everything here. Drop 2 voicings (Stage 2) will feel awkward at first and then start to click — your fretting hand already has the strength and independence, so the shapes tend to come faster than the theory.'),
       callout(e('b',null,'How long will this take? '),'The estimate under each stage assumes roughly 15–20 minutes of practice on most days. Practice twice a week and the timelines roughly double; bring a serious musical background and they shrink. Treat them as loose guides, not deadlines — how long anything takes varies enormously from person to person, and falling outside a range says nothing about whether you\'ll get there. One thing is well established, though: short and frequent beats long and occasional. Fifteen minutes a day will take you further than a two-hour session every couple of weeks — which is exactly what the 🔥 streak is built to encourage.'),
       callout(e('b',null,'How to use this page: '),'Tap a stage to expand it. Check off each practice step as you nail it — the gold "◆ You\'ve got it when…" line is your mastery target for that stage. When it feels solid, tap "I\'ve got this" to mark it done and jump to the next. The buttons open the app already set up, so you can start playing immediately. The goal is playing your guitar, not racing a checklist.')
+      ):null
     ),
     e('div',{style:S},
       e('div',{style:{...H,display:'flex',justifyContent:'space-between',alignItems:'baseline',flexWrap:'wrap',gap:8}},
