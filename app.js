@@ -1973,7 +1973,9 @@ const ChordBox=React.memo(function ChordBox({voicing,strings,tones,degNames,invL
   const mn=nonZ.length?Math.min(...nonZ):1;
   const mx=nonZ.length?Math.max(...nonZ):4;
   const NF=Math.max(4,mx-mn+1),SF=Math.max(1,mn),FS=22;
-  const H=66+NF*FS+18,W=120,SS=18,PL=15,PT=66;
+  // PL is the grid's left edge; when there's no nut we draw the "Nfr" label in
+  // the gutter to its left, so it must be wide enough to clear the lowest dot.
+  const H=66+NF*FS+18,W=128,SS=18,PL=28,PT=66;
   const showNut=SF===1;
   const sx=i=>PL+i*SS;
   const fy=f=>PT+(f-SF)*FS+FS/2;
@@ -1987,7 +1989,7 @@ const ChordBox=React.memo(function ChordBox({voicing,strings,tones,degNames,invL
       e('rect',{width:W,height:H,rx:9,fill:selected?'var(--cb-sel)':'var(--cb-bg)',stroke:selected?'var(--txt)':BORDER,strokeWidth:selected?2.5:1.5}),
       e('text',{x:W/2,y:20,textAnchor:'middle',fill:selected?'var(--txt)':BTN_OFF,fontSize:13,fontWeight:selected?'bold':'normal',fontFamily:UI_FONT},invLabel),
       bassLabel?e('text',{x:W/2,y:38,textAnchor:'middle',fill:HINT,fontSize:11,fontFamily:UI_FONT},bassLabel):null,
-      !showNut?e('text',{x:3,y:PT+FS/2,dominantBaseline:'middle',fill:HINT,fontSize:10,fontFamily:UI_FONT},SF+'fr'):null,
+      !showNut?e('text',{x:PL-12,y:PT+FS/2,textAnchor:'end',dominantBaseline:'middle',fill:HINT,fontSize:10,fontFamily:UI_FONT},SF+'fr'):null,
       showNut?e('rect',{x:sx(0)-2,y:PT-5,width:5*SS+4,height:5,fill:'#c8a855',rx:1.5}):null,
       Array.from({length:NF+1},(_,k)=>
         e('line',{key:'frl'+k,x1:sx(0),y1:PT+k*FS,x2:sx(5),y2:PT+k*FS,stroke:(k===0&&showNut)?'#c8a855':'var(--cb-str)',strokeWidth:1})
