@@ -56,9 +56,13 @@ test('FORM_DEFS — every bar points at a real chord', () => {
           `${name}: bar index ${b} has no chord (chords: ${form.chords.length})`);
       }
     }
-    // 12-bar forms must actually be 12 (or a multiple), 32-bar likewise.
-    if (name === 'blues' || name === 'minblues' || name === 'twnbay') {
+    // 12-bar forms must actually be 12; the full standards have fixed lengths.
+    if (name === 'blues' || name === 'minblues') {
       assert.equal(form.bars.length, 12, `${name}: expected a 12-bar form`);
+    }
+    const LEN = { autumn: 32, attya: 36, stella: 32, twnbay: 32, bluebossa: 16 };
+    if (LEN[name]) {
+      assert.equal(form.bars.length, LEN[name], `${name}: expected ${LEN[name]} bars`);
     }
   }
 });
@@ -109,10 +113,52 @@ test('Autumn Leaves — 32 bars with the last-A turnaround split into half bars'
   same(bars[29], [4, 5]);
 });
 
-test('All The Things You Are A section — descending-4ths cycle (in Ab)', () => {
-  // Fm7 Bbm7 Eb7 Abmaj7 Dbmaj7 G7 Cmaj7
-  same(seq(JG.FORM_DEFS.attya),
-    [[9, 'm7'], [2, 'm7'], [7, 'dom7'], [0, 'maj7'], [5, 'maj7'], [11, 'dom7'], [4, 'maj7']]);
+// Resolve a bar entry to [offset, quality] tuples (one, or two for a split bar)
+const barChords = (form, i) => {
+  const en = form.bars[i];
+  const idxs = Array.isArray(en) ? en : [en];
+  return idxs.map((ci) => [form.chords[ci][0], form.chords[ci][1]]);
+};
+
+test('All The Things You Are — full 36-bar AABA (in Ab, Real Book 6th ed.)', () => {
+  const f = JG.FORM_DEFS.attya;
+  assert.equal(f.bars.length, 36);
+  // A1 Fm7 Bbm7 Eb7 Abmaj7 | Dbmaj7 G7 Cmaj7 Cmaj7
+  same(barChords(f, 0), [[9, 'm7']]);
+  same(barChords(f, 4), [[5, 'maj7']]);
+  same(barChords(f, 6), [[4, 'maj7']]);
+  // A2 starts Cm7 (bar 9) ... Gmaj7 (bar 15) ... bridge Am7 D7 -> Gmaj7
+  same(barChords(f, 8), [[4, 'm7']]);
+  same(barChords(f, 13), [[1, 'm7b5'], [6, 'dom7']]); // bar 14 split Am7b5/D7
+  same(barChords(f, 14), [[11, 'maj7']]);             // Gmaj7
+  // last A passing chords: Gb7 (30) Cm7 (31) Bdim7 (32), turnaround Gm7b5/C7 (36)
+  same(barChords(f, 29), [[10, 'dom7']]);
+  same(barChords(f, 31), [[3, 'dim7']]);
+  same(barChords(f, 35), [[11, 'm7b5'], [4, 'dom7']]);
+});
+
+test('Stella by Starlight — full 32-bar form (in Bb, Real Book 6th ed.)', () => {
+  const f = JG.FORM_DEFS.stella;
+  assert.equal(f.bars.length, 32);
+  same(barChords(f, 0), [[6, 'm7b5']]);              // Em7b5
+  same(barChords(f, 7), [[10, 'dom7']]);             // Ab7
+  same(barChords(f, 9), [[6, 'm7b5'], [11, 'dom7']]); // bar 10 split Em7b5/A7
+  same(barChords(f, 11), [[0, 'm7'], [5, 'dom7']]);  // bar 12 split Bbm7/Eb7
+  same(barChords(f, 12), [[7, 'maj7']]);             // bar 13 Fmaj7 (the deceptive one)
+  same(barChords(f, 26), [[4, 'm7b5']]);             // bar 27 Dm7b5
+});
+
+test('There Will Never Be Another You — full 32 bars (in Eb, Real Book 6th ed.)', () => {
+  const f = JG.FORM_DEFS.twnbay;
+  assert.equal(f.bars.length, 32);
+  same(barChords(f, 0), [[0, 'maj7']]);              // Ebmaj7
+  same(barChords(f, 2), [[11, 'm7b5']]);             // Dm7b5
+  same(barChords(f, 9), [[10, 'dom7']]);             // Db7
+  // descending-fourths turnaround, two chords per bar (bars 28-31)
+  same(barChords(f, 27), [[6, 'm7'], [11, 'dom7']]); // Am7/D7
+  same(barChords(f, 28), [[0, 'maj7'], [11, 'dom7']]); // Ebmaj7/D7
+  same(barChords(f, 29), [[4, 'm7'], [9, 'dom7']]);  // Gm7/C7
+  same(barChords(f, 30), [[2, 'm7'], [7, 'dom7']]);  // Fm7/Bb7
 });
 
 test('tritone sub — V7 replaced by bII7 (a tritone away)', () => {

@@ -65,16 +65,16 @@ const MAJOR_SCALE=[0,2,4,5,7,9,11];
 const QTYPES=['maj7','m7','m7','maj7','dom7','m7','m7b5'];
 const QSYMS =['△7','m7','m7','△7','7','m7','m7b5']; // △ = major 7th (standard jazz notation)
 const ROMAN =['I','ii','iii','IV','V','vi','vii'];
-const INTERVALS={maj7:[0,4,7,11],m7:[0,3,7,10],dom7:[0,4,7,10],m7b5:[0,3,6,10]};
+const INTERVALS={maj7:[0,4,7,11],m7:[0,3,7,10],dom7:[0,4,7,10],m7b5:[0,3,6,10],dim7:[0,3,6,9]};
 
 // FIX: maj7's 7th was 'd7' (diminished 7) — corrected to 'Δ7' (major 7)
 const DNAMES={
   maj7:['R','3','5','Δ7'], m7:['R','b3','5','b7'],
-  dom7:['R','3','5','b7'], m7b5:['R','b3','b5','b7']
+  dom7:['R','3','5','b7'], m7b5:['R','b3','b5','b7'], dim7:['R','b3','b5','bb7']
 };
 const RL_DNAMES={
   maj7:['9','3','5','Δ7'], m7:['9','b3','5','b7'],
-  dom7:['9','3','5','b7'], m7b5:['9','b3','b5','b7']
+  dom7:['9','3','5','b7'], m7b5:['9','b3','b5','b7'], dim7:['9','b3','b5','bb7']
 };
 
 // ── Extended / standalone chord types ────────────────────────────────
@@ -2150,26 +2150,35 @@ const FORM_DEFS={
     tip:'Minor blues: im7 replaces I7 throughout; bars 9–10 become iiø7–V7 — the minor ii–V you already know. The V7 creates stronger pull back to im7 than in major blues.'},
   attya:{lbl:'ALL THINGS',col:'#7BC8A4',bg:'#081a10',
     chords:[[9,'m7','m7','vim7'],[2,'m7','m7','iim7'],[7,'dom7','7','V7'],[0,'maj7','maj7','Imaj7'],
-            [5,'maj7','maj7','IVmaj7'],[11,'dom7','7','VII7'],[4,'maj7','maj7','IIImaj7']],
-    bars:[0,1,2,3,4,5,6,6],
-    tip:'"All The Things You Are" A section: two ii–V–I cycles descending by 4ths — Bbm7–Eb7–Abmaj7 (in Ab), then Dbmaj7–G7–Cmaj7 (in C). This root motion descending in 4ths is the fundamental bass motion of jazz harmony. Set key to Ab.'},
+            [5,'maj7','maj7','IVmaj7'],[11,'dom7','7','VII7'],[4,'maj7','maj7','IIImaj7'],
+            [4,'m7','m7','iiim7'],[2,'dom7','7','II7'],[7,'maj7','maj7','Vmaj7'],
+            [1,'m7b5','ø7','iiø7'],[6,'dom7','7','V7/VII'],[11,'maj7','maj7','VIImaj7'],
+            [8,'dom7','7','♯V7'],[1,'m7','m7','♯im7'],[10,'m7b5','ø7','iiø7/♯V'],
+            [3,'dom7','7','V7/♯V'],[8,'maj7','maj7','♯Vmaj7'],[4,'dom7','7','III7'],
+            [10,'dom7','7','♭VII7'],[3,'dim7','°7','♭iii°7'],[11,'m7b5','ø7','viiø7']],
+    bars:[0,1,2,3,4,5,6,6, 7,0,8,9,3,[10,11],12,13, 14,11,12,12,15,16,17,18,
+          0,1,2,3,4,19,7,20, 1,2,3,[21,18]],
+    tip:'"All The Things You Are" (Ab) — full 36-bar AABA. A1/A2: ii–V–I cycles descending in 4ths. Bridge tonicizes Gmaj7 then Emaj7. The last A is extended 12 bars with the Gb7–Cm7–B°7 passing chords and a Gm7♭5–C7 turnaround. Set key to Ab.'},
   twnbay:{lbl:'ANOTHER YOU',col:'#F472B6',bg:'#1a0812',
-    chords:[[0,'maj7','maj7','Imaj7'],[7,'m7','m7','vm7'],[0,'dom7','7','I7'],[5,'maj7','maj7','IVmaj7'],
-            [5,'m7','m7','ivm7'],[10,'dom7','7','bVII7'],[9,'m7','m7','vim7'],[2,'dom7','7','II7'],
-            [2,'m7','m7','iim7'],[7,'dom7','7','V7']],
-    bars:[0,1,2,3,4,5,0,6,7,8,9,0],
-    tip:'"There Will Never Be Another You" A section (Eb): cadence to IVmaj7 via vm7–I7 (Bbm7–Eb7–Abmaj7), then backdoor ii–V home (ivm7–bVII7–I). Closes with I–vim7–II7–iim7–V7. Set key to Eb.'},
+    chords:[[0,'maj7','maj7','Imaj7'],[11,'m7b5','ø7','viiø7'],[4,'dom7','7','III7'],[9,'m7','m7','vim7'],
+            [7,'m7','m7','vm7'],[0,'dom7','7','I7'],[5,'maj7','maj7','IVmaj7'],[10,'dom7','7','♭VII7'],
+            [2,'dom7','7','II7'],[2,'m7','m7','iim7'],[7,'dom7','7','V7'],[6,'m7','m7','♯ivm7'],
+            [11,'dom7','7','VII7'],[4,'m7','m7','iiim7'],[9,'dom7','7','VI7']],
+    bars:[0,0,1,2, 3,3,4,5, 6,7,0,3, 8,8,9,10, 0,0,1,2, 3,3,4,5, 6,7,0,[11,12], [0,12],[13,14],[9,10],0],
+    tip:'"There Will Never Be Another You" — full 32-bar form in E♭. A: Imaj7–viiø7–III7 then ii–Vs cadencing to IV (Abmaj7) and back. The last 4 bars are the signature descending-fourths turnaround, two chords per bar: Am7–D7 | Ebmaj7–D7 | Gm7–C7 | Fm7–Bb7. Set key to E♭.'},
   bluebossa:{lbl:'BLUE BOSSA',col:'#60A5FA',bg:'#030d1e',
     chords:[[0,'m7','m7','im7'],[5,'m7','m7','ivm7'],[2,'m7b5','ø7','iiø7'],[7,'dom7','7','V7'],
             [3,'m7','m7','♭IIIm7'],[8,'dom7','7','♭VI7'],[1,'maj7','maj7','♭IImaj7']],
     bars:[0,0,1,1, 2,3,0,0, 4,5,6,6, 2,3,0,0],
     tip:'Blue Bossa — 16 bars. A: C minor (im7–ivm7–iiø7–V7–im7). B bars 9–12: key shifts to D♭ major (♭IIIm7–♭VI7–♭IImaj7). A\' bars 13–16: returns to C minor ii–V–i. Set key to C.'},
   stella:{lbl:'STELLA',col:'#C4B5FD',bg:'#07051a',
-    chords:[[6,'m7b5','ø7','iiø'],[11,'dom7','7','VII7'],[2,'m7','m7','iim7'],[7,'dom7','7','V7'],
-            [7,'maj7','maj7','Vmaj7'],[7,'m7','m7','vm7'],[0,'dom7','7','I7'],[5,'maj7','maj7','IVmaj7'],
-            [11,'m7b5','ø7','iiø'],[4,'dom7','7','III7'],[9,'maj7','maj7','VImaj7'],[0,'maj7','maj7','Imaj7']],
-    bars:[0,1, 2,3, 4,5, 6,7, 8,9, 10,10, 2,3, 11,11],
-    tip:'Stella by Starlight — 16-bar form in B♭. Three ii–V–I chains: to E♭ (vm7–I7–IVmaj7), to G (Am7♭5–D7–Gmaj7), home to B♭ (iim7–V7–Imaj7). The opening Em7♭5–A7 is a ii–V of D that dissolves into the Cm7–F7 — the harmonic surprise that defines the tune. Set key to B♭.'},
+    chords:[[6,'m7b5','ø7','iiø7'],[11,'dom7','7','VII7'],[2,'m7','m7','iim7'],[7,'dom7','7','V7'],
+            [7,'m7','m7','vm7'],[0,'dom7','7','I7'],[5,'maj7','maj7','IVmaj7'],[10,'dom7','7','♭VII7'],
+            [0,'maj7','maj7','Imaj7'],[4,'m7','m7','iiim7'],[0,'m7','m7','im7'],[7,'maj7','maj7','Vmaj7'],
+            [11,'m7b5','ø7','viiø7'],[4,'dom7','7','III7'],[9,'dom7','7','VI7'],[2,'m7b5','ø7','iiø7'],
+            [4,'m7b5','ø7','iiiø7'],[5,'dom7','7','IV7']],
+    bars:[0,1,2,3, 4,5,6,7, 8,[0,1],9,[10,17], 11,[0,1],12,13, 14,14,2,2, 7,7,8,8, 0,1,16,14, 15,3,8,8],
+    tip:'Stella by Starlight — full 32-bar form in B♭. Each half-bar split (bars 10, 12, 14) is a ii–V slipping by. Three landing points: E♭ (Fm7–B♭7–E♭maj7), F major (the deceptive Fmaj7 at bar 13), and home to B♭. The opening Em7♭5–A7 is a ii–V of D that never resolves there. Set key to B♭.'},
   tritone:{lbl:'TRITONE SUB',col:'#FF6B6B',bg:ACT_RED,
     chords:[[2,'m7','m7','iim7'],[7,'dom7','7','V7'],[0,'maj7','maj7','Imaj7'],[1,'dom7','7','♭II7']],
     bars:[0,1,2,2,0,3,2,2],
