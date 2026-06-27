@@ -45,6 +45,63 @@ const Notif=(()=>{
   return{requestPermission,schedule,cancel};
 })();
 
+// ── RevenueCat in-app purchase ────────────────────────────────────────
+// Unlocks the one-time $9.99 Pro upgrade (App Store product `pro_unlock`,
+// RevenueCat entitlement `pro`). Everything here is a silent no-op in the
+// browser (Capacitor bridge absent) AND on a native build until the SDK
+// key below is filled in — so the live web app / PWA is never affected and
+// early TestFlight builds keep the dev-unlock fallback in doUpgrade().
+//
+// To go live (after Apple Developer enrollment):
+//   1. App Store Connect → create non-consumable IAP, product id `pro_unlock`.
+//   2. revenuecat.com → new project → add the App Store app → create an
+//      entitlement `pro`, attach product `pro_unlock`, put it in the default
+//      offering.
+//   3. Replace __REVENUECAT_IOS_KEY__ with the project's PUBLIC iOS SDK key
+//      (starts with `appl_`). Public key is safe to ship in the client.
+const IAP=(()=>{
+  const ENTITLEMENT='pro';
+  const API_KEY='__REVENUECAT_IOS_KEY__'; // RevenueCat public iOS SDK key (appl_…)
+  function plug(){return window?.Capacitor?.Plugins?.Purchases||null;}
+  // True only when the native plugin is present AND a real key is configured.
+  function available(){return !!plug()&&!API_KEY.startsWith('__');}
+  let configured=false;
+  async function configure(){
+    const P=plug();if(!P||configured||API_KEY.startsWith('__'))return;
+    try{await P.configure({apiKey:API_KEY});configured=true;}catch(ex){}
+  }
+  function entitled(info){
+    try{return !!info?.customerInfo?.entitlements?.active?.[ENTITLEMENT];}catch(ex){return false;}
+  }
+  // Already-purchased check on launch (handles reinstall / new device).
+  async function checkEntitlement(){
+    if(!available())return false;
+    await configure();if(!configured)return false;
+    try{return entitled(await plug().getCustomerInfo());}catch(ex){return false;}
+  }
+  // Returns 'purchased' | 'cancelled' | 'unavailable' | 'error'.
+  async function purchase(){
+    if(!available())return 'unavailable';
+    await configure();if(!configured)return 'unavailable';
+    try{
+      const offerings=await plug().getOfferings();
+      const pkg=offerings?.current?.availablePackages?.[0];
+      if(!pkg)return 'unavailable';
+      const res=await plug().purchasePackage({aPackage:pkg});
+      return entitled(res)?'purchased':'error';
+    }catch(ex){
+      if(ex&&(ex.userCancelled||ex.code==='1'||ex.code===1))return 'cancelled';
+      return 'error';
+    }
+  }
+  async function restore(){
+    if(!available())return false;
+    await configure();if(!configured)return false;
+    try{return entitled(await plug().restorePurchases());}catch(ex){return false;}
+  }
+  return{available,checkEntitlement,purchase,restore};
+})();
+
 // ── Tuning ───────────────────────────────────────────────────────────
 const OPEN_MIDI=[40,45,50,55,59,64];
 const OPEN_PC  =[4, 9, 2, 7,11, 4];
@@ -4840,15 +4897,25 @@ function App(){
   const [popTerm,setPopTerm]=useState(null); // glossary term key, or null
   const [aboutOpen,setAboutOpen]=useState(false);
   function showUpgrade(feature){setUpgradeSheet(feature);track('paywall.shown',{feature});}
-  function doUpgrade(){
+  function goPro(){setLevel('pro');safeLSSet('jg-level','pro');}
+  async function doUpgrade(){
+    // Native build with IAP configured → real RevenueCat purchase.
+    if(IAP.available()){
+      const r=await IAP.purchase();
+      if(r==='purchased'){track('upgrade.completed',{feature:upgradeSheet});goPro();setUpgradeSheet(null);}
+      // cancelled/unavailable/error: leave the sheet open, no unlock.
+      return;
+    }
+    // Web / PWA / pre-IAP TestFlight: dev unlock (Pro chip in header reverts).
     track('upgrade.completed',{feature:upgradeSheet});
-    // TODO: replace the two lines below with RevenueCat/StoreKit purchase call when IAP is ready
-    setLevel('pro');safeLSSet('jg-level','pro');
-    setUpgradeSheet(null);
+    goPro();setUpgradeSheet(null);
   }
-  function doRestore(){
-    // TODO: replace with RevenueCat restorePurchases() when IAP is ready
-    setLevel('pro');safeLSSet('jg-level','pro');
+  async function doRestore(){
+    if(IAP.available()){
+      if(await IAP.restore()){goPro();setUpgradeSheet(null);}
+      return;
+    }
+    goPro();
   }
   function startTrial(){
     safeLSSet('jg-trial-start',localDateStr());
@@ -4857,7 +4924,11 @@ function App(){
     track('trial.started',{});
   }
   const isEss=effectiveLevel==='essentials';
-  useEffect(()=>{track('app.loaded',{level});},[]);
+  useEffect(()=>{
+    track('app.loaded',{level});
+    // Re-grant Pro from the App Store receipt (reinstall / new device).
+    IAP.checkEntitlement().then(pro=>{if(pro)goPro();}).catch(()=>{});
+  },[]);
   const [iiviPlaying,setIiviPlaying]=useState(false);
   // Clear playing state when navigating away from the play tab
   useEffect(()=>{ if(viewMode!=='iivi') setIiviPlaying(false); },[viewMode]);
