@@ -2775,6 +2775,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     startingRef.current=true;
     setStarting(true);
     setEditingBar(-1);
+    // Start from the currently highlighted bar (default bar 0) instead of always
+    // restarting the form from the top.
+    const startBar=Math.min(Math.max(0,activeChordIdx||0),barsRef.current.length-1);
     const beatDur=60/bpmRef.current;
     setCountIn(4);
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -2812,9 +2815,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
       if(!audioCtxRef.current||audioCtxRef.current!==ctx) return;
       setCountIn(0);
       // invIdxs already voice-led by the auto-VL effect; respect any manual overrides.
-      setActiveChordIdx(0);
+      setActiveChordIdx(startBar);
       nextTimeRef.current=ctx.currentTime+0.05;
-      beatRef.current=0;
+      beatRef.current=startBar*4;
       loopCountRef.current=0;
       playPracticedRef.current=false;
       setLoopCount(0);
