@@ -6,7 +6,7 @@
 // deploys on one cache version), so the shell is now NETWORK-FIRST: online
 // users always run the latest app.js/index.html; offline still works from cache.
 // Stable assets (CDN libs, icons, audio) stay cache-first for speed.
-const CACHE = 'jglab-v32';
+const CACHE = 'jglab-v33';
 
 const CDN = [
   'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js',
