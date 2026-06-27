@@ -46,7 +46,7 @@ const Notif=(()=>{
 })();
 
 // ── RevenueCat in-app purchase ────────────────────────────────────────
-// Unlocks the one-time $9.99 Pro upgrade (App Store product `pro_unlock`,
+// Unlocks the one-time $14.99 Pro upgrade (App Store product `pro_unlock`,
 // RevenueCat entitlement `pro`). Everything here is a silent no-op in the
 // browser (Capacitor bridge absent) AND on a native build until the SDK
 // key below is filled in — so the live web app / PWA is never affected and
@@ -776,7 +776,7 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial}){
         width:'100%',padding:'15px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'1rem',fontWeight:700,
         background:GOLD,border:'none',color:'#07070f',minHeight:54,marginBottom:10}},
-        'Unlock Pro — $9.99'),
+        'Unlock Pro — $14.99'),
       !trialUsed?e('button',{onClick:onTrial,style:{
         width:'100%',padding:'12px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.88rem',fontWeight:600,
@@ -1635,7 +1635,7 @@ const OVERVIEW_STEPS=[
   {target:'ear-mode-tabs', view:'quiz',
    essentialsOnly:true,
    title:'One price, everything — forever',
-   text:'Essentials is free: shells, major ii–V–I, 5 ear training intervals. Pro is $9.99 once — no subscription, no future paywalls. Every voicing, play form, standard, ear training mode, and chord type we ever add is included. Look for 🔒 to see what unlocks now.'},
+   text:'Essentials is free: shells, major ii–V–I, 5 ear training intervals. Pro is $14.99 once — no subscription, no future paywalls. Every voicing, play form, standard, ear training mode, and chord type we ever add is included. Look for 🔒 to see what unlocks now.'},
 ];
 
 const PAGE_TOURS={
@@ -4534,7 +4534,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
           e('button',{onClick:()=>onUpgrade('Jazz Standards'),style:{
             width:'100%',padding:'11px 14px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.85rem',fontWeight:700,
             border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:44}},
-            'Unlock Pro — $9.99 once, forever')
+            'Unlock Pro — $14.99 once, forever')
         ):null,
         // "I've got this" — quieter, after the checklist (it's the last thing you do)
         e('button',{onClick:()=>{
@@ -4572,7 +4572,7 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
           marginTop:10,width:'100%',padding:'11px 14px',borderRadius:6,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.85rem',fontWeight:700,
           border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:44}},
-          'Unlock Pro — $9.99 once, forever'):null)
+          'Unlock Pro — $14.99 once, forever'):null)
       :nextStage?e('div',{style:{marginBottom:14,padding:'12px 14px',background:BG2,border:'1px solid '+GOLD+'66',borderRadius:8,
         display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
         e('div',{style:{flex:1,minWidth:170}},
@@ -5572,7 +5572,7 @@ function App(){
               display:'block',margin:'0 auto',padding:'9px 24px',borderRadius:6,cursor:'pointer',
               fontFamily:UI_FONT,fontSize:'0.82rem',fontWeight:700,
               border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:40}},
-              'Unlock Pro — $9.99 once')
+              'Unlock Pro — $14.99 once')
           ):null,
           e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT,
             textAlign:'center',marginTop:12}},'Tap to dismiss')

@@ -13,15 +13,15 @@
 - **To undo a live change, use `git revert <sha>`** (creates a new undo commit, safe to push). Never `reset --hard` on shared `main`. Keep commits small and atomic so reverts are surgical.
 
 ## Big Picture Goal
-Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitarists who want to learn jazz harmony. Monetization: **free download** (Essentials tier) with a **$9.99 one-time IAP** to unlock Pro. No subscription.
+Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitarists who want to learn jazz harmony. Monetization: **free download** (Essentials tier) with a **$14.99 one-time IAP** to unlock Pro. No subscription.
 
 **Freemium split:**
 - **Free (Essentials):** Shell voicings only, major II-V-I only, melodic intervals (5 consonant intervals), first 4 chord types in Any Chord tab, all 16 Guide stages (no feature gating in Guide)
-- **Paid Pro ($9.99):** Drop 2/3/Rootless voicings, minor II-V-I + jazz blues + I-VI-ii-V turnaround + tritone sub + sec dom + custom + 5 jazz standards (Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You), all 12 intervals + harmonic mode + triads + 7th chords + cadences + Auto ear training in Ear Training, all extended chord types (9ths, 11ths, 13ths, altered) in Any Chord, Favorites (save/restore progressions) in Play
+- **Paid Pro ($14.99):** Drop 2/3/Rootless voicings, minor II-V-I + jazz blues + I-VI-ii-V turnaround + tritone sub + sec dom + custom + 5 jazz standards (Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You), all 12 intervals + harmonic mode + triads + 7th chords + cadences + Auto ear training in Ear Training, all extended chord types (9ths, 11ths, 13ths, altered) in Any Chord, Favorites (save/restore progressions) in Play
 
 **Destination:** Apple App Store via Capacitor (web→native wrapper) + Codemagic (cloud CI/CD build — no Mac required).
 **Timeline:** Ship as soon as the product is ready.
-**Apple Developer account:** Not yet set up ($99/year enrollment needed). Also enroll in the Apple Small Business Program (15% cut instead of 30% — raises net per sale from $7 to $8.49 on a $9.99 purchase).
+**Apple Developer account:** Not yet set up ($99/year enrollment needed). Also enroll in the Apple Small Business Program (15% cut instead of 30% — raises net per sale from $10.49 to $12.74 on a $14.99 purchase).
 **Bundle ID:** `com.pablohoney.jazzguitarlab`
 **Support:** Simple email channel (no dedicated support infrastructure needed pre-launch).
 **Marketing:** Organic only — ASO (App Store search optimization), YouTube guitar community, Reddit (r/jazzguitar, r/guitarlessons), musician forums. No paid ads — one-time IAP economics don't support paid acquisition (CPI would exceed LTV). Build audience through content and community.
@@ -41,7 +41,7 @@ Steps completed and still needed to ship:
 - [ ] Register bundle ID in Apple Developer portal
 - [ ] Create App Store Connect API key, paste into Codemagic dashboard
 - [ ] Create App Store listing (name, screenshots, description, pricing)
-- [ ] Set up $9.99 one-time IAP in App Store Connect (product ID: `pro_unlock`) — client code is wired (RevenueCat); still need the App Store product + RevenueCat project/key
+- [ ] Set up $14.99 one-time IAP in App Store Connect (product ID: `pro_unlock`) — client code is wired (RevenueCat); still need the App Store product + RevenueCat project/key
 - [ ] Add Capacitor Local Notifications plugin (for practice streak reminders — defer until after first build succeeds)
 - [ ] App icon: needs all required sizes (currently have `icon.svg` and `icons/` — need to verify App Store required sizes)
 - [ ] Splash screen: review default Capacitor splash, customize if needed
@@ -106,12 +106,12 @@ Steps completed and still needed to ship:
 - Enclosures
 - Guitar tone unlocks / EQ presets labeled as guitar models (sounds like EQ, not like actual guitars)
 - Locking Pro version behind achievements (advanced users hit a wall = bad reviews)
-- Subscription pricing (one-time $9.99 is the model)
+- Subscription pricing (one-time $14.99 is the model)
 
 ## Pending / Next Session Priorities
 1. **PostHog key** — user action: sign up at posthog.com, create project, replace `__POSTHOG_KEY__` in `index.html` with the real API key. Once live, paywall funnel (paywall.shown → upgrade.completed) will be visible.
 2. **IAP implementation** — DONE in code (RevenueCat, `IAP` module in `app.js`, `@revenuecat/purchases-capacitor` dep). Remaining is config, not code: (a) enroll in Apple Developer, (b) create the `pro_unlock` non-consumable in App Store Connect, (c) create a RevenueCat project with entitlement `pro` + default offering, (d) replace `__REVENUECAT_IOS_KEY__` in `app.js` with the public iOS SDK key (`appl_…`). NOTE: the 7-day trial is honor-system / client-side only (`jg-trial-start` in localStorage). Fine for launch; if abused, gate via StoreKit intro-offer.
 3. **App Store assets** — app icon in all required sizes, screenshots, store description copywriting
-4. **Apple Developer enrollment** — user action required, $99, developer.apple.com. Also enroll in Small Business Program (15% cut → ~$8.49 net per sale).
+4. **Apple Developer enrollment** — user action required, $99, developer.apple.com. Also enroll in Small Business Program (15% cut → ~$12.74 net per sale).
 5. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`
 6. **Add Capacitor Local Notifications** — practice streak reminders (defer until after first TestFlight build)

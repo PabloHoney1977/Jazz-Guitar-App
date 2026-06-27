@@ -7,7 +7,7 @@
 //
 // It doubles as the canonical FREEMIUM GATING MATRIX. Spec (from CLAUDE.md):
 //
-//   FREE (Essentials)              PRO ($9.99)
+//   FREE (Essentials)              PRO ($14.99)
 //   ─────────────────────────────  ─────────────────────────────────────────
 //   Shell voicings only            Drop 2 / Drop 3 / Drop 2+4 / 2+3 / Rootless
 //   Major ii–V–I only              minor ii–V–i, jazz/minor blues, tritone sub,

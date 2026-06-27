@@ -762,7 +762,7 @@ const IPHONE14 = {
       await page.waitForTimeout(400);
 
       const sheetText = await page.evaluate(() => document.body.innerText);
-      ok('upgrade sheet contains pricing ($9.99)', sheetText.includes('9.99'),
+      ok('upgrade sheet contains pricing ($14.99)', sheetText.includes('14.99'),
          'upgrade sheet did not appear or lacks price text');
       ok('upgrade sheet contains unlock action', /unlock|upgrade/i.test(sheetText));
 

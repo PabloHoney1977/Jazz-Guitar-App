@@ -86,7 +86,7 @@ const GOALS = [
   'Find a chord voicing I can play immediately',
   'Learn one new concept — just do one Guide stage',
   'Practice recognizing intervals by ear for a few minutes',
-  'See what Pro unlocks and decide if $9.99 is worth it',
+  'See what Pro unlocks and decide if $14.99 is worth it',
   'Change the key so it matches a song I am trying to play',
   'Just explore — not sure what this app does yet',
   'Keep my streak alive with a quick 5-minute practice',
@@ -174,7 +174,7 @@ async function getDOMState(page) {
     const buttons = Array.from(document.querySelectorAll('button'))
       .map(b => b.textContent?.trim()).filter(t => t && t.length < 50 && t.length > 0).slice(0, 25);
     const lockCount    = buttons.filter(b => b.includes('\u{1F512}')).length;
-    const upgradeOpen  = document.body.innerText.includes('9.99') && document.body.innerText.includes('Pro');
+    const upgradeOpen  = document.body.innerText.includes('14.99') && document.body.innerText.includes('Pro');
     const earRevealed  = !!document.querySelector('[data-tour="ear-choices"] button[disabled]');
     const earChoices   = document.querySelectorAll('[data-tour="ear-choices"] button:not([disabled])').length;
     const svgPresent   = document.querySelectorAll('svg').length > 0;
@@ -379,7 +379,7 @@ function pickAction(persona, dom, ss) {
   if (/play along/i.test(persona.goal))       { w.nav_play     = (w.nav_play     ?? 0) * 2.0; w.try_play_start = (w.try_play_start ?? 0) * 1.8; }
   if (/roman numeral|what.*mean/i.test(persona.goal)) { w.nav_guide = (w.nav_guide ?? 0) * 1.8; w.expand_guide_stage = (w.expand_guide_stage ?? 0) * 1.8; }
   if (/interval|ear/i.test(persona.goal))     { w.nav_train    = (w.nav_train    ?? 0) * 2.0; }
-  if (/pro|unlock|\$9/i.test(persona.goal))   { w.tap_locked   = (w.tap_locked   ?? 0) * 3.0; }
+  if (/pro|unlock|\$14/i.test(persona.goal))   { w.tap_locked   = (w.tap_locked   ?? 0) * 3.0; }
   if (/change.*key|key/i.test(persona.goal))  { w.nav_keys     = (w.nav_keys     ?? 0) * 1.5; w.change_key = (w.change_key ?? 0) * 2.0; }
 
   // Day-1 users explore all tabs first
@@ -675,7 +675,7 @@ async function llmSynthesize(sessions, codeFindings, reportDir) {
 
   const prompt = `You are a UX researcher and mobile app QA analyst reviewing simulated user sessions for "Jazz Guitar Lab" — a freemium iOS app that teaches jazz guitar harmony to adult guitarists. The app has 5 tabs: Guide (learning path), Keys (diatonic chords), Chords (any chord), Play (backing track), and Ear Training.
 
-Freemium model: Essentials (free) gets shell voicings + major ii-V-I + basic ear training. Pro ($9.99 one-time) unlocks everything.
+Freemium model: Essentials (free) gets shell voicings + major ii-V-I + basic ear training. Pro ($14.99 one-time) unlocks everything.
 
 Here are ${sessions.length} simulated user sessions at different experience levels and journey stages:
 
