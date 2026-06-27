@@ -1552,6 +1552,10 @@ const PAGE_TOURS={
      proText:'Pick a form — ii-V-I is the foundation of jazz harmony. You\'ve also got 5 jazz standards: Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, and There Will Never Be Another You.'},
     {target:'play-transport', title:'Play controls',
      text:'Hit the green button for a 4-count-in, then the loop begins. BPM knob sets tempo — start at 60 and build up.'},
+    {target:'play-mix',       title:'Dial in the sound',
+     text:'Each instrument — Bass, Guitar, Ride — has its own MIX button. Tap it to toggle the instrument or open a 5-band EQ and volume slider, so you can shape the tone to taste or mute parts to focus your practice.'},
+    {target:'play-faves',     title:'Save your favorites',
+     text:'Found a progression, tempo, and voicing you like? Save it as a favorite and it appears in a row below — tap one to instantly restore the form, BPM, and voicing in one click. (Favorites is a Pro feature.)'},
     {target:'bar-grid',       title:'Follow the chord changes',
      text:'The gold-pulsing bar shows the current chord. Watch it cycle and play along.'},
     {target:'neck-area',      title:'Comp along',
@@ -2976,6 +2980,16 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
               background:'linear-gradient(to right, transparent, var(--bg))',
               pointerEvents:'none',
             }})
+          ),
+          // Favorites — Pro only; shown locked so Essentials users can discover it
+          e('div',{'data-tour':'play-faves',onClick:()=>onUpgrade('Favorites'),style:{
+            display:'flex',alignItems:'center',gap:8,marginTop:8,cursor:'pointer',
+            padding:'6px 10px',borderRadius:6,border:'1px dashed '+BTN_BRD,background:'transparent',
+          }},
+            e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Favorites'),
+            e('span',{style:{fontSize:'0.7rem',color:HINT,opacity:0.7,lineHeight:1.3}},
+              'Save a progression, tempo & voicing to recall in one tap'),
+            e('span',{style:{marginLeft:'auto',fontSize:'0.72rem',color:GOLD,fontWeight:700,whiteSpace:'nowrap',flexShrink:0}},'🔒 Pro')
           )
         )
       :e('div',{'data-tour':'play-form-row',style:{marginBottom:10}},
@@ -2991,6 +3005,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
               e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
             ),
             e('button',{
+              'data-tour':'play-faves',
               title:'Save current progression as a favorite',
               onClick:()=>{
                 const lbl=(FORM_DEFS[form]?.lbl||form)+' · '+bpm+'bpm · '+vType;
@@ -3053,7 +3068,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
         e(BpmKnob,{bpm,setBpm,onTap:handleTap})
       ),
       // Right: instruments (with Mix sub-buttons), separator, click
-      e('div',{style:{display:'flex',gap:4,marginLeft:'auto',alignItems:'flex-end'}},
+      e('div',{'data-tour':'play-mix',style:{display:'flex',gap:4,marginLeft:'auto',alignItems:'flex-end'}},
         // BASS + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
