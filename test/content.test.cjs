@@ -8,8 +8,8 @@ const assert = require('node:assert/strict');
 const { loadApp } = require('./load-app.cjs');
 
 const JG = loadApp();
-const QUALITIES = new Set(['maj7', 'm7', 'dom7', 'm7b5']);
-const SYM_FOR = { maj7: 'maj7', m7: 'm7', dom7: '7', m7b5: 'ø7' };
+const QUALITIES = new Set(['maj7', 'm7', 'dom7', 'm7b5', 'dim7']);
+const SYM_FOR = { maj7: 'maj7', m7: 'm7', dom7: '7', m7b5: 'ø7', dim7: '°7' };
 
 // Values from the VM sandbox carry that realm's prototypes; compare by structure.
 const same = (actual, expected) =>
