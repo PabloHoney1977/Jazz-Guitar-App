@@ -521,9 +521,13 @@ function precomputeKS(ctx){
   return bufs;
 }
 
-// ── Guitar sample CDN (chord preview + guide + ear training) ─────────
-// electric guitar samples every ~2-3 semitones; max pitch-shift ≤2 semitones
-const GUITAR_CDN='https://nbrosowsky.github.io/tonejs-instruments/samples/guitar-electric/';
+// ── Guitar samples (chord preview + guide + ear training) ────────────
+// Bundled locally under ./samples (relative path → works on the GitHub Pages
+// subpath PWA *and* in the Capacitor native bundle, offline). Sourced from
+// nbrosowsky/tonejs-instruments. Samples every ~2-3 semitones; max shift ≤2.
+// NOTE: E3/E4 (midi 52/64) don't exist upstream and are intentionally absent —
+// the loader already tolerates missing files and pitch-shifts from neighbors.
+const GUITAR_SAMPLES='./samples/guitar-electric/';
 const GUITAR_NOTES={40:'E2.mp3',42:'Fs2.mp3',45:'A2.mp3',48:'C3.mp3',
   52:'E3.mp3',54:'Fs3.mp3',57:'A3.mp3',60:'C4.mp3',
   64:'E4.mp3',66:'Fs4.mp3',69:'A4.mp3',72:'C5.mp3'};
@@ -544,7 +548,7 @@ function _loadGuitar(ctx){
   if(_guitarLoading) return;
   _guitarLoading=true;
   Promise.all(Object.entries(GUITAR_NOTES).map(async([midi,file])=>{
-    try{const r=await fetch(GUITAR_CDN+file);if(!r.ok)return null;return{midi:+midi,data:await r.arrayBuffer()};}
+    try{const r=await fetch(GUITAR_SAMPLES+file);if(!r.ok)return null;return{midi:+midi,data:await r.arrayBuffer()};}
     catch(e){return null;}
   })).then(res=>{
     const raw={};res.forEach(r=>{if(r)raw[r.midi]=r.data;});
@@ -2500,7 +2504,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   // they are ready before the user hits play.
   useEffect(()=>{
     let live=true;
-    const BASE='https://nbrosowsky.github.io/tonejs-instruments/samples/bass-electric/';
+    const BASE='./samples/bass-electric/';  // bundled locally (offline-safe)
     // Samples every minor-3rd cover the whole octave with ≤1 semitone shift.
     const FILES={37:'Cs2.mp3',40:'E2.mp3',43:'G2.mp3',46:'As2.mp3'};
     Promise.all(Object.entries(FILES).map(async([midi,file])=>{
@@ -2521,7 +2525,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   // Pre-fetch guitar-electric samples for comping
   useEffect(()=>{
     let live=true;
-    const BASE='https://nbrosowsky.github.io/tonejs-instruments/samples/guitar-electric/';
+    const BASE='./samples/guitar-electric/';  // bundled locally (offline-safe)
     // Three anchors spread across guitar range: F#2 (42), F#3 (54), F#4 (66)
     const FILES={42:'Fs2.mp3',54:'Fs3.mp3',66:'Fs4.mp3'};
     Promise.all(Object.entries(FILES).map(async([midi,file])=>{

@@ -6,12 +6,19 @@
 // deploys on one cache version), so the shell is now NETWORK-FIRST: online
 // users always run the latest app.js/index.html; offline still works from cache.
 // Stable assets (CDN libs, icons, audio) stay cache-first for speed.
-const CACHE = 'jglab-v33';
+const CACHE = 'jglab-v34';
 
 const CDN = [
   'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js',
 ];
+
+// Bundled audio samples — same-origin, precached best-effort so the PWA has
+// working audio offline even on first launch (native bundles these anyway).
+const SAMPLES = [
+  'E2','Fs2','A2','C3','Fs3','A3','C4','Fs4','A4','C5',
+].map((n) => './samples/guitar-electric/' + n + '.mp3')
+ .concat(['Cs2','E2','G2','As2'].map((n) => './samples/bass-electric/' + n + '.mp3'));
 const LOCAL = ['./', './index.html', './app.js', './manifest.json', './icons/icon.svg'];
 
 // The app shell: always revalidate from network when online so updates ship.
@@ -33,6 +40,10 @@ self.addEventListener('install', (ev) => {
     // (which would leave the user on the previous service worker).
     await Promise.all(CDN.map((u) =>
       fetch(u, { mode: 'cors' }).then((r) => (r.ok ? c.put(u, r) : null)).catch(() => null)
+    ));
+    // Samples are best-effort too — a missing/blocked one must not abort install.
+    await Promise.all(SAMPLES.map((u) =>
+      fetch(u).then((r) => (r.ok ? c.put(u, r) : null)).catch(() => null)
     ));
   })());
   self.skipWaiting();
