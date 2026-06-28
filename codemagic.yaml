@@ -17,11 +17,13 @@ workflows:
       # profiles found"). We do signing manually in the "Set up code signing"
       # step with --create, which generates the cert + profile from scratch.
       #
-      # Add these 4 vars to a Codemagic variable group named EXACTLY
+      # Add these vars to a Codemagic variable group named EXACTLY
       # "appstore_credentials" (App settings → Environment variables):
       #   APP_STORE_APPLE_ID, APP_STORE_CONNECT_ISSUER_ID,
-      #   APP_STORE_CONNECT_KEY_IDENTIFIER, APP_STORE_CONNECT_PRIVATE_KEY
-      # Mark them "Secure". The group reference below injects them into the build.
+      #   APP_STORE_CONNECT_KEY_IDENTIFIER, APP_STORE_CONNECT_PRIVATE_KEY,
+      #   CERTIFICATE_PRIVATE_KEY  ← the RSA private key the distribution cert
+      #                              is generated FROM (see "Set up code signing").
+      # Mark them all "Secure". The group reference below injects them.
       groups:
         - appstore_credentials
       node: v22
@@ -42,15 +44,20 @@ workflows:
       # Manager (see ios/App/CapApp-SPM/Package.swift), not CocoaPods. There is
       # no Podfile; Xcode resolves the SPM packages automatically at build time.
 
-      # Explicitly create the distribution certificate + provisioning profile via
-      # the connected "Codemagic CI" integration. The implicit ios_signing flow
-      # only FETCHES existing profiles; --create makes them when none exist yet
-      # (this is what "No matching profiles found" means on a brand-new account).
+      # Create the distribution certificate + provisioning profile via the
+      # connected "Codemagic CI" integration. On a brand-new account there is NO
+      # distribution certificate yet, and `fetch-signing-files --create` cannot
+      # make one without a private key to build it from — hence the earlier
+      # "Cannot save Signing Certificates without certificate private key" /
+      # "Did not find any certificates". Passing --certificate-key generates the
+      # cert FROM that key the first time, then REUSES the same cert on every
+      # later build (the key is stable), so we never hit Apple's cert limit.
       - name: Set up code signing
         script: |
           keychain initialize
           app-store-connect fetch-signing-files "com.pablohoney.jazzguitarlab" \
             --type IOS_APP_STORE \
+            --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
             --create
           keychain add-certificates
           xcode-project use-profiles
