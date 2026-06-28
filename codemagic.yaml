@@ -61,6 +61,16 @@ workflows:
           LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" || echo 0)
           agvtool new-version -all $(($LATEST + 1))
 
+      # Resolve the local Swift Package (CapApp-SPM) explicitly. Capacitor 8 uses
+      # SPM, and build-ipa's hidden `-showBuildSettings` call fails ("status 74")
+      # if packages aren't resolved first. Running it directly also prints the
+      # REAL xcodebuild error to the log (the build-ipa wrapper hides it).
+      - name: Resolve Swift packages
+        script: |
+          xcodebuild -project ios/App/App.xcodeproj \
+            -scheme App \
+            -resolvePackageDependencies
+
       - name: Build and sign IPA
         script: |
           xcode-project build-ipa \
