@@ -9,7 +9,7 @@ workflows:
     # With it set (+ ios_signing below), Codemagic auto-creates the distribution
     # cert AND provisioning profile at build time — fixes "No matching profiles".
     integrations:
-      app_store_connect: JazzGuitarLab ASC
+      app_store_connect: Codemagic CI
 
     environment:
       ios_signing:
