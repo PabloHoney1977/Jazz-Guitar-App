@@ -38,10 +38,9 @@ workflows:
       - name: Capacitor sync
         script: npx cap sync ios
 
-      - name: Install CocoaPods
-        script: |
-          cd ios/App
-          pod install
+      # NOTE: no `pod install` — this Capacitor 8 project uses Swift Package
+      # Manager (see ios/App/CapApp-SPM/Package.swift), not CocoaPods. There is
+      # no Podfile; Xcode resolves the SPM packages automatically at build time.
 
       # Explicitly create the distribution certificate + provisioning profile via
       # the connected "Codemagic CI" integration. The implicit ios_signing flow
