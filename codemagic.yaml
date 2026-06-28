@@ -65,8 +65,19 @@ workflows:
       - name: Set build number from Codemagic
         script: |
           cd ios/App
-          LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" || echo 0)
-          agvtool new-version -all $(($LATEST + 1))
+          # Query the highest build already on App Store Connect. The `|| echo 0`
+          # guards against the API erroring OR the latest build still being in
+          # "Processing" (which made this return 0 and re-upload build 1, a
+          # duplicate-version collision). 2>/dev/null keeps a noisy error from
+          # leaking into the captured number.
+          LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)
+          NEXT=$(($LATEST + 1))
+          # $BUILD_NUMBER is Codemagic's monotonically-increasing build index;
+          # it can never collide with an already-uploaded version. Use whichever
+          # is higher so we're safe even when the API query lags or fails.
+          if [ "${BUILD_NUMBER:-0}" -gt "$NEXT" ]; then NEXT=$BUILD_NUMBER; fi
+          echo "Setting build number to $NEXT (ASC latest=$LATEST, Codemagic BUILD_NUMBER=${BUILD_NUMBER:-unset})"
+          agvtool new-version -all "$NEXT"
 
       # Resolve the local Swift Package (CapApp-SPM) explicitly. Capacitor 8 uses
       # SPM, and build-ipa's hidden `-showBuildSettings` call fails ("status 74")
