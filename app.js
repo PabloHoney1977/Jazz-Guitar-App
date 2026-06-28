@@ -99,7 +99,11 @@ const IAP=(()=>{
     await configure();if(!configured)return false;
     try{return entitled(await plug().restorePurchases());}catch(ex){return false;}
   }
-  return{available,checkEntitlement,purchase,restore};
+  // True on a real Capacitor native build (iOS app), false on web/PWA. Used to
+  // gate dev-only affordances (e.g. the Pro→Essentials revert) so they exist
+  // while testing in the browser but never ship as a footgun on device.
+  function isNative(){try{return !!window?.Capacitor?.isNativePlatform?.();}catch(ex){return false;}}
+  return{available,checkEntitlement,purchase,restore,isNative};
 })();
 
 // ── Tuning ───────────────────────────────────────────────────────────
@@ -707,8 +711,18 @@ function track(event,props){
 }
 
 // ── UpgradeSheet ──────────────────────────────────────────────────────
+// Shared style for the header tier chip (Pro / Trial / upgrade pill). `interactive`
+// only swaps the cursor — a real purchased Pro badge on device is non-tappable.
+function tierChipStyle(interactive){
+  return {fontSize:'0.72rem',fontWeight:700,fontFamily:UI_FONT,color:GOLD,
+    border:'1px solid '+GOLD+'66',borderRadius:10,padding:'3px 10px',
+    cursor:interactive?'pointer':'default',background:ACT_GOLD,flexShrink:0};
+}
+
 function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial}){
   const trialExpired=trialUsed&&!trialActive;
+  // Generic entry point (header upgrade pill) — not tied to one locked feature.
+  const isOverview=feature==='Pro overview';
   const PERKS=[
     'Drop 2, Drop 3, and Rootless voicings in the Keys tab',
     'All play forms + 5 jazz standards — Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You',
@@ -752,15 +766,19 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial}){
       border:'1px solid '+GOLD+'44',padding:'20px 20px 36px',
       boxShadow:'0 -8px 32px rgba(0,0,0,0.55)',maxHeight:'72vh',overflowY:'auto'}},
       e('div',{style:{width:40,height:4,background:BORDER,borderRadius:2,margin:'0 auto 18px'}}),
-      e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},trialExpired?'⏱️':'🔒'),
+      e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},trialExpired?'⏱️':isOverview?'✦':'🔒'),
       e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
         color:'var(--scale-name)',textAlign:'center',marginBottom:4}},
-        trialExpired?'Your free trial has ended':feature+' is a Pro feature'),
+        trialExpired?'Your free trial has ended':isOverview?'Unlock everything in Pro':feature+' is a Pro feature'),
       trialExpired
         ?e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
             marginBottom:16,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},
             'You had full access to everything. Unlock Pro to keep it — one price, forever.')
-        :desc?e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
+        :isOverview
+          ?e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
+              marginBottom:16,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},
+              'Everything we’ve built — and everything we ever add — for one price. No subscription, ever.')
+          :desc?e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
             marginBottom:16,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},desc):null,
       e('div',{style:{fontSize:'0.75rem',color:HINT,
         marginBottom:8,fontFamily:UI_FONT,fontWeight:600,letterSpacing:'0.05em',
@@ -5250,16 +5268,30 @@ function App(){
         color:'var(--lbl)',minHeight:0,flexShrink:0}},
         theme==='dark'?'☀':'☾'),
       e('div',{style:{flex:1}}),
-      (level==='pro'||trialActive)?e('div',{'data-tour':'level-switch',
-        onClick:()=>{
-          if(trialActive){setTrialActive(false);}
-          else{setLevel('essentials');safeLSSet('jg-level','essentials');}
-        },
-        title:trialActive?'7-day trial active — tap to preview Essentials':'Tap to switch back to Essentials',
-        style:{fontSize:'0.72rem',fontWeight:700,fontFamily:UI_FONT,color:GOLD,
-          border:'1px solid '+GOLD+'66',borderRadius:10,padding:'3px 10px',cursor:'pointer',
-          background:ACT_GOLD,flexShrink:0}},
-        trialActive?'Trial ✦':'Pro ✦'):null,
+      // Tier chip. Three cases, one consistent slot:
+      //  · Trial active → preview-Essentials toggle (honor-system, nothing to lose).
+      //  · Real purchased Pro → passive status badge on device (no downgrade
+      //    footgun); on web/PWA keep the revert as a dev affordance for testing.
+      //  · Essentials → persistent upgrade entry point that opens the paywall.
+      trialActive
+        ?e('div',{'data-tour':'level-switch',
+            onClick:()=>setTrialActive(false),
+            title:'7-day trial active — tap to preview Essentials',
+            style:tierChipStyle(true)},
+            'Trial ✦')
+        :level==='pro'
+          ?(IAP.isNative()
+              ?e('div',{title:'Pro unlocked — thank you ✦',style:tierChipStyle(false)},'Pro ✦')
+              :e('div',{'data-tour':'level-switch',
+                  onClick:()=>{setLevel('essentials');safeLSSet('jg-level','essentials');},
+                  title:'Dev build — tap to preview Essentials',
+                  style:tierChipStyle(true)},
+                  'Pro ✦'))
+          :e('div',{'data-tour':'upgrade-chip',
+              onClick:()=>showUpgrade('Pro overview'),
+              title:'Unlock Pro — every voicing, play form, and chord type, one price',
+              style:tierChipStyle(true)},
+              '✦ Pro'),
       streak>0?e('div',{
         title:'Practice streak — '+streak+' day'+(streak!==1?'s':'')+'. Next badge at day '+nextMil+' ('+daysToNextMil+' day'+(daysToNextMil===1?'':'s')+' away). Practice daily to keep it going.',
         style:{display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:10,
