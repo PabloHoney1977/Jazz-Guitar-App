@@ -41,6 +41,19 @@ workflows:
           cd ios/App
           pod install
 
+      # Explicitly create the distribution certificate + provisioning profile via
+      # the connected "Codemagic CI" integration. The implicit ios_signing flow
+      # only FETCHES existing profiles; --create makes them when none exist yet
+      # (this is what "No matching profiles found" means on a brand-new account).
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "com.pablohoney.jazzguitarlab" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+
       - name: Set build number from Codemagic
         script: |
           cd ios/App
