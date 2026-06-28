@@ -4,16 +4,17 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
 
+    # Workflow-level (sibling of `environment`). This MUST match the App Store
+    # Connect integration name created in Codemagic settings → Integrations.
+    # With it set (+ ios_signing below), Codemagic auto-creates the distribution
+    # cert AND provisioning profile at build time — fixes "No matching profiles".
+    integrations:
+      app_store_connect: JazzGuitarLab ASC
+
     environment:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.pablohoney.jazzguitarlab
-      # This MUST match the App Store Connect integration name you created in
-      # Codemagic account settings → Integrations. With it set (+ ios_signing
-      # above), Codemagic auto-creates the distribution cert AND provisioning
-      # profile at build time — fixes "No matching profiles found".
-      integrations:
-        app_store_connect: JazzGuitarLab ASC
       # Add these 4 vars to a Codemagic variable group named EXACTLY
       # "appstore_credentials" (App settings → Environment variables):
       #   APP_STORE_APPLE_ID, APP_STORE_CONNECT_ISSUER_ID,
