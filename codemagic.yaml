@@ -8,8 +8,13 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.pablohoney.jazzguitarlab
-      vars:
-        APP_STORE_APPLE_ID: $APP_STORE_APPLE_ID   # set in Codemagic dashboard
+      # Add these 4 vars to a Codemagic variable group named EXACTLY
+      # "appstore_credentials" (App settings → Environment variables):
+      #   APP_STORE_APPLE_ID, APP_STORE_CONNECT_ISSUER_ID,
+      #   APP_STORE_CONNECT_KEY_IDENTIFIER, APP_STORE_CONNECT_PRIVATE_KEY
+      # Mark them "Secure". The group reference below injects them into the build.
+      groups:
+        - appstore_credentials
       node: v22
       xcode: latest
       cocoapods: default
