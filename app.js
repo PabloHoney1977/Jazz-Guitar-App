@@ -535,14 +535,20 @@ let _previewCtx=null;
 let _guitarBufs=null;  // MIDI→AudioBuffer for current ctx
 let _guitarRaw=null;   // MIDI→ArrayBuffer raw — survives AudioContext resets
 let _guitarLoading=false;
+let _guitarDecoding=false;
 let _ksFallback=null;  // KS bufs for current _previewCtx
 
 function _reDecodeGuitar(ctx){
-  if(!_guitarRaw) return;
+  if(!_guitarRaw||_guitarDecoding) return;
+  _guitarDecoding=true;
   Promise.all(Object.entries(_guitarRaw).map(async([midi,arr])=>{
     try{return{midi:+midi,buf:await ctx.decodeAudioData(arr.slice(0))};}
     catch(e){return null;}
-  })).then(res=>{const m={};res.forEach(r=>{if(r)m[r.midi]=r.buf;});if(Object.keys(m).length)_guitarBufs=m;});
+  })).then(res=>{
+    _guitarDecoding=false;
+    if(ctx!==_previewCtx) return; // context was swapped mid-decode — bufs would be wrong-ctx
+    const m={};res.forEach(r=>{if(r)m[r.midi]=r.buf;});if(Object.keys(m).length)_guitarBufs=m;
+  }).catch(()=>{_guitarDecoding=false;});
 }
 function _loadGuitar(ctx){
   if(_guitarLoading) return;
@@ -586,6 +592,13 @@ function _getPreviewCtx(){
       if(_guitarRaw) _reDecodeGuitar(_previewCtx);
     }
     if(_previewCtx.state==='suspended') _previewCtx.resume();
+    // iOS WebKit gotcha: decodeAudioData on an AudioContext created *before* any
+    // user gesture (as the eager pre-load does on module load) can hang and never
+    // resolve, leaving _guitarBufs null forever — so every preview / Guide / ear-
+    // training tap falls back to the brash Karplus-Strong synth. _getPreviewCtx is
+    // only ever called from a tap handler, so the context is now gesture-resumed:
+    // (re)decode the raw samples here so subsequent taps use the warm guitar tone.
+    if(_guitarRaw&&(!_guitarBufs||Object.keys(_guitarBufs).length===0)) _reDecodeGuitar(_previewCtx);
     return _previewCtx;
   }catch(ex){return null;}
 }
