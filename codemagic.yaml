@@ -4,17 +4,19 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
 
-    # Workflow-level (sibling of `environment`). This MUST match the App Store
-    # Connect integration name created in Codemagic settings → Integrations.
-    # With it set (+ ios_signing below), Codemagic auto-creates the distribution
-    # cert AND provisioning profile at build time — fixes "No matching profiles".
+    # Workflow-level. Must match the App Store Connect integration name in
+    # Codemagic settings → Integrations. Makes the API key available to the
+    # `app-store-connect` CLI used in the "Set up code signing" script below.
     integrations:
       app_store_connect: Codemagic CI
 
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.pablohoney.jazzguitarlab
+      # NOTE: deliberately NO `ios_signing:` block here. That triggers
+      # Codemagic's built-in automatic signing, which only FETCHES existing
+      # profiles and aborts before our scripts on a fresh account ("No matching
+      # profiles found"). We do signing manually in the "Set up code signing"
+      # step with --create, which generates the cert + profile from scratch.
+      #
       # Add these 4 vars to a Codemagic variable group named EXACTLY
       # "appstore_credentials" (App settings → Environment variables):
       #   APP_STORE_APPLE_ID, APP_STORE_CONNECT_ISSUER_ID,
