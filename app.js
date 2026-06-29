@@ -554,7 +554,11 @@ function _loadGuitar(ctx){
   if(_guitarLoading) return;
   _guitarLoading=true;
   Promise.all(Object.entries(GUITAR_NOTES).map(async([midi,file])=>{
-    try{const r=await fetch(GUITAR_SAMPLES+file);if(!r.ok)return null;return{midi:+midi,data:await r.arrayBuffer()};}
+    // iOS Capacitor quirk: local assets served via capacitor:// come back with
+    // HTTP status 0 (not 200), so r.ok is false even though the body is fine.
+    // Accept status 0; only reject genuine error statuses (e.g. 404). Guard on
+    // byteLength so a missing file (empty/HTML body) still falls through.
+    try{const r=await fetch(GUITAR_SAMPLES+file);if(!r.ok&&r.status!==0)return null;const data=await r.arrayBuffer();if(!data||!data.byteLength)return null;return{midi:+midi,data};}
     catch(e){return null;}
   })).then(res=>{
     const raw={};res.forEach(r=>{if(r)raw[r.midi]=r.data;});
@@ -676,31 +680,36 @@ async function runAudioSelfTest(log){
     const row={file:t.lbl};
     try{
       const r=await fetch(t.url);
-      row.status=r.status;row.ok=r.ok;row.ctype=r.headers.get('content-type')||'';
-      if(r.ok){
-        const ab=await r.arrayBuffer();row.bytes=ab.byteLength;
-        if(ctx){
-          try{
-            const buf=await ctx.decodeAudioData(ab.slice(0));
-            row.decoded=true;row.dur=+buf.duration.toFixed(2);row.ch=buf.numberOfChannels;
-            if(!rep._buf)rep._buf=buf;
-          }catch(de){row.decoded=false;row.err=String(de&&de.message||de||'decode failed');}
-        }
+      row.status=r.status;row.ok=r.ok;row.rtype=r.type;row.ctype=r.headers.get('content-type')||'';
+      // Read the body REGARDLESS of r.ok — on iOS Capacitor local assets resolve
+      // with status 0 (ok:false) but a valid body. Gating on r.ok is the bug we're
+      // confirming, so the test must look past it to prove the bytes are there.
+      const ab=await r.arrayBuffer();row.bytes=ab.byteLength;
+      if(ab.byteLength&&ctx){
+        try{
+          const buf=await ctx.decodeAudioData(ab.slice(0));
+          row.decoded=true;row.dur=+buf.duration.toFixed(2);row.ch=buf.numberOfChannels;
+          if(!rep._buf)rep._buf=buf;
+        }catch(de){row.decoded=false;row.err=String(de&&de.message||de||'decode failed');}
       }
     }catch(fe){row.fetchErr=String(fe&&fe.message||fe);}
     rep.files.push(row);
     L(t.lbl+' → '+(row.fetchErr?('FETCH ERR: '+row.fetchErr)
-      :((row.status||'?')+' '+(row.bytes||0)+'B '
+      :('status '+(row.status)+(row.ok?'':'/!ok')+' '+(row.bytes||0)+'B '
         +(row.decoded===true?('✓ decoded '+row.dur+'s')
           :row.decoded===false?('✗ DECODE FAIL: '+row.err):'(no ctx)'))));
   }
   const dec=rep.files.filter(f=>f.decoded===true).length;
-  const fetchOk=rep.files.filter(f=>f.ok).length;
-  rep.summary={total:rep.files.length,fetchOk,decoded:dec};
-  if(fetchOk===0) rep.verdict='FETCH FAILS — sample files are not in the bundle / path unresolved. Audio falls back to synth (tinny) and Play guitar goes silent.';
-  else if(dec===0) rep.verdict='FETCH OK but DECODE FAILS — this device’s audio decoder rejects these mp3s. This is the root cause: preview → Karplus-Strong (tinny), Play guitar → silent.';
-  else if(dec<rep.files.length) rep.verdict='PARTIAL — some files decode, some don’t. See per-file errors below.';
-  else rep.verdict='Audio assets fetch AND decode fine on this device. The junk is NOT the samples — look at the audio session / routing / mix instead.';
+  const served=rep.files.filter(f=>f.bytes>0).length;       // body present, regardless of status
+  const status0=rep.files.some(f=>f.bytes>0&&!f.ok);         // iOS capacitor:// quirk present?
+  rep.summary={total:rep.files.length,served,decoded:dec,status0quirk:status0};
+  // Note: 2 of the 16 (guitar E3/E4, midi 52/64) are intentionally absent
+  // upstream, so a perfect result is 14 served / 14 decoded.
+  const q=status0?' (served via the iOS status-0 quirk — body present despite ok:false; the loader fix now accepts these)':'';
+  if(served===0) rep.verdict='NOT SERVED — no sample body reachable in the bundle. Files missing or path unresolved.';
+  else if(dec===0) rep.verdict='Served '+served+' files'+q+' but DECODE FAILS — the device rejects this audio format.';
+  else if(dec<served) rep.verdict='PARTIAL — '+dec+'/'+served+' served files decoded. See per-file errors below.';
+  else rep.verdict='FIXED ✓ — '+served+' files served and decoded'+q+'. Samples are reaching the audio engine; the tinny/silent fallback should be gone.';
   rep._ctx=ctx;
   L('VERDICT: '+rep.verdict);
   return rep;
@@ -729,7 +738,7 @@ function AudioDiagSheet({onClose}){
   const btn=(label,fn,extra)=>e('button',{onClick:fn,style:Object.assign({
     padding:'9px 14px',borderRadius:10,fontFamily:UI_FONT,fontSize:'0.8rem',fontWeight:600,
     border:'1px solid '+BORDER,background:BG,color:'var(--txt)',cursor:'pointer',minHeight:40},extra||{})},label);
-  const verdictColor=rep?(rep.summary.decoded===rep.summary.total?'#86EFAC':rep.summary.fetchOk===0||rep.summary.decoded===0?'#FF6B6B':'#FFD43B'):BORDER;
+  const verdictColor=rep?(rep.summary.decoded>0&&rep.summary.decoded>=rep.summary.served?'#86EFAC':rep.summary.served===0||rep.summary.decoded===0?'#FF6B6B':'#FFD43B'):BORDER;
   return e(React.Fragment,null,
     e('div',{onClick:onClose,style:{position:'fixed',inset:0,zIndex:399,background:'rgba(0,0,0,0.5)'}}),
     e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:400,
@@ -755,7 +764,7 @@ function AudioDiagSheet({onClose}){
         e('div',null,'platform: '+rep.env.platform+(rep.env.native?' (native)':'')),
         e('div',null,'context: '+(rep.ctx.error?('ERR '+rep.ctx.error):(rep.ctx.state+' @ '+rep.ctx.sampleRate+'Hz'))),
         e('div',null,'preview path live: fetched '+rep.preview.fetched+'/12, decoded '+rep.preview.decoded+'/12'),
-        e('div',null,'self-test: '+rep.summary.fetchOk+'/'+rep.summary.total+' fetched, '+rep.summary.decoded+'/'+rep.summary.total+' decoded')):null,
+        e('div',null,'self-test: '+rep.summary.served+'/'+rep.summary.total+' served, '+rep.summary.decoded+'/'+rep.summary.total+' decoded'+(rep.summary.status0quirk?' · iOS status-0 quirk seen':''))):null,
       rep&&rep.files.length?e('div',{style:{border:'1px solid '+BORDER,borderRadius:8,overflow:'hidden',marginBottom:12}},
         rep.files.map((f,i)=>e('div',{key:i,style:{display:'flex',alignItems:'center',gap:8,
           padding:'6px 10px',fontFamily:'monospace',fontSize:'0.68rem',
@@ -2656,8 +2665,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     Promise.all(Object.entries(FILES).map(async([midi,file])=>{
       try{
         const r=await fetch(BASE+file);
-        if(!r.ok||!live) return null;
-        return{midi:+midi,data:await r.arrayBuffer()};
+        // Accept iOS Capacitor status-0 local responses (see _loadGuitar note).
+        if(!live||(!r.ok&&r.status!==0)) return null;
+        const data=await r.arrayBuffer();
+        if(!data||!data.byteLength) return null;
+        return{midi:+midi,data};
       }catch(e){return null;}
     })).then(res=>{
       if(!live) return;
@@ -2677,8 +2689,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
     Promise.all(Object.entries(FILES).map(async([midi,file])=>{
       try{
         const r=await fetch(BASE+file);
-        if(!r.ok||!live) return null;
-        return{midi:+midi,data:await r.arrayBuffer()};
+        // Accept iOS Capacitor status-0 local responses (see _loadGuitar note).
+        if(!live||(!r.ok&&r.status!==0)) return null;
+        const data=await r.arrayBuffer();
+        if(!data||!data.byteLength) return null;
+        return{midi:+midi,data};
       }catch(e){return null;}
     })).then(res=>{
       if(!live) return;
