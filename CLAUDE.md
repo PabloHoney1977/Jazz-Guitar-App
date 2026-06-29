@@ -61,6 +61,23 @@ Steps completed and still needed to ship:
 - [ ] Internal testing
 - [ ] App Store submission
 
+## Android / Google Play (planned — NOT started, deferred until after iOS ships)
+> Decided 2026-06-29: add Android as a **fast follow** once iOS reaches TestFlight. Not doing it yet. The app is a Capacitor web wrapper, so the entire web app (`app.js`, audio, samples) runs unchanged in an Android WebView — Android is mostly free code-wise; the real work is the Play account + store listing + billing config (same shape as iOS).
+
+**Plan when we pick it up — three buckets:**
+1. **Add the Android platform (code, ~an afternoon):**
+   - `npm i @capacitor/android` then `npx cap add android` → creates `android/` dir; commit it like `ios/`.
+   - Update `package.json` `sync` script to also `cap sync android`; add an Android workflow to `codemagic.yaml` (Codemagic builds Android on Linux — no Mac, cheaper/faster than the iOS lane).
+   - **Audio quirk check:** the iOS `status 0` fix (`r.status!==0` guard in the 3 sample loaders) is already cross-safe — Android WebView serves local assets over `https://localhost` with normal **200s**, so both paths work. Confirm on a real Android build anyway.
+   - Android icons/splash need their own sizes (adaptive icon = foreground + background layers); generate from `icon.svg`.
+2. **Google Play account + listing (USER ACTION — gating items):**
+   - Play Developer account: **$25 one-time** (vs Apple $99/yr) at play.google.com/console.
+   - New personal accounts must pass **identity verification + a 14-day closed test with 12 testers** before public publish — built-in delay, start it early.
+   - Listing needs: description, phone + tablet screenshots, feature graphic (1024×500), privacy policy URL (required).
+3. **Billing (config, minimal code):** RevenueCat already supports Google Play Billing. Create `pro_unlock` as a one-time managed product in Play Console; add the Android app + Play credentials to the existing RevenueCat project; add a `__REVENUECAT_ANDROID_KEY__` placeholder (`goog_…`) alongside the iOS key. `doUpgrade`/`doRestore`/entitlement `pro` logic is unchanged. Google's **15% rate under $1M/yr is automatic** (no Small-Business-Program enrollment needed, unlike Apple).
+
+**Key iOS↔Android deltas:** account $25 one-time vs $99/yr · reduced fee automatic vs SBP enrollment · new-acct gate = 12-tester/14-day closed test vs TestFlight · reuse same `appId` `com.pablohoney.jazzguitarlab`.
+
 ## Legal / Business Structure
 > NOT legal advice — confirm specifics with a small-business/IP attorney or CPA. Captured here so future sessions don't accidentally cross a line.
 
@@ -143,3 +160,4 @@ Steps completed and still needed to ship:
 4. **Apple Developer enrollment** — user action required, $99, developer.apple.com. Also enroll in Small Business Program (15% cut → ~$12.74 net per sale).
 5. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`
 6. **Add Capacitor Local Notifications** — practice streak reminders (defer until after first TestFlight build)
+7. **Android / Google Play** — deferred fast-follow after iOS ships. Full plan in the "Android / Google Play (planned)" section above. Not started by request (2026-06-29).
