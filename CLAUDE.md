@@ -16,9 +16,9 @@
 ## Working Memory (live session checkpoint)
 > Rolling snapshot of "where things stand right now" so a fresh session after `/clear` loses nothing. Updated automatically per the Checkpoint Protocol above. Keep it terse and current — overwrite, don't append a diary. Last updated: 2026-06-29.
 
-- **In progress / mid-task:** _(nothing in flight — last session set up this checkpoint system)_
-- **Active branch:** `claude/session-context-memory-zrc7kr` (set up the Working Memory + Checkpoint Protocol).
-- **Recent decisions / changes worth remembering:** Added Checkpoint Protocol + this Working Memory section so context survives frequent `/clear`s. The actual auto-save is driven by the CLAUDE.md rule (I update this section when a task finishes), not an OS hook — a hook can't author the summary and would fire on every message.
+- **In progress / mid-task:** _(nothing in flight)_
+- **Active branch:** landed on `main` (also pushed `claude/llc-publishing-music-licensing-7lznu9`).
+- **Recent decisions / changes worth remembering:** Added a **Legal / Business Structure** section (LLC liability + music-licensing boundary). Key facts: user enrolled Apple Developer as **Individual** — should convert **Individual → Organization** (LLC as seller, in-place, no new account/fee, needs D-U-N-S) BEFORE first submission. Small Business Program (15%) is independent of account type. Play-tab standards stay **chords-only** (no melody/lyrics/lead sheets) — that's the legal safe zone.
 - **Next concrete step:** _(see Pending / Next Session Priorities below for the standing backlog.)_
 - **Open questions for the user:** _(none)_
 
