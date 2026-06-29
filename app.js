@@ -5277,7 +5277,7 @@ function App(){
   e('div',{style:{maxWidth:Math.min(960,winW-28),margin:'0 auto',padding:'14px 14px 84px'}},
 
     // Header — hidden while the play tab is active to maximise neck real-estate
-    !iiviPlaying&&e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
+    !iiviPlaying&&e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8,flexWrap:'wrap'}},
       e('span',{style:{fontFamily:SERIF,fontSize:'1.4rem',fontWeight:700,color:'var(--scale-name)'}},'Jazz Guitar Lab'),
       e('button',{onClick:toggleTheme,'aria-label':'Toggle theme',style:{
         padding:'4px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,

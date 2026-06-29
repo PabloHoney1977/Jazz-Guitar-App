@@ -23,6 +23,12 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { -webkit-text-size-adjust: 100%; font-size: 16px; }
     @media (min-width: 768px) { html { font-size: 19px; } }
+    /* Guard against a page-level horizontal scrollbar on narrow iPhones. Every
+       genuinely wide element (fretboard, chord rows, nav) has its OWN
+       overflowX:auto scroll container, so clipping at the page level only stops
+       stray overflow (e.g. the header chip cluster) — it never hides real
+       horizontally-scrollable content. */
+    html, body { overflow-x: hidden; max-width: 100%; }
 
     :root {
       --bg: #07070f; --bg2: #0d0d1e; --brd: #22223a;
