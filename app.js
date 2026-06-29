@@ -640,6 +640,139 @@ function playChordPreview(voicing,strings){
   }catch(ex){}
 }
 
+// ── Audio self-test (on-device root-cause diagnostic) ─────────────────
+// Headless Chromium (our smoke tests) can't reproduce iOS WebKit audio, so
+// "junky audio" bugs can only be confirmed on the real device. This runs the
+// EXACT fetch→decodeAudioData chain the app depends on, on whatever device it's
+// opened on, and reports per-file pass/fail + the real error. Opened via a
+// long-press on the header title; safe to ship (hidden, read-only, no side
+// effects on normal playback). Must be invoked from a user gesture so the
+// AudioContext can resume.
+async function runAudioSelfTest(log){
+  const L=(m)=>{try{log&&log(m);}catch(_){}}
+  const rep={ts:new Date().toISOString(),env:{},ctx:{},preview:{},files:[]};
+  rep.env.ua=navigator.userAgent;
+  rep.env.platform=(window.Capacitor&&window.Capacitor.getPlatform&&window.Capacitor.getPlatform())||'web';
+  rep.env.native=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+  rep.env.href=location.href;
+  rep.env.baseURI=(typeof document!=='undefined'&&document.baseURI)||'';
+  L('env: '+rep.env.platform+(rep.env.native?' (native)':'')+' @ '+rep.env.href);
+  let ctx=null;
+  try{
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    try{await ctx.resume();}catch(_){}
+    rep.ctx.state=ctx.state;rep.ctx.sampleRate=ctx.sampleRate;
+  }catch(e){rep.ctx.error=String(e&&e.message||e);}
+  L('context: '+(rep.ctx.error?('ERR '+rep.ctx.error):(rep.ctx.state+', '+rep.ctx.sampleRate+'Hz')));
+  // Snapshot the app's current live decode state (preview path).
+  rep.preview.fetched=_guitarRaw?Object.keys(_guitarRaw).length:0;
+  rep.preview.decoded=_guitarBufs?Object.keys(_guitarBufs).length:0;
+  rep.preview.decoding=!!_guitarDecoding;
+  L('preview path: fetched '+rep.preview.fetched+'/12, decoded '+rep.preview.decoded+'/12'+(rep.preview.decoding?' (decoding…)':''));
+  const tests=[];
+  Object.values(GUITAR_NOTES).forEach(f=>tests.push({lbl:'guitar/'+f,url:GUITAR_SAMPLES+f}));
+  ['Cs2.mp3','E2.mp3','G2.mp3','As2.mp3'].forEach(f=>tests.push({lbl:'bass/'+f,url:'./samples/bass-electric/'+f}));
+  for(const t of tests){
+    const row={file:t.lbl};
+    try{
+      const r=await fetch(t.url);
+      row.status=r.status;row.ok=r.ok;row.ctype=r.headers.get('content-type')||'';
+      if(r.ok){
+        const ab=await r.arrayBuffer();row.bytes=ab.byteLength;
+        if(ctx){
+          try{
+            const buf=await ctx.decodeAudioData(ab.slice(0));
+            row.decoded=true;row.dur=+buf.duration.toFixed(2);row.ch=buf.numberOfChannels;
+            if(!rep._buf)rep._buf=buf;
+          }catch(de){row.decoded=false;row.err=String(de&&de.message||de||'decode failed');}
+        }
+      }
+    }catch(fe){row.fetchErr=String(fe&&fe.message||fe);}
+    rep.files.push(row);
+    L(t.lbl+' → '+(row.fetchErr?('FETCH ERR: '+row.fetchErr)
+      :((row.status||'?')+' '+(row.bytes||0)+'B '
+        +(row.decoded===true?('✓ decoded '+row.dur+'s')
+          :row.decoded===false?('✗ DECODE FAIL: '+row.err):'(no ctx)'))));
+  }
+  const dec=rep.files.filter(f=>f.decoded===true).length;
+  const fetchOk=rep.files.filter(f=>f.ok).length;
+  rep.summary={total:rep.files.length,fetchOk,decoded:dec};
+  if(fetchOk===0) rep.verdict='FETCH FAILS — sample files are not in the bundle / path unresolved. Audio falls back to synth (tinny) and Play guitar goes silent.';
+  else if(dec===0) rep.verdict='FETCH OK but DECODE FAILS — this device’s audio decoder rejects these mp3s. This is the root cause: preview → Karplus-Strong (tinny), Play guitar → silent.';
+  else if(dec<rep.files.length) rep.verdict='PARTIAL — some files decode, some don’t. See per-file errors below.';
+  else rep.verdict='Audio assets fetch AND decode fine on this device. The junk is NOT the samples — look at the audio session / routing / mix instead.';
+  rep._ctx=ctx;
+  L('VERDICT: '+rep.verdict);
+  return rep;
+}
+
+function AudioDiagSheet({onClose}){
+  const [rep,setRep]=React.useState(null);
+  const [running,setRunning]=React.useState(false);
+  const [lines,setLines]=React.useState([]);
+  const [copied,setCopied]=React.useState(false);
+  const run=async()=>{
+    setRunning(true);setRep(null);setLines([]);
+    const lg=[];
+    try{const r=await runAudioSelfTest(m=>{lg.push(m);setLines([...lg]);});setRep(r);}
+    catch(e){setLines([...lg,'SELF-TEST CRASHED: '+(e&&e.message||e)]);}
+    setRunning(false);
+  };
+  const playBuf=()=>{try{const c=rep&&rep._ctx;const b=rep&&rep._buf;if(!c||!b)return;const s=c.createBufferSource();s.buffer=b;const g=c.createGain();g.gain.value=0.7;s.connect(g);g.connect(c.destination);s.start();s.stop(c.currentTime+Math.min(b.duration,2.5));}catch(_){}}
+  const playKS=()=>{try{const c=(rep&&rep._ctx)||new(window.AudioContext||window.webkitAudioContext)();if(c.state==='suspended')c.resume();const ks=precomputeKS(c);const s=c.createBufferSource();s.buffer=ks[0];const g=c.createGain();g.gain.setValueAtTime(0.55,c.currentTime);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+2);s.connect(g);g.connect(c.destination);s.start();s.stop(c.currentTime+2.1);}catch(_){}}
+  const reportText=()=>{
+    if(!rep)return lines.join('\n');
+    const clean=JSON.stringify(rep,(k,v)=>(k==='_ctx'||k==='_buf')?undefined:v,2);
+    return clean;
+  };
+  const copy=()=>{try{navigator.clipboard.writeText(reportText()).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1500);},()=>{});}catch(_){}}
+  const btn=(label,fn,extra)=>e('button',{onClick:fn,style:Object.assign({
+    padding:'9px 14px',borderRadius:10,fontFamily:UI_FONT,fontSize:'0.8rem',fontWeight:600,
+    border:'1px solid '+BORDER,background:BG,color:'var(--txt)',cursor:'pointer',minHeight:40},extra||{})},label);
+  const verdictColor=rep?(rep.summary.decoded===rep.summary.total?'#86EFAC':rep.summary.fetchOk===0||rep.summary.decoded===0?'#FF6B6B':'#FFD43B'):BORDER;
+  return e(React.Fragment,null,
+    e('div',{onClick:onClose,style:{position:'fixed',inset:0,zIndex:399,background:'rgba(0,0,0,0.5)'}}),
+    e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:400,
+      background:BG2,borderRadius:'16px 16px 0 0',border:'1px solid '+BORDER,
+      padding:'18px 18px 32px',boxShadow:'0 -8px 32px rgba(0,0,0,0.55)',maxHeight:'86vh',overflowY:'auto'}},
+      e('div',{style:{width:40,height:4,background:BORDER,borderRadius:2,margin:'0 auto 14px'}}),
+      e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:10}},
+        e('span',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:'var(--scale-name)'}},'🎛 Audio self-test'),
+        e('div',{style:{flex:1}}),
+        e('button',{onClick:onClose,style:{background:'none',border:'none',color:HINT,fontSize:'1.2rem',cursor:'pointer'}},'✕')),
+      e('div',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,lineHeight:1.5,marginBottom:12}},
+        'Runs the real fetch → decode chain on THIS device. Tap Run, then read back the verdict (or Copy the report).'),
+      e('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}},
+        btn(running?'Running…':'▶ Run self-test',run,{background:GOLD+'22',borderColor:GOLD+'66',fontWeight:700}),
+        rep&&rep._buf?btn('🔊 Sampled note',playBuf):null,
+        btn('🔊 Synth (KS) note',playKS),
+        rep?btn(copied?'✓ Copied':'⧉ Copy report',copy):null),
+      rep&&rep.verdict?e('div',{style:{border:'1px solid '+verdictColor,background:verdictColor+'18',
+        borderRadius:10,padding:'10px 12px',marginBottom:14,fontFamily:UI_FONT,fontSize:'0.8rem',
+        lineHeight:1.5,color:'var(--txt)'}},
+        e('div',{style:{fontWeight:700,color:verdictColor,marginBottom:3}},'Verdict'),rep.verdict):null,
+      rep?e('div',{style:{fontFamily:UI_FONT,fontSize:'0.72rem',color:LBL,marginBottom:10,lineHeight:1.6}},
+        e('div',null,'platform: '+rep.env.platform+(rep.env.native?' (native)':'')),
+        e('div',null,'context: '+(rep.ctx.error?('ERR '+rep.ctx.error):(rep.ctx.state+' @ '+rep.ctx.sampleRate+'Hz'))),
+        e('div',null,'preview path live: fetched '+rep.preview.fetched+'/12, decoded '+rep.preview.decoded+'/12'),
+        e('div',null,'self-test: '+rep.summary.fetchOk+'/'+rep.summary.total+' fetched, '+rep.summary.decoded+'/'+rep.summary.total+' decoded')):null,
+      rep&&rep.files.length?e('div',{style:{border:'1px solid '+BORDER,borderRadius:8,overflow:'hidden',marginBottom:12}},
+        rep.files.map((f,i)=>e('div',{key:i,style:{display:'flex',alignItems:'center',gap:8,
+          padding:'6px 10px',fontFamily:'monospace',fontSize:'0.68rem',
+          borderTop:i?'1px solid '+BORDER:'none',
+          color:f.decoded===true?'var(--txt)':f.decoded===false||f.fetchErr?'#FF6B6B':LBL}},
+          e('span',{style:{width:14,flexShrink:0}},f.decoded===true?'✓':(f.decoded===false||f.fetchErr)?'✗':'·'),
+          e('span',{style:{flex:1,minWidth:0,wordBreak:'break-all'}},f.file
+            +(f.fetchErr?(' — fetch err: '+f.fetchErr)
+              :' — '+(f.status||'?')+' · '+(f.bytes||0)+'B'
+                +(f.decoded===true?(' · '+f.dur+'s/'+f.ch+'ch')
+                  :f.decoded===false?(' · DECODE FAIL: '+f.err):'')))))):null,
+      lines.length?e('pre',{style:{whiteSpace:'pre-wrap',wordBreak:'break-word',fontFamily:'monospace',
+        fontSize:'0.62rem',color:HINT,background:BG,border:'1px solid '+BORDER,borderRadius:8,
+        padding:'8px 10px',maxHeight:140,overflowY:'auto',margin:0}},lines.join('\n')):null)
+  );
+}
+
 // ── DotModeToggle ─────────────────────────────────────────────────────
 function DotModeToggle({dotMode,setDotMode}){
   const opts=[{id:'interval',lbl:'Interval'},{id:'note',lbl:'Note'}];
@@ -4981,6 +5114,8 @@ function App(){
   const trialUsed=!!safeLS('jg-trial-start','');
   const effectiveLevel=(level==='essentials'&&trialActive)?'pro':level;
   const [upgradeSheet,setUpgradeSheet]=useState(null); // feature name string, or null
+  const [audioDiag,setAudioDiag]=useState(false); // on-device audio self-test sheet
+  const diagPressRef=useRef(null);
   const [popTerm,setPopTerm]=useState(null); // glossary term key, or null
   const [aboutOpen,setAboutOpen]=useState(false);
   function showUpgrade(feature){setUpgradeSheet(feature);track('paywall.shown',{feature});}
@@ -5278,7 +5413,14 @@ function App(){
 
     // Header — hidden while the play tab is active to maximise neck real-estate
     !iiviPlaying&&e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8,flexWrap:'wrap'}},
-      e('span',{style:{fontFamily:SERIF,fontSize:'1.4rem',fontWeight:700,color:'var(--scale-name)'}},'Jazz Guitar Lab'),
+      e('span',{
+        // Long-press (700ms) opens the hidden on-device audio self-test.
+        onPointerDown:()=>{diagPressRef.current=setTimeout(()=>setAudioDiag(true),700);},
+        onPointerUp:()=>{clearTimeout(diagPressRef.current);},
+        onPointerLeave:()=>{clearTimeout(diagPressRef.current);},
+        onPointerCancel:()=>{clearTimeout(diagPressRef.current);},
+        style:{fontFamily:SERIF,fontSize:'1.4rem',fontWeight:700,color:'var(--scale-name)',
+          userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',cursor:'default'}},'Jazz Guitar Lab'),
       e('button',{onClick:toggleTheme,'aria-label':'Toggle theme',style:{
         padding:'4px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
         fontSize:'0.9rem',border:'1px solid var(--btn-brd)',background:'var(--bg2)',
@@ -5564,6 +5706,7 @@ function App(){
     ):null,
 
     upgradeSheet?e(UpgradeSheet,{feature:upgradeSheet,onClose:()=>setUpgradeSheet(null),onUnlock:doUpgrade,trialUsed,trialActive,onTrial:startTrial}):null,
+    audioDiag?e(AudioDiagSheet,{onClose:()=>setAudioDiag(false)}):null,
     aboutOpen?e(AboutSheet,{onClose:()=>setAboutOpen(false),level,onRestore:doRestore}):null,
     popTerm&&GLOSS_DEFS[popTerm]?e(React.Fragment,null,
       e('div',{onClick:()=>setPopTerm(null),style:{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,0.35)'}}),
