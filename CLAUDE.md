@@ -36,7 +36,7 @@ Steps completed and still needed to ship:
 - [x] Capacitor iOS project initialized (`ios/` directory committed)
 - [x] `codemagic.yaml` build pipeline configured
 - [x] Bundle ID decided: `com.pablohoney.jazzguitarlab`
-- [ ] Enroll in Apple Developer Program — developer.apple.com, $99/year, 1–2 days to process
+- [x] Enroll in Apple Developer Program — developer.apple.com, $99/year. **Enrolled as Individual.** ⚠️ See "Legal / Business Structure" below: should convert to **Organization** (LLC as seller) BEFORE first submission for the liability shield.
 - [ ] Sign up for Codemagic — codemagic.io, connect to GitHub repo
 - [ ] Register bundle ID in Apple Developer portal
 - [ ] Create App Store Connect API key, paste into Codemagic dashboard
@@ -48,6 +48,22 @@ Steps completed and still needed to ship:
 - [ ] First TestFlight build via Codemagic
 - [ ] Internal testing
 - [ ] App Store submission
+
+## Legal / Business Structure
+> NOT legal advice — confirm specifics with a small-business/IP attorney or CPA. Captured here so future sessions don't accidentally cross a line.
+
+**Entity / liability (LLC already exists):**
+- The LLC only shields personal assets if the **LLC is the actual seller/operator** of the app. An Apple **Individual** enrollment publishes under the owner's personal name → no entity shield for app-related claims.
+- **Action item:** convert the existing Apple Developer membership from **Individual → Organization** (LLC as seller). It's an in-place conversion — *no new account, no second $99*. Org type ≠ "big company"; a single-member LLC qualifies.
+  - Steps: (1) get a **D-U-N-S number** for the LLC first (free, ~1–2 weeks, gating item); (2) Apple Developer site → **Contact us → Membership and Account → Program Enrollment**; (3) request "convert Individual → Organization" with LLC legal name, signer, D-U-N-S, legal address/phone; (4) Apple verifies + emails a form to finish.
+  - **Do this BEFORE first submission** — converting before there's a live app + live IAP avoids the messier app-transfer path (app transfers have IAP restrictions and aren't easily reversible).
+- **Small Business Program (15% rate) is independent of account type** — both Individual and Org accounts qualify (under $1M/yr). It is NOT the moment you switch entity type; enroll in it separately, anytime.
+- Maintaining the shield is on the user: **separate LLC bank account, no commingling**, LLC owns the app/IP (and ideally the RevenueCat account + domain). An LLC does not shield against one's *own* personal wrongful acts (e.g. knowing infringement).
+
+**Music licensing — jazz standards on the Play tab (chords-only boundary):**
+- A song's copyright protects **melody + lyrics**, NOT **chord progressions** (progressions are treated as uncopyrightable functional building blocks). Play tab uses **only the chord changes + its own generated backing audio** — no melody, no lyrics, no copyrighted sound recording. That combination is the low-risk zone.
+- The standards are **NOT public domain** (e.g. Autumn Leaves / Kosma 1945 is under copyright until ~2040). Safety comes from *what is used* (chords + title-as-label), not from age. Song **titles aren't copyrightable**, so naming a progression "Autumn Leaves" is fine.
+- **DO NOT cross the line:** no melody playback, no notated lead sheets/transcriptions, no lyrics for copyrighted tunes (Autumn Leaves, Blue Bossa, Stella by Starlight, All The Things You Are, There Will Never Be Another You) without licensing + counsel. Adding any of those flips this from chords-only into needing a license.
 
 ## What's Built (current `app.js` features)
 - **5 nav tabs:** Guide, Chords (Diatonic), Any Chord (Custom), Play (II-V-I), Ear Training
