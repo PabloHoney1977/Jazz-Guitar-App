@@ -2,6 +2,7 @@
 
 ## Workflow Preferences
 - Always use model **claude-opus-4-8** (set in `.claude/settings.json`).
+- **Checkpoint Protocol (auto-save memory):** The user works in short sessions and uses `/clear` often to save tokens, so nothing important may live only in the live chat. Therefore: **whenever a meaningful unit of work finishes** — a fix shipped, a decision made, a direction changed, a fact learned that a future session would need — immediately update the **`## Working Memory`** section below (and the relevant durable section, e.g. Pending/Next Session Priorities or Decided Against) **without being asked**, then end that turn with a one-line prompt to the user: `📝 Memory checkpointed: <what was saved>`. This is the "auto-fire on finishing something + you get a prompt" behavior. Keep Working Memory short (a rolling snapshot, not a log) — overwrite stale lines, don't endlessly append. Don't checkpoint trivial Q&A or read-only answers; only checkpoint things that would hurt to lose on `/clear`.
 - When making a fix, always commit it without being asked — only skip committing if explicitly told not to.
 - After committing, always push to the appropriate branch immediately — do not wait to be asked.
 - The app is served from `main`; always ensure finished work lands on `main` and is pushed. Merge finished fixes into `main` automatically without asking each time (commit on a feature branch, then merge to `main` and push).
@@ -11,6 +12,15 @@
 - No build step — `main` is served live, so landing on `main` = instantly live for testing.
 - **Rollback checkpoints use a branch, not a tag.** The session git proxy blocks tag pushes (HTTP 403) and there's no tag-creation API tool. Use a `baseline-YYYY-MM-DD` branch (e.g. via the GitHub `create_branch` API from `main`) as a named known-good restore point. Current baseline: `baseline-2026-06-26`.
 - **To undo a live change, use `git revert <sha>`** (creates a new undo commit, safe to push). Never `reset --hard` on shared `main`. Keep commits small and atomic so reverts are surgical.
+
+## Working Memory (live session checkpoint)
+> Rolling snapshot of "where things stand right now" so a fresh session after `/clear` loses nothing. Updated automatically per the Checkpoint Protocol above. Keep it terse and current — overwrite, don't append a diary. Last updated: 2026-06-29.
+
+- **In progress / mid-task:** _(nothing in flight — last session set up this checkpoint system)_
+- **Active branch:** `claude/session-context-memory-zrc7kr` (set up the Working Memory + Checkpoint Protocol).
+- **Recent decisions / changes worth remembering:** Added Checkpoint Protocol + this Working Memory section so context survives frequent `/clear`s. The actual auto-save is driven by the CLAUDE.md rule (I update this section when a task finishes), not an OS hook — a hook can't author the summary and would fire on every message.
+- **Next concrete step:** _(see Pending / Next Session Priorities below for the standing backlog.)_
+- **Open questions for the user:** _(none)_
 
 ## Big Picture Goal
 Ship Jazz Guitar Lab as a **freemium iOS App Store app** targeting adult guitarists who want to learn jazz harmony. Monetization: **free download** (Essentials tier) with a **$14.99 one-time IAP** to unlock Pro. No subscription.
