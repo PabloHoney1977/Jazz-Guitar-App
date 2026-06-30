@@ -22,6 +22,28 @@ test('harness captured all symbols', () => {
   }
 });
 
+test('pedalDir — classifies page-turner key events (key/code/keyCode)', () => {
+  const d = JG.pedalDir;
+  assert.notEqual(d, undefined, 'pedalDir not captured');
+  // Forward gestures, however the pedal reports the key
+  assert.equal(d({ key: 'ArrowRight' }), 'fwd');
+  assert.equal(d({ key: 'ArrowDown' }), 'fwd');
+  assert.equal(d({ key: 'PageDown' }), 'fwd');
+  assert.equal(d({ key: ' ' }), 'fwd');
+  assert.equal(d({ key: 'Enter' }), 'fwd');
+  assert.equal(d({ code: 'Space' }), 'fwd');
+  assert.equal(d({ keyCode: 32 }), 'fwd'); // cheap pedal: only keyCode
+  // Back gestures
+  assert.equal(d({ key: 'ArrowLeft' }), 'bwd');
+  assert.equal(d({ key: 'PageUp' }), 'bwd');
+  assert.equal(d({ key: 'Backspace' }), 'bwd');
+  assert.equal(d({ keyCode: 8 }), 'bwd');
+  // Non-pedal keys return null (so typing letters never steps the app)
+  assert.equal(d({ key: 'a' }), null);
+  assert.equal(d({ key: 'AudioVolumeUp' }), null); // volume mode doesn't reach JS
+  assert.equal(d({ keyCode: 65 }), null);
+});
+
 test('getChordTones — interval formulas per quality', () => {
   same(JG.getChordTones(0, 'maj7'), [0, 4, 7, 11]); // C E G B
   same(JG.getChordTones(0, 'm7'),   [0, 3, 7, 10]); // C Eb G Bb

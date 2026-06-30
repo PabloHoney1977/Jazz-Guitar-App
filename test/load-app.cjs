@@ -16,6 +16,7 @@ const CAPTURE_NAMES = [
   // functions
   'getChordTones', 'getExtTones', 'getRootlessTones',
   'calcVoicing', 'calcFingering', 'getScalePos', 'getArpPos', 'getParentRoot', 'nn',
+  'pedalDir',
   // data tables
   'INTERVALS', 'DNAMES', 'RL_DNAMES', 'EXT_TYPES', 'CHORD_SCALES', 'INT_NAMES',
   'QTYPES', 'QSYMS', 'ROMAN', 'MAJOR_SCALE', 'OPEN_MIDI', 'OPEN_PC', 'STR_NAMES',

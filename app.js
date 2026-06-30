@@ -989,19 +989,59 @@ function pedalDir(ev){
   return null;
 }
 
+// Attach a global keyboard listener that recognizes Bluetooth page-turner
+// gestures and invokes cb(dir) exactly once per pedal press. Pedals differ in
+// which event they emit: some fire keydown, some only keyup, some both — so we
+// listen for both and de-dupe (a keyup right after a handled keydown for the
+// same key is ignored). Auto-repeat (holding a key) is ignored, and typing in
+// form fields is left alone. Returns a cleanup function.
+function attachPedalListener(cb){
+  const handled={}; // key id -> timestamp of the keydown we already acted on
+  function run(ev,isDown){
+    const t=ev.target;
+    if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable)) return;
+    if(isDown&&ev.repeat) return; // ignore held-key auto-repeat
+    const dir=pedalDir(ev);
+    if(!dir) return;
+    const id=ev.code||ev.key||String(ev.keyCode);
+    const now=Date.now();
+    if(isDown){
+      handled[id]=now;
+    } else if(handled[id]&&now-handled[id]<1500){
+      // keyup paired with a keydown we just handled — don't fire twice
+      delete handled[id];
+      return;
+    }
+    ev.preventDefault();
+    cb(dir);
+  }
+  const onDown=ev=>run(ev,true);
+  const onUp=ev=>run(ev,false);
+  window.addEventListener('keydown',onDown);
+  window.addEventListener('keyup',onUp);
+  return ()=>{
+    window.removeEventListener('keydown',onDown);
+    window.removeEventListener('keyup',onUp);
+  };
+}
+
 // ── AboutSheet ────────────────────────────────────────────────────────
 function AboutSheet({onClose,level,onRestore}){
   const [restored,setRestored]=React.useState(false);
   const [pedalSeen,setPedalSeen]=React.useState(null);
   function handleRestore(){onRestore();setRestored(true);}
   // Live pedal tester: shows whether the pedal's key events reach the page at all.
+  // Listen for both keydown and keyup — some pedal modes emit only one — and
+  // surface code/keyCode so an unrecognized pedal can be reported precisely.
   React.useEffect(()=>{
     function onKey(ev){
       if(ev.target.tagName==='INPUT'||ev.target.tagName==='TEXTAREA'||ev.target.isContentEditable) return;
-      setPedalSeen({label:ev.key||ev.code||('keyCode '+ev.keyCode),dir:pedalDir(ev)});
+      setPedalSeen({label:ev.key||ev.code||('keyCode '+ev.keyCode),
+        code:ev.code,keyCode:ev.keyCode,evt:ev.type,dir:pedalDir(ev)});
     }
     window.addEventListener('keydown',onKey);
-    return ()=>window.removeEventListener('keydown',onKey);
+    window.addEventListener('keyup',onKey);
+    return ()=>{window.removeEventListener('keydown',onKey);window.removeEventListener('keyup',onKey);};
   },[]);
   return e(React.Fragment,null,
     e('div',{onClick:onClose,style:{position:'fixed',inset:0,zIndex:299,background:'rgba(0,0,0,0.5)'}}),
@@ -1039,10 +1079,13 @@ function AboutSheet({onClose,level,onRestore}){
         e('div',{style:{color:HINT,marginBottom:6}},'Pedal tester — press a pedal button now:'),
         pedalSeen===null
           ? e('div',{style:{color:LBL,fontStyle:'italic'}},'waiting for a key…')
-          : e('div',{style:{color:pedalSeen.dir?'var(--scale-name)':'#FF6B6B',fontWeight:700}},
-              pedalSeen.dir
-                ? '✓ "'+pedalSeen.label+'" → '+(pedalSeen.dir==='fwd'?'Forward':'Back')
-                : '✗ "'+pedalSeen.label+'" — not a page-turn key (try another pedal mode)')),
+          : e('div',null,
+              e('div',{style:{color:pedalSeen.dir?'var(--scale-name)':'#FF6B6B',fontWeight:700}},
+                pedalSeen.dir
+                  ? '✓ "'+pedalSeen.label+'" → '+(pedalSeen.dir==='fwd'?'Forward':'Back')
+                  : '✗ "'+pedalSeen.label+'" — not a page-turn key (try another pedal mode)'),
+              e('div',{style:{color:LBL,marginTop:4,fontSize:'0.68rem'}},
+                pedalSeen.evt+' · code: '+(pedalSeen.code||'—')+' · keyCode: '+(pedalSeen.keyCode||'—')))),
       e('button',{onClick:onClose,style:{
         width:'100%',padding:'10px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.82rem',background:'transparent',
@@ -5237,31 +5280,23 @@ function App(){
   // without lifting activeChordIdx out of that component.
   const iiviPedalRef=useRef({forward:null,back:null});
   const earPedalRef=useRef({forward:null,back:null});
-  useEffect(()=>{
-    function onPedal(ev){
-      if(ev.target.tagName==='INPUT'||ev.target.tagName==='TEXTAREA'||ev.target.isContentEditable) return;
-      const dir=pedalDir(ev);
-      if(!dir) return;
-      const fwd=dir==='fwd', bwd=dir==='bwd';
-      ev.preventDefault();
-      if(viewMode==='diatonic'){
-        setDeg(d=>fwd?(d+1)%7:(d+6)%7);
-      } else if(viewMode==='custom'){
-        const len=isEss?4:EXT_TYPES.length;
-        setCustomTypeIdx(i=>fwd?(i+1)%len:(i-1+len)%len);
-      } else if(viewMode==='guide'){
-        window.scrollBy({top:fwd?350:-350,behavior:'smooth'});
-      } else if(viewMode==='iivi'){
-        if(fwd) iiviPedalRef.current.forward?.();
-        if(bwd) iiviPedalRef.current.back?.();
-      } else if(viewMode==='quiz'){
-        if(fwd) earPedalRef.current.forward?.();
-        if(bwd) earPedalRef.current.back?.();
-      }
+  useEffect(()=>attachPedalListener(dir=>{
+    const fwd=dir==='fwd', bwd=dir==='bwd';
+    if(viewMode==='diatonic'){
+      setDeg(d=>fwd?(d+1)%7:(d+6)%7);
+    } else if(viewMode==='custom'){
+      const len=isEss?4:EXT_TYPES.length;
+      setCustomTypeIdx(i=>fwd?(i+1)%len:(i-1+len)%len);
+    } else if(viewMode==='guide'){
+      window.scrollBy({top:fwd?350:-350,behavior:'smooth'});
+    } else if(viewMode==='iivi'){
+      if(fwd) iiviPedalRef.current.forward?.();
+      if(bwd) iiviPedalRef.current.back?.();
+    } else if(viewMode==='quiz'){
+      if(fwd) earPedalRef.current.forward?.();
+      if(bwd) earPedalRef.current.back?.();
     }
-    window.addEventListener('keydown',onPedal);
-    return ()=>window.removeEventListener('keydown',onPedal);
-  },[viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }),[viewMode,isEss]); // eslint-disable-line react-hooks/exhaustive-deps
   // Diatonic state
   const [deg,setDeg]=useState(0);
   const [vType,setVType]=useState('shell');
