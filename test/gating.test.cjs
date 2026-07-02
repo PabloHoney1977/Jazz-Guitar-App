@@ -12,7 +12,7 @@
 //   Shell voicings only            Drop 2 / Drop 3 / Drop 2+4 / 2+3 / Rootless
 //   Major ii–V–I only              minor ii–V–i, jazz/minor blues, tritone sub,
 //                                    sec. dom., custom, all 5 standards
-//   Interval tiers 1–2 (to 6ths)   All-12 interval tier
+//   Interval tiers 1–3 (to 6ths)   Interval tiers 4–5 (2nds/7ths, tritone)
 //   Melodic (ascending) intervals  Harmonic-interval mode
 //   —                              Triads / 7th Chords / Cadences modes
 //   —                              Auto ear-training
@@ -64,7 +64,7 @@ test('play forms — only major is free; all others route to upgrade', () => {
 });
 
 test('ear training — interval tier 3, triads, 7ths, cadences, auto, harmonic all gated', () => {
-  assert.ok(has('const maxTier=isEss?2:3'), 'all-12 interval tier not gated');
+  assert.ok(has('const maxTier=isEss?3:5'), 'advanced interval tiers (4-5) not gated');
   assert.ok(has("{id:'triads',lbl:'Triads',locked:isEss}"), 'Triads not gated');
   assert.ok(has("{id:'chords',lbl:'7th Chords',locked:isEss}"), '7th Chords not gated');
   assert.ok(has("{id:'cadences',lbl:'Cadences',locked:isEss}"), 'Cadences not gated');
