@@ -106,6 +106,23 @@ const IAP=(()=>{
   return{available,checkEntitlement,purchase,restore,isNative};
 })();
 
+// ── Native "Rate the app" prompt (App Store review) ────────────────────
+// Wraps @capacitor-community/in-app-review's requestReview(), which calls
+// SKStoreReviewController on iOS (Apple throttles to ~3 prompts/user/year
+// automatically) and the Play Core in-app review API on Android. Silent
+// no-op in the browser (Capacitor bridge absent) — mirrors the Notif/IAP
+// pattern. Needs `npm run sync` (cap sync ios) to register the plugin
+// natively before this does anything on device; until then it's a no-op.
+const Rate=(()=>{
+  function plug(){return window?.Capacitor?.Plugins?.InAppReview||null;}
+  function isNative(){try{return !!window?.Capacitor?.isNativePlatform?.();}catch(ex){return false;}}
+  async function request(){
+    const P=plug();if(!P)return false;
+    try{await P.requestReview();return true;}catch(ex){return false;}
+  }
+  return{request,isNative};
+})();
+
 // ── Tuning ───────────────────────────────────────────────────────────
 const OPEN_MIDI=[40,45,50,55,59,64];
 const OPEN_PC  =[4, 9, 2, 7,11, 4];
@@ -965,6 +982,40 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial}){
         fontFamily:UI_FONT,fontSize:'0.82rem',background:'transparent',
         border:'1px solid '+BORDER,color:HINT,minHeight:44}},
         'Maybe later')
+    )
+  );
+}
+
+// ── RatePromptSheet ──────────────────────────────────────────────────
+// Fires at a positive moment (streak milestone) to ask happy users for an
+// App Store review via the native prompt, and route anyone less than
+// delighted to Contact Support instead of leaving a public bad review.
+function RatePromptSheet({onClose,onYes,onNo}){
+  return e(React.Fragment,null,
+    e('div',{onClick:onClose,style:{position:'fixed',inset:0,zIndex:299,background:'rgba(0,0,0,0.5)'}}),
+    e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:300,
+      background:BG2,borderRadius:'16px 16px 0 0',
+      border:'1px solid '+BORDER,padding:'20px 20px 36px',
+      boxShadow:'0 -8px 32px rgba(0,0,0,0.55)'}},
+      e('div',{style:{width:40,height:4,background:BORDER,borderRadius:2,margin:'0 auto 18px'}}),
+      e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},'🎸'),
+      e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
+        color:'var(--scale-name)',textAlign:'center',marginBottom:8}},
+        'Enjoying Jazz Guitar Lab?'),
+      e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
+        marginBottom:20,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},
+        'You\'ve been putting in real practice time. Mind leaving a quick rating?'),
+      e('button',{onClick:onYes,style:{
+        width:'100%',padding:'15px',borderRadius:10,cursor:'pointer',
+        fontFamily:UI_FONT,fontSize:'1rem',fontWeight:700,
+        background:GOLD,border:'none',color:'#07070f',minHeight:54,marginBottom:10}},
+        'Yes, rate it ⭐'),
+      e('button',{onClick:onNo,style:{
+        width:'100%',padding:'12px',borderRadius:10,cursor:'pointer',
+        fontFamily:UI_FONT,fontSize:'0.88rem',fontWeight:600,
+        background:'transparent',border:'1px solid '+BORDER,
+        color:HINT,minHeight:44}},
+        'Not really')
     )
   );
 }
@@ -5222,6 +5273,7 @@ function App(){
   const [streakAnim,setStreakAnim]=useState(false);
   const [streakAnimPending,setStreakAnimPending]=useState(false);
   const [streakMilestone,setStreakMilestone]=useState(null); // day count at which milestone fires
+  const [ratePrompt,setRatePrompt]=useState(false);
   const practicedToday=lastPracticeDay===localDateStr();
   const appDaysSince=lastPracticeDay?Math.round((Date.now()-new Date(lastPracticeDay+'T00:00:00'))/86400000):0;
   const nextMil=[3,7,14,30,60,100,180,365].find(m=>m>streak)||(Math.floor(streak/30)+1)*30;
@@ -5235,6 +5287,33 @@ function App(){
       setTimeout(()=>setStreakAnim(false),900);
     }
   },[iiviPlaying,streakAnimPending]);
+
+  // Ask for a rating at a positive moment (streak milestones), routing anyone
+  // who isn't delighted to Contact Support instead of a public bad review.
+  // A 'yes' locks it out permanently; a decline gets a 60-day cooldown before
+  // asking again (SKStoreReviewController throttles further on top of this).
+  const RATE_MILESTONES=[14,60,180];
+  function maybeAskRate(newStreak){
+    if(safeLS('jg-rate-asked','')==='yes') return;
+    if(!RATE_MILESTONES.includes(newStreak)) return;
+    const lastAsk=safeLS('jg-rate-last-ask','');
+    const daysSinceAsk=lastAsk?Math.floor((Date.now()-new Date(lastAsk+'T00:00:00'))/86400000):Infinity;
+    if(daysSinceAsk<60) return;
+    safeLSSet('jg-rate-last-ask',localDateStr());
+    // Delay past the streak-milestone card's own 5.4s auto-dismiss so the two don't stack.
+    setTimeout(()=>{setRatePrompt(true);track('rating.prompt.shown',{streak:newStreak,level});},5600);
+  }
+  function onRateYes(){
+    setRatePrompt(false);
+    safeLSSet('jg-rate-asked','yes');
+    track('rating.prompt.yes',{level});
+    Rate.request();
+  }
+  function onRateNo(){
+    setRatePrompt(false);
+    track('rating.prompt.no',{level});
+    window.open(SUPPORT_URL,'_blank','noopener,noreferrer');
+  }
 
   function markPracticed(){
     const today=localDateStr();
@@ -5254,6 +5333,7 @@ function App(){
       setTimeout(()=>setStreakMilestone(null),5400);
       track('streak.milestone',{days:newStreak,level});
     }
+    maybeAskRate(newStreak);
     if(iiviPlaying){
       setStreakAnimPending(true);
     } else {
@@ -5821,6 +5901,9 @@ function App(){
         )
       )
     ):null,
+
+    // ── Rate prompt ──────────────────────────────────────────────────
+    ratePrompt?e(RatePromptSheet,{onClose:()=>setRatePrompt(false),onYes:onRateYes,onNo:onRateNo}):null,
 
     // ── Tour overlay ─────────────────────────────────────────────────
     overviewStep!==null
