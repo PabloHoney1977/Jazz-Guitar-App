@@ -1307,7 +1307,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   const [choices,setChoices]=useState([]); // random 4-of-12 for intervals mode
   const [harmonic,setHarmonic]=useState(false); // Full only: play both notes simultaneously
   // Interval difficulty tier — gentle progression instead of all 12 at once
-  const [ivalTier,setIvalTier]=useState(()=>{const v=parseInt(safeLS('jg-ear-ival-tier','1'),10);return v>=1&&v<=3?v:1;});
+  const [ivalTier,setIvalTier]=useState(()=>{const v=parseInt(safeLS('jg-ear-ival-tier','1'),10);return v>=1&&v<=5?v:1;});
   useEffect(()=>{safeLSSet('jg-ear-ival-tier',String(ivalTier));},[ivalTier]);
   const [autoMode,setAutoMode]=useState(false);
   // Back-navigation history: snapshots of prior rounds so ← steps to the previous question
@@ -1375,13 +1375,17 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
     {s:12,name:'Octave',    feel:'"Somewhere Over the Rainbow" (Some-WHERE) · "Singin\' in the Rain"'},
   ];
   // Interval pool grows with the chosen tier: start with octave + perfects,
-  // add 3rds/6ths, then all 12. Tier 3 (all 12) stays Pro-gated.
+  // add major 3rds/6ths, then minor 3rds/6ths, then 2nds/7ths, then the
+  // tritone last (the classic hardest-to-place interval). Tiers 4–5 stay
+  // Pro-gated so the free tier still tops out at 7 intervals (unchanged).
   const IVAL_TIERS=[
-    {lbl:'Octave & Perfects', ivals:[5,7,12]},
-    {lbl:'+ 3rds & 6ths',     ivals:[3,4,5,7,8,9,12]},
-    {lbl:'All 12',            ivals:[1,2,3,4,5,6,7,8,9,10,11,12]},
+    {lbl:'Octave & Perfects',  ivals:[5,7,12]},
+    {lbl:'+ Major 3rd & 6th',  ivals:[4,5,7,9,12]},
+    {lbl:'+ Minor 3rd & 6th',  ivals:[3,4,5,7,8,9,12]},
+    {lbl:'+ 2nds & 7ths',      ivals:[2,3,4,5,7,8,9,10,11,12]},
+    {lbl:'All 12',             ivals:[1,2,3,4,5,6,7,8,9,10,11,12]},
   ];
-  const maxTier=isEss?2:3;
+  const maxTier=isEss?3:5;
   const effTier=Math.min(ivalTier,maxTier);
   const activeIvals=IVALS.filter(x=>IVAL_TIERS[effTier-1].ivals.includes(x.s));
 
@@ -1813,7 +1817,7 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
       mode==='intervals'?e('div',{style:{marginBottom:14}},
         e('div',{style:{fontSize:'0.66rem',color:HINT,textAlign:'center',marginBottom:6,letterSpacing:'0.3px'}},'Difficulty — add intervals as your ear grows'),
         e('div',{style:{display:'flex',gap:6,justifyContent:'center',flexWrap:'wrap'}},
-          IVAL_TIERS.map((t,i)=>{const tn=i+1,locked=isEss&&tn>2,active=effTier===tn;
+          IVAL_TIERS.map((t,i)=>{const tn=i+1,locked=isEss&&tn>3,active=effTier===tn;
             return e('button',{key:tn,onClick:locked?()=>onUpgrade('All 12 intervals'):()=>setIvalTier(tn),style:{
               padding:'4px 10px',borderRadius:6,cursor:'pointer',fontSize:'0.7rem',fontWeight:active?700:400,
               border:'1px solid '+(active?GOLD:BTN_BRD),background:active?ACT_YEL:'transparent',
