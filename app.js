@@ -660,6 +660,20 @@ function playChordPreview(voicing,strings){
     });
   }catch(ex){}
 }
+// Same tap-to-preview path as playChordPreview, but takes raw MIDI notes directly
+// (no fret/string mapping needed) — used for the Play tab's lead-sheet bar taps.
+function playMidiPreview(midis){
+  if(!midis||!midis.length) return;
+  try{
+    const ctx=_getPreviewCtx();if(!ctx) return;
+    if(!_guitarBufs&&_guitarRaw){setTimeout(()=>playMidiPreview(midis),300);return;}
+    midis.forEach((midi,i)=>{
+      const t=ctx.currentTime+i*0.028;
+      if(_guitarBufs) _playSampledNote(ctx,midi,t,0.65,2.8);
+      else _playKSNote(ctx,midi,t,0.55);
+    });
+  }catch(ex){}
+}
 
 // ── Audio self-test (on-device root-cause diagnostic) ─────────────────
 // Headless Chromium (our smoke tests) can't reproduce iOS WebKit audio, so
@@ -3748,6 +3762,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
               onClick:()=>{
                 setActiveChordIdx(barIdx);
                 if(form==='custom') setEditingBar(prev=>prev===barIdx?-1:barIdx);
+                if(!isPlaying){
+                  const cm=compMidiRef.current[barIdx];
+                  if(cm&&cm.split){playMidiPreview(cm.a);setTimeout(()=>playMidiPreview(cm.b),450);}
+                  else if(cm&&cm.length) playMidiPreview(cm);
+                }
               },
               style:{
                 flex:1,position:'relative',padding:isPlaying?'3px 4px 5px':'5px 7px 10px',cursor:'pointer',
