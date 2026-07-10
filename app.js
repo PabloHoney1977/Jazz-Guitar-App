@@ -1277,13 +1277,18 @@ const GLOSS_DEFS={
 
 
 // ── TrainView ───────────────────────────────────────────────────────
-function TrainView({level,onPracticed,onUpgrade,pedalRef}){
-  return e(EarTrainingView,{level,onPracticed,onUpgrade,pedalRef});
+function TrainView({level,profile,onPracticed,onUpgrade,pedalRef}){
+  return e(EarTrainingView,{level,profile,onPracticed,onUpgrade,pedalRef});
 }
 
 
-function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
+function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
   const isEss=level==='essentials';
+  // Goal-based mode nudge — "ear training" goal points straight at Cadences,
+  // the most directly applicable skill for real tunes. Dismissible, one-time.
+  const [modeNudgeDismissed,setModeNudgeDismissed]=useState(()=>safeLS('jg-ear-goal-nudge')==='1');
+  function dismissModeNudge(){setModeNudgeDismissed(true);safeLSSet('jg-ear-goal-nudge','1');}
+  const showModeNudge=profile&&profile.level!=='beginner'&&profile.goal==='ear'&&!modeNudgeDismissed;
   const practicedRef=useRef(false);
   const answerCountRef=useRef(0);
   const skipSaveRef=useRef(0); // suppresses localStorage write during level-change score reset
@@ -1780,6 +1785,23 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
             '🎉 Great ear! Try Pro to unlock all 12 intervals, triads, and 7th chords.'):null
           ):null
     ),
+    // ── Goal-based mode nudge — dismissible, tap-to-apply only ──
+    showModeNudge?e('div',{style:{marginBottom:10,padding:'10px 12px',
+      background:BG2,border:'1px solid '+GOLD+'40',borderRadius:8,display:'flex',
+      alignItems:'center',gap:10,flexWrap:'wrap'}},
+      e('div',{style:{flex:1,minWidth:170,fontSize:'0.76rem',lineHeight:1.5,color:'var(--txt)',fontFamily:UI_FONT}},
+        'Since ear training is your focus, try Cadences — the ii–V and V–I sounds you\'ll hear constantly in real tunes.'),
+      e('div',{style:{display:'flex',gap:8,flexShrink:0}},
+        e('button',{onClick:()=>{
+          if(isEss){onUpgrade('Triads, 7th Chords & Cadences');} else {setMode('cadences');}
+          dismissModeNudge();track('nudge.ear.applied',{essentials:isEss});
+        },style:{padding:'7px 12px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',fontWeight:700,
+          border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,minHeight:36}},
+          isEss?'See Pro →':'Try Cadences →'),
+        e('button',{onClick:dismissModeNudge,style:{padding:'7px 9px',borderRadius:6,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.75rem',border:'1px solid '+BORDER,background:'transparent',
+          color:HINT,minHeight:36}},'✕'))
+    ):null,
     e('div',{'data-tour':'ear-mode-tabs',style:{display:'flex',gap:2,marginBottom:0,alignItems:'flex-end'}},
       isEss
         ?[e('button',{key:'intervals',onClick:()=>setMode('intervals'),style:{
@@ -1900,11 +1922,85 @@ function EarTrainingView({level,onPracticed,onUpgrade,pedalRef}){
   );
 }
 
+// ── Onboarding profile ───────────────────────────────────────────────
+// Optional one-time self-report (skill level + goal), captured right before
+// the first overview tour. Purely additive: it only drives dismissible
+// nudges (suggested Guide stage, tour copy, Play/Ear Training banners) that
+// the user taps to apply. It never silently changes gating or persisted
+// defaults on its own.
+const ONBOARD_LEVELS=[
+  {id:'beginner',lbl:'Beginner',sub:'New to jazz chords'},
+  {id:'intermediate',lbl:'Intermediate',sub:'Know some chords, new to jazz harmony'},
+  {id:'advanced',lbl:'Advanced',sub:'Comfortable with jazz vocabulary already'},
+];
+const ONBOARD_GOALS=[
+  {id:'comping',lbl:'Comping & voicings',sub:'Chord shapes and accompaniment'},
+  {id:'ear',lbl:'Ear training',sub:'Recognizing chords and intervals by ear'},
+  {id:'improv',lbl:'Improvisation',sub:'Soloing over changes'},
+  {id:'explore',lbl:'Just exploring',sub:'Not sure yet'},
+];
+const GOAL_LABELS={comping:'comping & voicings',ear:'ear training',improv:'improvisation'};
+// Suggested Guide starting stage per goal — only surfaced for intermediate/
+// advanced users. Beginners are best served by the default in-order start.
+const GOAL_GUIDE_STAGE={
+  comping:{id:'drop2a',title:'Drop 2 — learning the shapes'},
+  ear:{id:'ear',title:'Train your ear — start now, not later'},
+  improv:{id:'modes',title:'Scales over chords — Dorian, Mixolydian, Ionian'},
+};
+
+function OnboardProfileSheet({onComplete,onSkip}){
+  const [level,setLevel]=useState(null);
+  const [goal,setGoal]=useState(null);
+  const chip=active=>({
+    display:'block',width:'100%',textAlign:'left',padding:'10px 14px',borderRadius:8,cursor:'pointer',
+    fontFamily:UI_FONT,border:'1px solid '+(active?GOLD:BORDER),
+    background:active?ACT_GOLD:'transparent',marginBottom:8,minHeight:44,
+  });
+  const group=(title,opts,val,setVal)=>[
+    e('div',{key:title+'_h',style:{fontSize:'0.75rem',color:HINT,margin:'14px 0 8px',fontFamily:UI_FONT,
+      fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}},title),
+    ...opts.map(o=>e('button',{key:o.id,onClick:()=>setVal(o.id),style:chip(val===o.id)},
+      e('div',{style:{fontSize:'0.85rem',fontWeight:700,color:val===o.id?GOLD:'var(--txt)'}},o.lbl),
+      e('div',{style:{fontSize:'0.72rem',color:HINT,marginTop:1}},o.sub)))
+  ];
+  const ready=!!level&&!!goal;
+  return e(React.Fragment,null,
+    e('div',{onClick:onSkip,style:{position:'fixed',inset:0,zIndex:299,background:'rgba(0,0,0,0.5)'}}),
+    e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:300,
+      background:BG2,borderRadius:'16px 16px 0 0',
+      border:'1px solid '+GOLD+'44',padding:'20px 20px 32px',
+      boxShadow:'0 -8px 32px rgba(0,0,0,0.55)',maxHeight:'82vh',overflowY:'auto'}},
+      e('div',{style:{width:40,height:4,background:BORDER,borderRadius:2,margin:'0 auto 18px'}}),
+      e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},'👋'),
+      e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
+        color:'var(--scale-name)',textAlign:'center',marginBottom:6}},'Let\'s tailor your path'),
+      e('div',{style:{fontSize:'0.8rem',color:HINT,textAlign:'center',
+        marginBottom:4,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},
+        'Two quick questions — totally optional, just to point you to the right stuff first.'),
+      ...group('Where are you starting from?',ONBOARD_LEVELS,level,setLevel),
+      ...group('What do you want to work on?',ONBOARD_GOALS,goal,setGoal),
+      e('button',{disabled:!ready,onClick:()=>ready&&onComplete({level,goal}),style:{
+        width:'100%',padding:'14px',borderRadius:10,cursor:ready?'pointer':'default',
+        fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,marginTop:14,
+        background:ready?GOLD:BTN_BRD,border:'none',color:ready?'#07070f':HINT,
+        minHeight:52,opacity:ready?1:0.6}},'Continue'),
+      e('button',{onClick:onSkip,style:{
+        width:'100%',padding:'10px',borderRadius:10,cursor:'pointer',marginTop:8,
+        fontFamily:UI_FONT,fontSize:'0.8rem',background:'transparent',
+        border:'1px solid '+BORDER,color:HINT,minHeight:44}},'Skip')
+    )
+  );
+}
+
 // ── Tour ──────────────────────────────────────────────────────────────
 const OVERVIEW_STEPS=[
   {target:'nav-guide',    view:'guide',
    title:'The Guide — your learning path',
-   text:'Work through jazz harmony step by step. Each stage explains one concept and opens the right tool already configured. Start here.'},
+   text:'Work through jazz harmony step by step. Each stage explains one concept and opens the right tool already configured. Start here.',
+   goalText:{
+     comping:'Since you told us you\'re focused on comping & voicings, look for the "Drop 2 — learning the shapes" stage — it\'s flagged for you at the top.',
+     ear:'Since you told us you\'re focused on ear training, look for the "Train your ear" stage — it\'s flagged for you at the top.',
+     improv:'Since you told us you\'re focused on improvisation, look for the "Scales over chords" stage — it\'s flagged for you at the top.'}},
   {target:'nav-diatonic', view:'diatonic',
    title:'Keys — see all 7 chords in any key',
    text:'Tap any chord to hear it and see exactly how to play it. Change the key chip at the top and everything updates instantly.'},
@@ -1913,11 +2009,15 @@ const OVERVIEW_STEPS=[
    text:'Pick any root and chord quality to see all its voicings. Useful for chords from charts or songs you\'re working on.'},
   {target:'nav-iivi',     view:'iivi',
    title:'Play — back-track practice',
-   text:'Play ii-V-Is and jazz standards with bass and drums. Set your key, choose a tempo, and practice playing along.'},
+   text:'Play ii-V-Is and jazz standards with bass and drums. Set your key, choose a tempo, and practice playing along.',
+   goalText:{
+     comping:'You said comping & voicings is your focus — once you\'re comfortable, try Drop 2 voicings here for the full jazz sound.',
+     improv:'You said improvisation is your focus — switch to Drop 2 voicings here for a fuller sound to solo over.'}},
   {target:'nav-quiz',     view:'quiz',
    title:'Ear Training — recognize what you hear',
    text:'Identify intervals and chord qualities by ear. Essentials starts with the five most consonant sounds; Pro unlocks all twelve.',
-   proText:'Identify intervals and chord qualities by ear — all twelve intervals, plus triads, 7th chords, and cadences.'},
+   proText:'Identify intervals and chord qualities by ear — all twelve intervals, plus triads, 7th chords, and cadences.',
+   goalText:{ear:'This is exactly what you told us you want to focus on.'}},
   {target:'page-tour-btn', view:'guide',
    title:'Page tours',
    text:'Each section has its own guided walkthrough. Tap the gold "? Tour" button at the top right whenever you want to learn what you\'re looking at.'},
@@ -1992,13 +2092,23 @@ const PAGE_TOURS={
 // Adapt tour steps to the user's tier. Pro users already paid — drop the
 // pricing pitch entirely and swap any "unlocks with Pro" copy for plain
 // descriptions of what they have.
-function tourStepsFor(steps,isPro){
-  if(!isPro) return steps;
-  return steps
-    .filter(s=>!s.essentialsOnly)
-    .map(s=>(s.proText||s.proTitle)
-      ?{...s,...(s.proTitle?{title:s.proTitle}:null),...(s.proText?{text:s.proText}:null)}
-      :s);
+function tourStepsFor(steps,isPro,profile){
+  let out=steps;
+  if(isPro){
+    out=out.filter(s=>!s.essentialsOnly)
+      .map(s=>(s.proText||s.proTitle)
+        ?{...s,...(s.proTitle?{title:s.proTitle}:null),...(s.proText?{text:s.proText}:null)}
+        :s);
+  }
+  // Append a goal-specific sentence when the user answered the onboarding
+  // questionnaire and this step has copy for their stated goal.
+  if(profile&&profile.goal){
+    out=out.map(s=>{
+      const gt=s.goalText&&s.goalText[profile.goal];
+      return gt?{...s,text:s.text+' '+gt}:s;
+    });
+  }
+  return out;
 }
 
 function TourOverlay({steps,step,onNext,onSkip}){
@@ -2637,9 +2747,15 @@ function LedToggle({label,enabled,onToggle,color,textColor,compact}){
   );
 }
 
-function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,onPracticed,onUpgrade}){
+function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,pedalRef,onPracticed,onUpgrade}){
   dotMode=dotMode||'interval';
   const isEss=level==='essentials';
+  // Goal-based voicing nudge — comping/improv goals suit Drop 2 better than
+  // the shell default. Dismissible, one-time; tap-to-apply, never automatic.
+  const [voicingNudgeDismissed,setVoicingNudgeDismissed]=useState(()=>safeLS('jg-play-goal-nudge')==='1');
+  function dismissVoicingNudge(){setVoicingNudgeDismissed(true);safeLSSet('jg-play-goal-nudge','1');}
+  const showVoicingNudge=profile&&profile.level!=='beginner'&&(profile.goal==='comping'||profile.goal==='improv')
+    &&!voicingNudgeDismissed;
   const [strSetIdx,setStrSetIdx]=useState(()=>parseInt(safeLS('jg-strSet','2'),10));
   const [invIdxs,setInvIdxs]=useState([]);
   const [activeChordIdx,setActiveChordIdx]=useState(0);
@@ -3389,6 +3505,24 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,onPlayStateChange,pedalRef,on
   };
 
   return e('div',null,
+    // ── Goal-based voicing nudge — dismissible, tap-to-apply only ──
+    showVoicingNudge&&!isPlaying&&vType==='shell'?e('div',{style:{marginBottom:10,padding:'10px 12px',
+      background:BG2,border:'1px solid '+GOLD+'40',borderRadius:8,display:'flex',
+      alignItems:'center',gap:10,flexWrap:'wrap'}},
+      e('div',{style:{flex:1,minWidth:170,fontSize:'0.76rem',lineHeight:1.5,color:'var(--txt)',fontFamily:UI_FONT}},
+        'Since you\'re focused on '+GOAL_LABELS[profile.goal]+', ',
+        isEss?'Drop 2 voicings would suit you better than Shells.':'try Drop 2 voicings here for a fuller sound.'),
+      e('div',{style:{display:'flex',gap:8,flexShrink:0}},
+        e('button',{onClick:()=>{
+          if(isEss){onUpgrade('Drop 2 voicings');} else {setVType('drop2');}
+          dismissVoicingNudge();track('nudge.play.applied',{goal:profile.goal,essentials:isEss});
+        },style:{padding:'7px 12px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',fontWeight:700,
+          border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,minHeight:36}},
+          isEss?'See Pro →':'Switch to Drop 2 →'),
+        e('button',{onClick:dismissVoicingNudge,style:{padding:'7px 9px',borderRadius:6,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.75rem',border:'1px solid '+BORDER,background:'transparent',
+          color:HINT,minHeight:36}},'✕'))
+    ):null,
     // Form selector — own row so buttons can wrap freely; standards visually separated
     !isPlaying?(
     level==='essentials'
@@ -4420,7 +4554,13 @@ function VoiceLeadingDiagram(){
 // this lives at module scope to survive the remount). Cleared on full reload,
 // so a fresh app open still starts you at your current stage.
 let guideReturn=null; // {scrollY, stagesOpen} | null
-function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade,onPracticed}){
+function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,onUpgrade,onPracticed}){
+  // Goal-based suggested starting stage — a dismissible nudge, not a redirect.
+  // Only surfaced for intermediate/advanced users (beginners are best served
+  // by the default in-order start at Stage 1).
+  const [goalNudgeDismissed,setGoalNudgeDismissed]=useState(()=>safeLS('jg-guide-goal-nudge')==='1');
+  function dismissGoalNudge(){setGoalNudgeDismissed(true);safeLSSet('jg-guide-goal-nudge','1');}
+  const goalStage=profile&&profile.level!=='beginner'?GOAL_GUIDE_STAGE[profile.goal]:null;
   const daysSince=lastPracticeDay?Math.round((Date.now()-new Date(lastPracticeDay+'T00:00:00'))/86400000):0;
   const [expanded,setExpanded]=useState({});
   function tog(id){setExpanded(s=>({...s,[id]:!s[id]?true:undefined}));}
@@ -4889,6 +5029,22 @@ function GuideView({openPreset,level,streak,lastPracticeDay,bestStreak,onUpgrade
           border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,minHeight:44,flexShrink:0}},
           doneCount===0?'Start →':'Jump back in →'))
       :null,
+    // ── Goal-based suggestion — dismissible, doesn't touch stage order ──
+    goalStage&&!goalNudgeDismissed?e('div',{style:{marginBottom:14,padding:'12px 14px',background:BG2,
+      border:'1px solid '+GOLD+'40',borderRadius:8,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
+      e('div',{style:{flex:1,minWidth:170}},
+        e('div',{style:{fontSize:'0.69rem',color:HINT,fontFamily:UI_FONT,textTransform:'uppercase',letterSpacing:'0.06em'}},
+          'Based on your goal — '+GOAL_LABELS[profile.goal]),
+        e('div',{style:{fontFamily:SERIF,fontSize:'0.9rem',fontWeight:700,color:'var(--scale-name)',marginTop:2}},
+          'Consider starting with: '+goalStage.title)),
+      e('div',{style:{display:'flex',gap:8,flexShrink:0}},
+        e('button',{onClick:()=>{jumpTo(goalStage.id);dismissGoalNudge();track('nudge.guide.applied',{stage:goalStage.id});},style:{
+          padding:'8px 14px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',fontWeight:700,
+          border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,minHeight:40}},'Jump there →'),
+        e('button',{onClick:dismissGoalNudge,style:{
+          padding:'8px 10px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',
+          border:'1px solid '+BORDER,background:'transparent',color:HINT,minHeight:40}},'✕'))
+    ):null,
     e('div',{style:S},
       e('div',{onClick:()=>setIntroOpen(o=>!o),
         style:{display:'flex',alignItems:'baseline',gap:8,cursor:'pointer'}},
@@ -5206,9 +5362,27 @@ function App(){
   const [overviewStep,setOverviewStep]=useState(()=>safeLS('jg-toured')?null:0);
   const [pageTourStep,setPageTourStep]=useState(null);
   const [pageTourId,setPageTourId]=useState(null);
+  // Onboarding profile — optional one-time self-report shown right before the
+  // first overview tour. See ONBOARD_LEVELS/ONBOARD_GOALS near OVERVIEW_STEPS.
+  const [onboardProfile,setOnboardProfile]=useState(()=>{
+    try{return JSON.parse(safeLS('jg-onboard-profile','null'));}catch(ex){return null;}
+  });
+  const [showOnboard,setShowOnboard]=useState(()=>overviewStep!==null&&!safeLS('jg-onboard-seen'));
+  function completeOnboard(profile){
+    setOnboardProfile(profile);
+    safeLSSet('jg-onboard-profile',JSON.stringify(profile));
+    safeLSSet('jg-onboard-seen','1');
+    setShowOnboard(false);
+    track('onboard.profile.set',profile);
+  }
+  function skipOnboard(){
+    safeLSSet('jg-onboard-seen','1');
+    setShowOnboard(false);
+    track('onboard.profile.skip');
+  }
 
   function overviewNext(){
-    if(overviewStep>=tourStepsFor(OVERVIEW_STEPS,level==='pro').length-1){
+    if(overviewStep>=tourStepsFor(OVERVIEW_STEPS,level==='pro',onboardProfile).length-1){
       setOverviewStep(null);safeLSSet('jg-toured','1');
       setViewMode('guide');window.scrollTo(0,0);
     } else setOverviewStep(s=>s+1);
@@ -5216,7 +5390,7 @@ function App(){
   function overviewSkip(){setOverviewStep(null);safeLSSet('jg-toured','1');}
 
   function pageTourNext(){
-    const steps=tourStepsFor(PAGE_TOURS[pageTourId]||[],level==='pro');
+    const steps=tourStepsFor(PAGE_TOURS[pageTourId]||[],level==='pro',onboardProfile);
     setPageTourStep(s=>{
       if(s===null||s>=steps.length-1){
         safeLSSet('jg-toured-'+pageTourId,'1');
@@ -5665,7 +5839,7 @@ function App(){
     ):null,
 
     // ── IIVI VIEW ────────────────────────────────────────────────────
-    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level:effectiveLevel,onPlayStateChange:setIiviPlaying,pedalRef:iiviPedalRef,onUpgrade:showUpgrade,
+    viewMode==='iivi'?e(IIVIView,{keyIdx:key,dotMode,setDotMode,level:effectiveLevel,profile:onboardProfile,onPlayStateChange:setIiviPlaying,pedalRef:iiviPedalRef,onUpgrade:showUpgrade,
       onPracticed:()=>{
         setPlaySessions(s=>{const ns=s+1;safeLSSet('jg-play-sessions',ns);return ns;});
         markPracticed();
@@ -5675,10 +5849,10 @@ function App(){
     viewMode==='custom'?e(CustomChordView,{customRoot,setCustomRoot,customTypeIdx,setCustomTypeIdx,level:effectiveLevel,dotMode,setDotMode,onFindInKey:findInKey,vType:customVType,setVType:setCustomVType,onUpgrade:showUpgrade,ssIdx,setSsIdx,invIdx,setInvIdx,shellIdx,setShellIdx}):null,
 
     // ── GUIDE / PATH VIEW ────────────────────────────────────────────
-    viewMode==='guide'?e(GuideView,{openPreset,level:effectiveLevel,streak,lastPracticeDay,bestStreak,onUpgrade:showUpgrade,onPracticed:markPracticed}):null,
+    viewMode==='guide'?e(GuideView,{openPreset,level:effectiveLevel,profile:onboardProfile,streak,lastPracticeDay,bestStreak,onUpgrade:showUpgrade,onPracticed:markPracticed}):null,
 
     // ── TRAIN HUB (Ear + Fretboard) ──────────────────────────────────
-    viewMode==='quiz'?e(TrainView,{level:effectiveLevel,onPracticed:markPracticed,onUpgrade:showUpgrade,pedalRef:earPedalRef}):null,
+    viewMode==='quiz'?e(TrainView,{level:effectiveLevel,profile:onboardProfile,onPracticed:markPracticed,onUpgrade:showUpgrade,pedalRef:earPedalRef}):null,
 
     // ── DIATONIC VIEW ────────────────────────────────────────────────
     viewMode==='diatonic'?e('div',null,
@@ -5928,11 +6102,14 @@ function App(){
     // ── Rate prompt ──────────────────────────────────────────────────
     ratePrompt?e(RatePromptSheet,{onClose:()=>setRatePrompt(false),onYes:onRateYes,onNo:onRateNo}):null,
 
+    // ── Onboarding questionnaire (once, right before the first tour) ──
+    showOnboard?e(OnboardProfileSheet,{onComplete:completeOnboard,onSkip:skipOnboard}):null,
+
     // ── Tour overlay ─────────────────────────────────────────────────
-    overviewStep!==null
-      ?e(TourOverlay,{steps:tourStepsFor(OVERVIEW_STEPS,level==='pro'),step:overviewStep,onNext:overviewNext,onSkip:overviewSkip})
-      :pageTourStep!==null&&pageTourId&&PAGE_TOURS[pageTourId]
-        ?e(TourOverlay,{steps:tourStepsFor(PAGE_TOURS[pageTourId],level==='pro'),step:pageTourStep,onNext:pageTourNext,onSkip:pageTourSkip})
+    !showOnboard&&overviewStep!==null
+      ?e(TourOverlay,{steps:tourStepsFor(OVERVIEW_STEPS,level==='pro',onboardProfile),step:overviewStep,onNext:overviewNext,onSkip:overviewSkip})
+      :!showOnboard&&pageTourStep!==null&&pageTourId&&PAGE_TOURS[pageTourId]
+        ?e(TourOverlay,{steps:tourStepsFor(PAGE_TOURS[pageTourId],level==='pro',onboardProfile),step:pageTourStep,onNext:pageTourNext,onSkip:pageTourSkip})
         :null,
 
     // ── Bottom tab bar ───────────────────────────────────────────────
