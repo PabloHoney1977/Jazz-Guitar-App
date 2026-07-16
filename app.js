@@ -61,7 +61,7 @@ const Notif=(()=>{
 //      (starts with `appl_`). Public key is safe to ship in the client.
 const IAP=(()=>{
   const ENTITLEMENT='pro';
-  const API_KEY='__REVENUECAT_IOS_KEY__'; // RevenueCat public iOS SDK key (appl_…)
+  const API_KEY='appl_YuGTDIZwKqHfOVZHGFJkyKRpCmJ'; // RevenueCat public iOS SDK key (appl_…)
   function plug(){return window?.Capacitor?.Plugins?.Purchases||null;}
   // True only when the native plugin is present AND a real key is configured.
   function available(){return !!plug()&&!API_KEY.startsWith('__');}
