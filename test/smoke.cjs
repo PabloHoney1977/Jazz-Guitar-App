@@ -2,7 +2,7 @@
 // (390×844, Safari UA) to exercise the real DOM and catch layout/render bugs
 // that the vm-sandbox unit tests can't see.
 //
-// What's covered (68 checks across 24 test blocks):
+// What's covered (80 checks across 26 test blocks):
 //
 //  Static / layout checks (Tests 1–16):
 //   - App bootstraps without JS errors
@@ -28,6 +28,9 @@
 //   - Essentials: trigger upgrade sheet, verify pricing text present
 //   - Play Essentials: single upgrade CTA (not a wall of locked buttons)
 //   - Play BPM: keyboard-control the knob, verify displayed value updates
+//   - Onboarding: questionnaire answers persist, personalize tour copy, and
+//     surface a goal-based suggestion card in the Guide
+//   - Play tab: goal-based voicing nudge applies Drop 2 on tap
 //
 // Network restriction: WebKit binary unavailable in this CI environment, so we
 // use Chromium with an iPhone 14 UA + viewport. This exercises the real DOM
@@ -148,6 +151,12 @@ const IPHONE14 = {
     await page.evaluate(({ suppressTour: st, storage: s }) => {
       localStorage.clear();
       if (st) localStorage.setItem('jg-toured', '1');
+      // Onboarding questionnaire is a separate first-run gate from the tour;
+      // default it to "seen" so it doesn't intercept unrelated tour/UI checks.
+      // Tests that want to exercise the onboarding sheet itself pass
+      // storage:{'jg-onboard-seen':undefined-equivalent} by omitting it — see
+      // the dedicated onboarding test, which clears it explicitly below.
+      localStorage.setItem('jg-onboard-seen', '1');
       for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v);
     }, { suppressTour, storage });
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -844,6 +853,91 @@ const IPHONE14 = {
       const realErrors = jsErrors.filter(e => !isNoise(e));
       ok('no JS errors during BPM keyboard control', realErrors.length === 0,
          realErrors.join('; ').slice(0, 200));
+      await ctx.close();
+    });
+
+    // ── 25: Onboarding questionnaire — answers personalize tour + Guide nudge ─
+    // Answers "Advanced" / "Ear training", then verifies: profile is persisted,
+    // the tour that follows picks up goal-specific copy, and the Guide's
+    // goal-based suggestion card points at the "Train your ear" stage.
+    await test('Test 25: Onboarding questionnaire personalizes tour + Guide', async () => {
+      const { page, ctx, jsErrors } = await freshPage({
+        suppressTour: false, storage: { 'jg-onboard-seen': '' },
+      });
+
+      const sheetText = await page.evaluate(() => document.body.innerText);
+      ok('onboarding questionnaire shown on fresh load', /tailor your path/i.test(sheetText));
+
+      // Pick "Advanced" then "Ear training", then Continue.
+      await page.evaluate(() => {
+        const clickByText = (re) => {
+          const btn = Array.from(document.querySelectorAll('button')).find(b => re.test(b.textContent));
+          if (btn) btn.click();
+          return !!btn;
+        };
+        clickByText(/^Advanced/);
+        clickByText(/^Ear training/);
+      });
+      await page.waitForTimeout(150);
+      const continued = await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Continue');
+        if (btn && !btn.disabled) { btn.click(); return true; }
+        return false;
+      });
+      ok('Continue enabled and clicked after answering both questions', continued);
+      await page.waitForTimeout(300);
+
+      const profile = await page.evaluate(() => localStorage.getItem('jg-onboard-profile'));
+      ok('profile persisted to localStorage', profile === JSON.stringify({ level: 'advanced', goal: 'ear' }),
+         `got ${profile}`);
+
+      // Tour should now be showing, personalized for the "ear" goal.
+      const tourText = await page.evaluate(() => document.body.innerText);
+      ok('tour appears after onboarding completes', /learning path/i.test(tourText));
+      ok('tour copy personalized for stated goal', /exactly what you told us you want to focus on/i.test(tourText)
+         || /flagged for you at the top/i.test(tourText));
+
+      // Skip the tour and land on Guide — check the goal-based suggestion card.
+      await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Skip tour');
+        if (btn) btn.click();
+      });
+      await page.waitForTimeout(300);
+      const guideText = await page.evaluate(() => document.body.innerText);
+      ok('Guide shows goal-based suggestion card', /Based on your goal.*ear training/i.test(guideText));
+      ok('suggestion card names the ear-training stage', /Train your ear/.test(guideText));
+
+      const realErrors = jsErrors.filter(e => !isNoise(e));
+      ok('no JS errors during onboarding flow', realErrors.length === 0, realErrors.join('; ').slice(0, 200));
+      await ctx.close();
+    });
+
+    // ── 26: Play tab goal nudge — comping/improv goal offers Drop 2 voicings ──
+    await test('Test 26: Play tab nudge applies Drop 2 for improv goal', async () => {
+      const { page, ctx, jsErrors } = await freshPage({
+        storage: {
+          'jg-level': 'pro',
+          'jg-onboard-profile': JSON.stringify({ level: 'advanced', goal: 'improv' }),
+        },
+      });
+      const playBtn = await page.$('[data-tour="nav-iivi"]');
+      if (!playBtn) { ok('Play nav found', false); await ctx.close(); return; }
+      await playBtn.click({ timeout: 5000 });
+      await page.waitForTimeout(400);
+
+      const bodyText = await page.evaluate(() => document.body.innerText);
+      ok('Play tab shows improv-goal voicing nudge', /focused on improvisation/i.test(bodyText));
+
+      await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button')).find(b => /Switch to Drop 2/.test(b.textContent));
+        if (btn) btn.click();
+      });
+      await page.waitForTimeout(200);
+      const vType = await page.evaluate(() => localStorage.getItem('jg-vtype'));
+      ok('tapping the nudge switches voicing to Drop 2', vType === 'drop2', `got ${vType}`);
+
+      const realErrors = jsErrors.filter(e => !isNoise(e));
+      ok('no JS errors during Play nudge flow', realErrors.length === 0, realErrors.join('; ').slice(0, 200));
       await ctx.close();
     });
 
