@@ -240,6 +240,10 @@ const PARENT_SC={major:[0,2,4,5,7,9,11],melmin:[0,2,3,5,7,9,11]};
 const PTYPE_NAME={major:'Major',melmin:'Mel. Minor',dim:'Diminished',wt:'Whole Tone'};
 // FIX: index 11 = 11 semitones = major 7th; was 'd7' (diminished 7), now 'Δ7'
 const INT_NAMES=['R','b9','2','b3','3','4','#11','5','b13','6','b7','Δ7'];
+// Semitone 6 is the same pitch but a different function depending on the chord:
+// on m7♭5/dim it IS a chord tone (the ♭5); anywhere else it's a #11 tension.
+// Callers that already know whether the note belongs to the chord pass isTone.
+const intName=(interval,isTone)=>(interval===6&&isTone)?'b5':INT_NAMES[interval];
 
 const CHORD_SCALES=[
   [{name:'Ionian',   abbr:'Ion',   iv:[0,2,4,5,7,9,11],pType:'major', mPos:0,avoid:[5], desc:'Home — fully inside the key'},
@@ -909,15 +913,19 @@ function tierChipStyle(interactive){
     cursor:interactive?'pointer':'default',background:ACT_GOLD,flexShrink:0};
 }
 
-function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial}){
+function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial,onRestore,purchaseErr}){
   const trialExpired=trialUsed&&!trialActive;
   // Generic entry point (header upgrade pill) — not tied to one locked feature.
   const isOverview=feature==='Pro overview';
+  // Every Pro-gated feature must appear here — this list is the only place a
+  // buyer sees what they're paying for. Indices 0-3 are referenced by PERK_IDX.
   const PERKS=[
     'Drop 2, Drop 3, and Rootless voicings in the Keys tab',
     'All play forms + 5 jazz standards — Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, There Will Never Be Another You',
     'All 12 ear training intervals + harmonic mode, triads, 7th chords, and cadence recognition',
     'All extended chord types (9ths, 11ths, 13ths, altered) in the Any Chord tab',
+    'Find Chord — tap any notes on the fretboard and see what you’re playing',
+    'Favorites — save a progression, tempo and voicing, and recall it in one tap',
   ];
   const FEATURE_DESC={
     'Drop 2 voicings':'The most common jazz comping grip — four notes across adjacent strings, clean and compact.',
@@ -927,11 +935,18 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial}){
     '7th Chords':'Identify maj7, m7, dom7, and half-dim chords by ear — the core vocabulary of jazz harmony.',
     'Auto ear training':'Listen without scoring pressure — the app plays, speaks the answer, and moves on automatically.',
     'Find Chord':'Tap any notes on the fretboard and instantly see what chord you\'re playing.',
+    // Keys below must match the exact strings passed to onUpgrade() — this is
+    // a lookup, not a fuzzy match, so a near-miss silently drops the copy.
+    'Triads, 7th Chords & Cadences':'Three more ways to train: triad quality, the four 7th-chord types, and the ii–V, V–I and ii–V–I cadences you\'ll hear in every standard.',
+    'All 12 intervals':'Essentials covers the 7 easiest intervals. Pro adds 2nds, 7ths and the tritone — the ones that actually take work.',
+    'Favorites':'Save a progression with its tempo and voicing, then recall the whole setup in one tap next practice session.',
+    'Jazz Standards':'Five real tunes with their full changes — Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, and There Will Never Be Another You.',
+    'Pro':'Everything we\'ve built — and everything we ever add — for one price.',
     'BLUE BOSSA':'16 bars, two key centers: C minor for bars 1–8, D♭ major for bars 9–12, back to C minor. The modulation is the lesson — watch the key shift at bar 9.',
     'AUTUMN LEAVES':'32-bar AABA in G major/E minor. Practice the descending ii–V–I–IV motion and the minor ii–V–i in the bridge.',
     'ALL THINGS':'Two ii–V–I cycles descending a fourth apart — the root motion that shows up in countless standards. Set key to Ab.',
-    'STELLA':'Three ii–V–I chains through different keys (E♭, G, B♭) in 16 bars. The opening Em7♭5–A7 is the harmonic surprise — it doesn\'t resolve where you expect. Set key to B♭.',
-    'ANOTHER YOU':'Backdoor ii–V, secondary dominants, and a turnaround all in one 12-bar A section. Set key to Eb.',
+    'STELLA':'Three ii–V–I chains landing in different keys (E♭, F, B♭) across the full 32-bar form. The opening Em7♭5–A7 is the harmonic surprise — it doesn\'t resolve where you expect. Set key to B♭.',
+    'ANOTHER YOU':'Backdoor ii–V, secondary dominants, and a descending-fourths turnaround across a 16-bar A section. Set key to E♭.',
     'MINOR ii–V–i':'The half-diminished iim7♭5 creates stronger pull than a plain m7 — the ear hears it lean hard into im7.',
     'JAZZ BLUES':'12-bar blues transformed: VI7 in bar 8, iim7–V7 in bars 9–10, turnaround in bar 12.',
     'I–VI–ii–V':'The engine of rhythm changes and endless standards. The VI is dominant so it pulls harder into ii.',
@@ -944,16 +959,20 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial}){
     'minor ii':1,'MINOR ii':1,'Jazz Blues':1,'JAZZ BLUES':1,'Tritone':1,'TRITONE':1,
     'Sec. Dom':1,'SEC. DOM':1,'Turnaround':1,'I–VI':1,'MINOR BLUES':1,'Minor Blues':1,
     'BLUE BOSSA':1,'AUTUMN':1,'ALL THINGS':1,'STELLA':1,'ANOTHER YOU':1,
-    'Triads':2,'7th Chords':2,'Auto ear':2,'auto ear':2,
-    '△':3,'ø':3,'9sus':3};
+    'Triads':2,'7th Chords':2,'Auto ear':2,'auto ear':2,'All 12 intervals':2,
+    '△':3,'ø':3,'9sus':3,
+    'Find Chord':4,'Favorites':5};
   const featureKey=Object.keys(PERK_IDX).find(k=>feature&&feature.toLowerCase().includes(k.toLowerCase()));
   const highlightPerk=featureKey!==undefined?PERK_IDX[featureKey]:null;
-  const desc=feature&&FEATURE_DESC[feature];
+  // Extended chord types arrive as '<sym> chords' — reuse the chord's own
+  // context blurb instead of duplicating it in FEATURE_DESC.
+  const extType=feature?EXT_TYPES.find(t=>feature===t.sym+' chords'):null;
+  const desc=(feature&&FEATURE_DESC[feature])||(extType?extType.ctx:null);
   return e(React.Fragment,null,
     e('div',{onClick:onClose,style:{position:'fixed',inset:0,zIndex:299,background:'rgba(0,0,0,0.5)'}}),
     e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:300,
       background:BG2,borderRadius:'16px 16px 0 0',
-      border:'1px solid '+GOLD+'44',padding:'20px 20px 36px',
+      border:'1px solid '+GOLD+'44',padding:'20px 20px 0',
       boxShadow:'0 -8px 32px rgba(0,0,0,0.55)',maxHeight:'72vh',overflowY:'auto'}},
       e('div',{style:{width:40,height:4,background:BORDER,borderRadius:2,margin:'0 auto 18px'}}),
       e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},trialExpired?'⏱️':isOverview?'✦':'🔒'),
@@ -980,11 +999,24 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial}){
           fontWeight:highlightPerk===i?700:400,
           fontFamily:UI_FONT,lineHeight:1.5}},
           e('span',{style:{color:GOLD,flexShrink:0,marginTop:1}},'✦'),p))),
+      // Action block is pinned: with a feature description plus six perks the
+      // sheet outgrows its 72vh cap, and a paywall whose buy button sits below
+      // the fold converts badly. Sticky keeps it reachable at any content length.
+      e('div',{style:{position:'sticky',bottom:0,background:BG2,
+        paddingTop:12,paddingBottom:28,marginTop:4,
+        borderTop:'1px solid '+BORDER}},
+      purchaseErr?e('div',{style:{fontSize:'0.78rem',color:'#F97316',textAlign:'center',
+        marginBottom:10,fontFamily:UI_FONT,lineHeight:1.5,padding:'8px 10px',
+        border:'1px solid #F9731655',borderRadius:8,background:'#F9731611'}},purchaseErr):null,
       e('button',{onClick:onUnlock,style:{
         width:'100%',padding:'15px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'1rem',fontWeight:700,
-        background:GOLD,border:'none',color:'#07070f',minHeight:54,marginBottom:10}},
+        background:GOLD,border:'none',color:'#07070f',minHeight:54,marginBottom:4}},
         'Unlock Pro — $14.99'),
+      // The strongest objection-killer for a one-time price — was previously
+      // only in the 'Pro overview' copy, i.e. absent from most impressions.
+      e('div',{style:{fontSize:'0.72rem',color:HINT,textAlign:'center',
+        marginBottom:10,fontFamily:UI_FONT}},'One-time purchase · no subscription'),
       !trialUsed?e('button',{onClick:onTrial,style:{
         width:'100%',padding:'12px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.88rem',fontWeight:600,
@@ -995,7 +1027,15 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial}){
         width:'100%',padding:'10px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.82rem',background:'transparent',
         border:'1px solid '+BORDER,color:HINT,minHeight:44}},
-        'Maybe later')
+        'Maybe later'),
+      // Apple requires a restore path for non-consumables, and a reinstalling
+      // buyer hits this sheet — not the About sheet — first.
+      onRestore?e('button',{onClick:onRestore,style:{
+        width:'100%',padding:'8px',marginTop:8,borderRadius:10,cursor:'pointer',
+        fontFamily:UI_FONT,fontSize:'0.78rem',background:'transparent',
+        border:'none',color:HINT,textDecoration:'underline',minHeight:40}},
+        'Restore purchase'):null
+      )
     )
   );
 }
@@ -1092,9 +1132,11 @@ function attachPedalListener(cb){
 
 // ── AboutSheet ────────────────────────────────────────────────────────
 function AboutSheet({onClose,level,onRestore}){
-  const [restored,setRestored]=React.useState(false);
+  const [restored,setRestored]=React.useState(null); // null = untried, true/false = result
   const [pedalSeen,setPedalSeen]=React.useState(null);
-  function handleRestore(){onRestore();setRestored(true);}
+  // Report the real outcome — claiming "restored ✓" after a failed lookup sends
+  // a buyer who genuinely owns Pro away thinking it worked.
+  async function handleRestore(){setRestored(await onRestore()===true);}
   // Live pedal tester: shows whether the pedal's key events reach the page at all.
   // Listen for both keydown and keyup — some pedal modes emit only one — and
   // surface code/keyCode so an unrecognized pedal can be reported precisely.
@@ -1130,8 +1172,8 @@ function AboutSheet({onClose,level,onRestore}){
         style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,
           background:'transparent',border:'1px solid '+GOLD+'66',
-          color:restored?HINT:GOLD,minHeight:44,marginBottom:10}},
-        restored?'Purchase restored ✓':'Restore Purchase'):null,
+          color:restored===null?GOLD:HINT,minHeight:44,marginBottom:10}},
+        restored===null?'Restore Purchase':restored?'Purchase restored ✓':'No purchase found'):null,
       e('div',{style:{borderTop:'1px solid '+BORDER,marginTop:14,paddingTop:14,
         fontSize:'0.75rem',color:HINT,fontFamily:UI_FONT,lineHeight:1.6}},
         '🦶 Bluetooth pedal: works in all tabs. Forward = next chord / next question. Back = previous chord / replay sound. ',
@@ -2487,7 +2529,11 @@ const ChordBox=React.memo(function ChordBox({voicing,strings,tones,degNames,invL
   const NF=Math.max(4,mx-mn+1),SF=Math.max(1,mn),FS=22;
   // PL is the grid's left edge; when there's no nut we draw the "Nfr" label in
   // the gutter to its left, so it must be wide enough to clear the lowest dot.
-  const H=66+NF*FS+18,W=128,SS=18,PL=28,PT=66;
+  // The gutter has to fit TWO digits ("10fr".."15fr" ≈ 18px at font-size 10):
+  // the label is right-anchored at PL-12, so PL-12-18 must stay >= 0, and W
+  // must clear the rightmost dot at sx(5)+r. PL=28/W=128 clipped the leading
+  // digit off the left edge on any voicing at fret 10 or above.
+  const H=66+NF*FS+18,W=134,SS=18,PL=32,PT=66;
   const showNut=SF===1;
   const sx=i=>PL+i*SS;
   const fy=f=>PT+(f-SF)*FS+FS/2;
@@ -2581,7 +2627,7 @@ function ScalePanel({degree,chordRoot,tones,degNames,keyIdx,scaleIdx,onScaleChan
           ),
           e('span',{style:{fontSize:'0.64rem',fontFamily:UI_FONT,
             color:n.isAvoid?'#F97316':n.isTone?TC[n.ti]+'cc':'var(--note-iv-txt)'}},
-            n.isAvoid?INT_NAMES[n.interval]+'⚠':INT_NAMES[n.interval])
+            intName(n.interval,n.isTone)+(n.isAvoid?'⚠':''))
         )
       ),
       e('div',{style:{marginLeft:'auto',alignSelf:'flex-start',paddingTop:2}},
@@ -4024,7 +4070,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
             if(cs&&brs&&brs.length>=2) setInvIdxs(runVL(computeAllVoicings(cs,brs,newBVTs),newIdxs,newPinned));
             else setInvIdxs(newIdxs);
           };
-          const typeBtn=(t,label,locked)=>e('button',{key:t,onClick:locked?()=>onUpgrade('Drop 3'):()=>pickType(t),style:{
+          const typeBtn=(t,label,locked)=>e('button',{key:t,onClick:locked?()=>onUpgrade('Drop 3 voicings'):()=>pickType(t),style:{
             padding:'2px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.7rem',
             border:'1px solid '+(activeVT===t?GOLD:BTN_BRD),
             background:activeVT===t?ACT_GOLD:'transparent',
@@ -5420,30 +5466,43 @@ function App(){
   const trialUsed=!!safeLS('jg-trial-start','');
   const effectiveLevel=(level==='essentials'&&trialActive)?'pro':level;
   const [upgradeSheet,setUpgradeSheet]=useState(null); // feature name string, or null
+  const [purchaseErr,setPurchaseErr]=useState('');     // shown in UpgradeSheet when a purchase can't complete
   const [audioDiag,setAudioDiag]=useState(false); // on-device audio self-test sheet
   const diagPressRef=useRef(null);
   const [popTerm,setPopTerm]=useState(null); // glossary term key, or null
   const [aboutOpen,setAboutOpen]=useState(false);
-  function showUpgrade(feature){setUpgradeSheet(feature);track('paywall.shown',{feature});}
+  function showUpgrade(feature){setUpgradeSheet(feature);setPurchaseErr('');track('paywall.shown',{feature});}
   function goPro(){setLevel('pro');safeLSSet('jg-level','pro');}
   async function doUpgrade(){
+    setPurchaseErr('');
     // Native build with IAP configured → real RevenueCat purchase.
     if(IAP.available()){
       const r=await IAP.purchase();
-      if(r==='purchased'){track('upgrade.completed',{feature:upgradeSheet});goPro();setUpgradeSheet(null);}
-      // cancelled/unavailable/error: leave the sheet open, no unlock.
+      if(r==='purchased'){track('upgrade.completed',{feature:upgradeSheet});goPro();setUpgradeSheet(null);return;}
+      // cancelled: user backed out on purpose, say nothing.
+      if(r!=='cancelled')setPurchaseErr('That didn’t go through. Check your connection and try again.');
       return;
     }
-    // Web / PWA / pre-IAP TestFlight: dev unlock (Pro chip in header reverts).
+    // Native build but the purchase bridge is missing — the plugin isn't
+    // registered (needs `npm run sync`) or the key is unset. FAIL CLOSED:
+    // granting Pro here would hand the product out for free on a real build
+    // and log a phantom `upgrade.completed`. Never fall through to dev unlock
+    // on device.
+    if(IAP.isNative()){
+      setPurchaseErr('The App Store is unavailable right now. Please try again later.');
+      track('upgrade.unavailable',{feature:upgradeSheet});
+      return;
+    }
+    // Web / PWA only: dev unlock (Pro chip in header reverts).
     track('upgrade.completed',{feature:upgradeSheet});
     goPro();setUpgradeSheet(null);
   }
   async function doRestore(){
-    if(IAP.available()){
-      if(await IAP.restore()){goPro();setUpgradeSheet(null);}
-      return;
-    }
-    goPro();
+    if(IAP.available()) return await IAP.restore()?(goPro(),setUpgradeSheet(null),true):false;
+    // Same fail-closed rule as doUpgrade — a device build with no bridge must
+    // not hand out Pro just because "restore" was tapped.
+    if(IAP.isNative()) return false;
+    goPro();return true;
   }
   function startTrial(){
     safeLSSet('jg-trial-start',localDateStr());
@@ -6032,7 +6091,9 @@ function App(){
         ' = major 7th (Δ7 interval).  Shell Form A: skip-string.  Shell Form B: adjacent-string R-3-7.  Drop 2: 2nd-highest note dropped an octave.  Drop 3: 3rd-highest dropped.  Rootless: 9th replaces root.')
     ):null,
 
-    upgradeSheet?e(UpgradeSheet,{feature:upgradeSheet,onClose:()=>setUpgradeSheet(null),onUnlock:doUpgrade,trialUsed,trialActive,onTrial:startTrial}):null,
+    upgradeSheet?e(UpgradeSheet,{feature:upgradeSheet,onClose:()=>setUpgradeSheet(null),onUnlock:doUpgrade,trialUsed,trialActive,onTrial:startTrial,
+      purchaseErr,
+      onRestore:async()=>{if(!await doRestore())setPurchaseErr('No previous purchase found on this Apple ID.');}}):null,
     audioDiag?e(AudioDiagSheet,{onClose:()=>setAudioDiag(false)}):null,
     aboutOpen?e(AboutSheet,{onClose:()=>setAboutOpen(false),level,onRestore:doRestore}):null,
     popTerm&&GLOSS_DEFS[popTerm]?e(React.Fragment,null,
