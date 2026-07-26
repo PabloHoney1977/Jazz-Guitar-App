@@ -2,7 +2,7 @@
 // (390×844, Safari UA) to exercise the real DOM and catch layout/render bugs
 // that the vm-sandbox unit tests can't see.
 //
-// What's covered (80 checks across 26 test blocks):
+// What's covered (85 checks across 26 test blocks):
 //
 //  Static / layout checks (Tests 1–16):
 //   - App bootstraps without JS errors
@@ -26,7 +26,8 @@
 //   - Ear Training: skip intro, click a choice, check revealed state,
 //     verify ← ♪ → row stays in viewport without scrolling
 //   - Essentials: trigger upgrade sheet, verify pricing text present
-//   - Play Essentials: single upgrade CTA (not a wall of locked buttons)
+//   - Play Essentials: Pro forms shown as a locked horizontal-scroll shelf;
+//     tapping a locked chip opens the paywall without switching the form
 //   - Play BPM: keyboard-control the knob, verify displayed value updates
 //   - Onboarding: questionnaire answers persist, personalize tour copy, and
 //     surface a goal-based suggestion card in the Guide
@@ -785,10 +786,18 @@ const IPHONE14 = {
       await ctx.close();
     });
 
-    // ── 23: Play Essentials — single upgrade CTA, not a wall of locked buttons ─
-    // Ensures the freemium play-form area shows exactly one unlock CTA
-    // ("🔒 Unlock 8 more — Pro") rather than 8+ individual locked buttons.
-    await test('Test 23: Play Essentials — single upgrade CTA present', async () => {
+    // ── 23: Play Essentials — locked-forms discovery shelf ────────────────────
+    // Essentials deliberately shows every Pro progression as a dimmed 🔒 chip in
+    // a horizontal-scroll shelf, so a free user can see what they'd be buying.
+    // (This replaced an older "one consolidated CTA" design — the assertions
+    // below describe the shelf, which is the intended behaviour.)
+    // What actually matters and is guarded here:
+    //   1. exactly one form is selectable — Essentials can't reach a Pro form
+    //   2. the rest are present but locked, i.e. discoverable
+    //   3. the shelf scrolls horizontally instead of wrapping into a wall, and
+    //      does not push the page itself into horizontal overflow
+    //   4. tapping a locked chip opens the paywall and does NOT switch the form
+    await test('Test 23: Play Essentials — locked forms shown as a scrollable shelf', async () => {
       const { page, ctx, jsErrors } = await freshPage({ storage: { 'jg-level': 'essentials' } });
       const playBtn = await page.$('[data-tour="nav-iivi"]');
       if (!playBtn) { ok('Play nav found', false); await ctx.close(); return; }
@@ -799,12 +808,44 @@ const IPHONE14 = {
       ok('play-form-row rendered', !!formRow);
 
       if (formRow) {
-        const btnsInRow = await formRow.$$('button');
-        ok(`play-form-row has ≤3 buttons in Essentials (major + upgrade CTA), got ${btnsInRow.length}`,
-           btnsInRow.length <= 3, `expected ≤3, got ${btnsInRow.length}`);
-        const rowText = await formRow.evaluate(el => el.innerText);
-        ok('upgrade CTA present in play form row', /unlock/i.test(rowText),
-           `row text: "${rowText.slice(0, 100)}"`);
+        const split = await formRow.evaluate(el => {
+          const btns = Array.from(el.querySelectorAll('button'));
+          const locked = btns.filter(b => b.textContent.includes('🔒'));
+          return { total: btns.length, locked: locked.length, unlocked: btns.length - locked.length };
+        });
+        ok(`exactly 1 selectable form in Essentials, got ${split.unlocked}`,
+           split.unlocked === 1, `expected 1 unlocked, got ${split.unlocked} of ${split.total}`);
+        ok(`Pro forms shown as locked chips, got ${split.locked}`,
+           split.locked >= 8, `expected ≥8 locked chips, got ${split.locked}`);
+
+        // The shelf must scroll, not wrap — and must not drag the page with it.
+        const overflow = await formRow.evaluate(el => {
+          const strip = Array.from(el.querySelectorAll('div')).find(
+            d => getComputedStyle(d).overflowX === 'auto');
+          return {
+            hasScrollStrip: !!strip,
+            stripScrolls: strip ? strip.scrollWidth > strip.clientWidth : false,
+            pageOverflows: document.documentElement.scrollWidth > window.innerWidth + 1,
+          };
+        });
+        ok('locked forms live in a horizontal-scroll strip', overflow.hasScrollStrip);
+        ok('strip actually overflows (chips not wrapped into a wall)', overflow.stripScrolls);
+        ok('shelf does not cause page-level horizontal overflow', !overflow.pageOverflows);
+
+        // Tapping a locked chip sells, it does not switch the progression.
+        const formBefore = await page.evaluate(() => localStorage.getItem('jg-form'));
+        await formRow.evaluate(el => {
+          const chip = Array.from(el.querySelectorAll('button'))
+            .find(b => b.textContent.includes('🔒'));
+          if (chip) chip.click();
+        });
+        await page.waitForTimeout(400);
+        const body = await page.evaluate(() => document.body.innerText);
+        ok('locked form chip opens the paywall', body.includes('14.99'),
+           'upgrade sheet did not appear after tapping a locked form');
+        const formAfter = await page.evaluate(() => localStorage.getItem('jg-form'));
+        ok('locked form chip does not switch the progression', formBefore === formAfter,
+           `jg-form changed ${formBefore} → ${formAfter}`);
       }
 
       const realErrors = jsErrors.filter(e => !isNoise(e));
