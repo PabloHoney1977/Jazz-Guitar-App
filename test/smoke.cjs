@@ -392,13 +392,23 @@ const IPHONE14 = {
       const before = await page.evaluate(() =>
         document.documentElement.getAttribute('data-theme') || 'dark'
       );
-      const toggled = await page.evaluate(() => {
+      // The toggle lives in the ··· menu now — the header is a single row and
+      // couldn't hold brand + tier + streak + three buttons without clipping.
+      const opened = await page.evaluate(() => {
         const btn = Array.from(document.querySelectorAll('button'))
-          .find(b => (b.getAttribute('aria-label') || '').toLowerCase().includes('toggle theme'));
+          .find(b => /menu, help/i.test(b.getAttribute('aria-label') || ''));
         if (btn) { btn.click(); return true; }
         return false;
       });
-      ok('theme toggle button found', toggled);
+      ok('··· menu button found in header', opened);
+      await page.waitForTimeout(250);
+      const toggled = await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button'))
+          .find(b => /switch to (light|dark) theme/i.test(b.textContent || ''));
+        if (btn) { btn.click(); return true; }
+        return false;
+      });
+      ok('theme toggle found in the ··· menu', toggled);
       if (toggled) {
         await page.waitForTimeout(200);
         const after = await page.evaluate(() =>
