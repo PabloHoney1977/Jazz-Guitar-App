@@ -1768,7 +1768,7 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
     historyRef.current=[];
     newRound();
   },[level]);
-  if(!seenIntro) return e('div',{style:{paddingTop:'25vh',paddingBottom:'20px',paddingLeft:'16px',paddingRight:'16px',textAlign:'center',maxWidth:420,margin:'0 auto'}},
+  if(!seenIntro) return e('div',{style:{paddingTop:'8vh',paddingBottom:'20px',paddingLeft:'16px',paddingRight:'16px',textAlign:'center',maxWidth:420,margin:'0 auto'}},
     e('div',{style:{fontSize:'2.5rem',marginBottom:12}},'♫'),
     e('div',{style:{fontSize:'1.0rem',fontWeight:700,fontFamily:SERIF,marginBottom:8}},'Ear Training'),
     e('div',{style:{fontSize:'0.8rem',color:LBL,lineHeight:1.6,marginBottom:20}},
@@ -4464,6 +4464,11 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   // the grids put the fretboard ~700px down on a 390×844 phone; the page tour's
   // first custom step points at the header and teaches the toggle.
   const [pickerOpen,setPickerOpen]=useState(()=>safeLS('jg-chord-picker','0')==='1');
+  // Voicing explanation — reference text, rendered under the neck it describes.
+  const vtypeNote=
+    vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'3-note voicing: root, 3rd & 7th — the 5th is omitted (it\'s implied by the context)')
+    :vType==='arpeggio'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'All chord-tone positions on neck')
+    :null;
   function togglePicker(){setPickerOpen(o=>{safeLSSet('jg-chord-picker',o?'0':'1');return !o;});}
   const typeChangeMount=useRef(false); // skip the reset-on-mount run
   const shellResetMount=useRef(false);
@@ -4789,24 +4794,22 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     e('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(92px,1fr))',gap:4,marginBottom:8}},
       TABS.map(({id,lbl,locked})=>e('button',{key:id,onClick:locked?()=>onUpgrade(lbl+' voicings'):()=>setVType(id),style:{...tabStyle(locked?'':id),opacity:locked?0.65:1}},lbl,(locked?e('span',{style:{fontSize:'0.65rem',marginLeft:3}},'🔒'):null)))
     ),
-    // Controls bar
-    e('div',{style:{background:BG2,border:'1px solid '+BORDER,
+    // Controls bar — only when there is something to operate; the voicing note
+    // renders under the neck instead (see vtypeNote).
+    DROP_TYPES.has(vType)?e('div',{style:{background:BG2,border:'1px solid '+BORDER,
       borderRadius:6,padding:'7px 12px',marginBottom:10,
       display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',minHeight:36}},
-      DROP_TYPES.has(vType)?[
-        e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
-        setsData.map((ss,i)=>{const ok=playableSets[i]!==false;return e('button',{key:i,disabled:!ok,
-          onClick:ok?()=>{setSsIdx(i);setInvIdx(0);}:undefined,
-          title:ok?undefined:'No playable shape for this chord on these strings',
-          style:{...mkSsBtn(safeSSIdx===i),opacity:ok?1:0.4,cursor:ok?'pointer':'not-allowed'}},ss.lbl);})
-      ]:null,
-      vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'3-note voicing: root, 3rd & 7th — the 5th is omitted (it\'s implied by the context)'):null,
-      vType==='arpeggio'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'All chord-tone positions on neck'):null
-    ),
+      e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
+      setsData.map((ss,i)=>{const ok=playableSets[i]!==false;return e('button',{key:i,disabled:!ok,
+        onClick:ok?()=>{setSsIdx(i);setInvIdx(0);}:undefined,
+        title:ok?undefined:'No playable shape for this chord on these strings',
+        style:{...mkSsBtn(safeSSIdx===i),opacity:ok?1:0.4,cursor:ok?'pointer':'not-allowed'}},ss.lbl);})
+    ):null,
     // Neck (with dot-mode toggle inside) — hidden when no shape exists, so the
     // notice below isn't sitting under an empty fretboard that looks broken.
     noDropShape?null:e('div',{style:{border:'1px solid '+BORDER,borderRadius:6,overflow:'hidden',marginBottom:10}},
       e(ScrollNeck,{arpPos,highlight,scalePos:customScalePos,degNames,dotMode,dotKeyIdx:customRoot}),
+      vtypeNote?e('div',{style:{borderTop:'1px solid '+BORDER,padding:'6px 10px',background:BG2}},vtypeNote):null,
       // Scale overlay + dot mode sit here, under the neck: both only change what
       // the fretboard draws, so they belong beside it rather than gating access
       // to it from above. Pro only, when scale hints exist for this chord type.
@@ -4947,7 +4950,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
   const [doneItems,setDoneItems]=useState(()=>{try{return JSON.parse(safeLS('jg-path-items','{}'));}catch(ex){return{};}});
   useEffect(()=>{safeLSSet('jg-path-items',JSON.stringify(doneItems));},[doneItems]);
   function toggleItem(stId,i){setDoneItems(s=>{const k=stId+':'+i;const wasUnchecked=!s[k];if(wasUnchecked)onPracticed?.();return {...s,[k]:wasUnchecked?true:undefined};});}
-  // "Start Here" intro: a one-time read for most users. Open by default only for
+  // "How this guide works" intro: a one-time read for most users. Open by default only for
   // brand-new users; collapsed for anyone with progress. Choice is remembered.
   const [introOpen,setIntroOpen]=useState(()=>{
     const sv=safeLS('jg-guide-intro',null);
@@ -5424,7 +5427,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
         style:{display:'flex',alignItems:'baseline',gap:8,cursor:'pointer'}},
         e('span',{style:{color:GOLD_TXT,fontSize:'0.8rem',flexShrink:0}},introOpen?'▾':'▸'),
         e('div',{style:{flex:1}},
-          e('div',{style:{...H,marginBottom:introOpen?8:0}},'Start Here'),
+          e('div',{style:{...H,marginBottom:introOpen?8:0}},'How this guide works'),
           !introOpen?e('div',{style:{fontSize:'0.74rem',lineHeight:1.5,color:HINT,fontFamily:UI_FONT}},
             'What this guide assumes · reading chord symbols · how to use this page'):null)),
       introOpen?e('div',null,
@@ -6095,6 +6098,18 @@ function App(){
   const hlTc=isRl?TC_RL:TC;
   // Same colours as type rather than as dots — see TCT.
   const hlTct=isRl?TCT_RL:TCT;
+  // What the current voicing type means. Reference text, so it renders inside
+  // the neck panel under the fretboard rather than above it.
+  const vtypeNote=
+    vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:quality==='m7b5'?A_AMBER:HINT,fontFamily:UI_FONT}},
+      quality==='m7b5'
+        ?'⚠ Shell (R-3-7) omits the ♭5 — the note that defines this chord. Dimmed neck dots show all ♭5 positions.'
+        :'Guide tones: R + 3rd + 7th  ·  Form A = skip-string  ·  Form B = adjacent strings')
+    :vType==='rootless'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'No root — plays cleanly over a bass player  ·  Type A = 3-5-7-9  ·  Type B = 7-9-3-5')
+    :vType==='drop24'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'Drop 2+4: wider open sound — voices 2 and 4 from top both dropped  ·  skips one string')
+    :vType==='drop23'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'Drop 2+3: spread voicing — voices 2 and 3 from top both dropped  ·  guide tones on top')
+    :vType==='arpeggio'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'All chord-tone positions · scale tones shown faintly')
+    :null;
 
   const highlight=useMemo(()=>{
     if(vType==='arpeggio') return null;
@@ -6338,32 +6353,24 @@ function App(){
             lbls[id],(locked?e('span',{style:{fontSize:'0.65rem',marginLeft:3}},'🔒'):null));
         })
       ),
-      // Controls bar
-      e('div',{style:{background:BG2,border:'1px solid '+BORDER,
+      // Controls bar — only when there is something to *operate*. The per-voicing
+      // explanation moved into the neck panel below: it describes what the
+      // fretboard is drawing, so it belongs under it rather than delaying it.
+      DROP_TYPES.has(vType)?e('div',{style:{background:BG2,border:'1px solid '+BORDER,
         borderRadius:6,padding:'7px 12px',marginBottom:10,
         display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',minHeight:36}},
-        DROP_TYPES.has(vType)?[
-          e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
-          setsData.map((ss,i)=>{const ok=playableSets[i]!==false;return e('button',{key:i,disabled:!ok,
-            onClick:ok?()=>{setSsIdx(i);setInvIdx(0);}:undefined,
-            title:ok?undefined:'No playable shape for this chord on these strings',
-            style:{...mkSsBtn(safeSSIdx===i),opacity:ok?1:0.4,cursor:ok?'pointer':'not-allowed'}},ss.lbl);}),
-          voiceOrder?e('span',{key:'vo',style:{marginLeft:'auto',fontSize:'0.7rem',color:LBL}},'voices: '+voiceOrder):null
-        ]:null,
-        vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:quality==='m7b5'?A_AMBER:HINT,fontFamily:UI_FONT}},
-          quality==='m7b5'
-            ?'⚠ Shell (R-3-7) omits the ♭5 — the note that defines this chord. Dimmed neck dots show all ♭5 positions.'
-            :'Guide tones: R + 3rd + 7th  ·  Form A = skip-string  ·  Form B = adjacent strings'
-        ):null,
-        vType==='rootless'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'No root — plays cleanly over a bass player  ·  Type A = 3-5-7-9  ·  Type B = 7-9-3-5'):null,
-        vType==='drop24'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'Drop 2+4: wider open sound — voices 2 and 4 from top both dropped  ·  skips one string'):null,
-        vType==='drop23'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'Drop 2+3: spread voicing — voices 2 and 3 from top both dropped  ·  guide tones on top'):null,
-        vType==='arpeggio'?e('span',{style:{fontSize:'0.72rem',color:HINT}},'All chord-tone positions · scale tones shown faintly'):null
-      ),
-      // Neck (with dot-mode toggle inside) — hidden when no shape exists so the
-      // notice isn't sitting under an empty fretboard that looks broken.
+        e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
+        setsData.map((ss,i)=>{const ok=playableSets[i]!==false;return e('button',{key:i,disabled:!ok,
+          onClick:ok?()=>{setSsIdx(i);setInvIdx(0);}:undefined,
+          title:ok?undefined:'No playable shape for this chord on these strings',
+          style:{...mkSsBtn(safeSSIdx===i),opacity:ok?1:0.4,cursor:ok?'pointer':'not-allowed'}},ss.lbl);}),
+        voiceOrder?e('span',{key:'vo',style:{marginLeft:'auto',fontSize:'0.7rem',color:LBL}},'voices: '+voiceOrder):null
+      ):null,
+      // Neck (with the voicing note + dot-mode toggle inside) — hidden when no
+      // shape exists so the notice isn't sitting under an empty fretboard.
       noDropShape?null:e('div',{style:{border:'1px solid '+BORDER,borderRadius:6,overflow:'hidden',marginBottom:10}},
         e(ScrollNeck,{arpPos,highlight,scalePos,degNames,hlTc,dotMode,dotKeyIdx:key,dataTour:'neck-area'}),
+        vtypeNote?e('div',{style:{borderTop:'1px solid '+BORDER,padding:'6px 10px',background:BG2}},vtypeNote):null,
         e('div',{style:{borderTop:'1px solid '+BORDER,padding:'4px 10px',background:BG2}},
           e(DotModeToggle,{dotMode,setDotMode})
         )
