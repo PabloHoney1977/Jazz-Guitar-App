@@ -901,10 +901,10 @@ function AudioDiagSheet({onClose}){
 function DotModeToggle({dotMode,setDotMode}){
   const opts=[{id:'interval',lbl:'Interval'},{id:'note',lbl:'Note'}];
   return e('div',{style:{display:'flex',alignItems:'center',gap:6}},
-    e('span',{style:{fontSize:'0.65rem',color:'var(--lbl)',letterSpacing:'0.5px',flexShrink:0}},'Dots'),
+    e('span',{style:{fontSize:'0.7rem',color:'var(--lbl)',letterSpacing:'0.5px',flexShrink:0}},'Dots'),
     e('div',{style:{display:'flex',border:'1px solid var(--btn-brd)',borderRadius:14,overflow:'hidden'}},
       opts.map(({id,lbl})=>e('button',{key:id,onClick:()=>setDotMode(id),style:{
-        padding:'2px 10px',fontFamily:UI_FONT,fontSize:'0.65rem',border:'none',cursor:'pointer',
+        padding:'2px 10px',fontFamily:UI_FONT,fontSize:'0.7rem',border:'none',cursor:'pointer',
         background:dotMode===id?'var(--bg)':'transparent',
         color:dotMode===id?'var(--txt)':'var(--btn-off)',fontWeight:dotMode===id?700:400,minHeight:36
       }},lbl))
@@ -1345,11 +1345,11 @@ function BpmKnob({bpm,setBpm,onTap}){
     e('div',{style:{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:3}},
       e('div',{style:{display:'flex',alignItems:'baseline',gap:4}},
         e('span',{style:{fontSize:'1.15rem',fontWeight:700,color:GOLD_TXT,fontFamily:UI_FONT,lineHeight:1}},bpm),
-        e('span',{style:{fontSize:'0.6rem',color:'var(--lbl)',letterSpacing:'1px',lineHeight:1}},'BPM')
+        e('span',{style:{fontSize:'0.7rem',color:'var(--lbl)',letterSpacing:'1px',lineHeight:1}},'BPM')
       ),
       e('button',{onClick:onTap,style:{fontSize:'0.68rem',color:'var(--btn-off)',background:'transparent',
         border:'1px solid var(--btn-brd)',borderRadius:4,padding:'3px 10px',cursor:'pointer',
-        fontFamily:UI_FONT,minHeight:0}},'TAP')
+        fontFamily:UI_FONT,minHeight:44}},'TAP')
     )
   );
 }
@@ -1971,12 +1971,12 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
         e('button',{onClick:()=>setHarmonic(false),style:{
           padding:'4px 12px',borderRadius:6,cursor:'pointer',fontSize:'0.72rem',fontWeight:!harmonic?700:400,
           border:'1px solid '+(!harmonic?GOLD:BTN_BRD),background:!harmonic?ACT_YEL:'transparent',
-          color:!harmonic?GOLD_TXT:BTN_OFF,minHeight:30
+          color:!harmonic?GOLD_TXT:BTN_OFF,minHeight:44
         }},'Ascending ↑'),
         e('button',{onClick:()=>setHarmonic(true),style:{
           padding:'4px 12px',borderRadius:6,cursor:'pointer',fontSize:'0.72rem',fontWeight:harmonic?700:400,
           border:'1px solid '+(harmonic?GOLD:BTN_BRD),background:harmonic?ACT_YEL:'transparent',
-          color:harmonic?GOLD_TXT:BTN_OFF,minHeight:30
+          color:harmonic?GOLD_TXT:BTN_OFF,minHeight:44
         }},'♪♪ Harmonic')
       ):mode==='intervals'?e('div',{style:{marginBottom:10}}):null,
       mode==='intervals'?e('div',{style:{marginBottom:14}},
@@ -1986,7 +1986,7 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
             return e('button',{key:tn,onClick:locked?()=>onUpgrade('All 12 intervals'):()=>setIvalTier(tn),style:{
               padding:'4px 10px',borderRadius:6,cursor:'pointer',fontSize:'0.7rem',fontWeight:active?700:400,
               border:'1px solid '+(active?GOLD:BTN_BRD),background:active?ACT_YEL:'transparent',
-              color:active?GOLD_TXT:BTN_OFF,minHeight:30,opacity:locked?0.6:1}},
+              color:active?GOLD_TXT:BTN_OFF,minHeight:44,opacity:locked?0.6:1}},
               'Lv'+tn+' · '+t.lbl,(locked?e('span',{style:{fontSize:'0.58rem',marginLeft:2}},'🔒'):null));
           })
         )
@@ -2874,7 +2874,7 @@ function LedToggle({label,enabled,onToggle,color,textColor,compact}){
       transition:'background 0.15s,box-shadow 0.15s'
     }}),
     e('span',{style:{
-      fontSize:compact?'0.55rem':'0.62rem',letterSpacing:'0.8px',fontWeight:enabled?700:400,
+      fontSize:compact?'0.62rem':'0.7rem',letterSpacing:'0.8px',fontWeight:enabled?700:400,
       color:enabled?textColor:BTN_OFF,transition:'color 0.15s'
     }},label)
   );
@@ -3816,6 +3816,25 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
     setInvIdxs(runVL(av,av.map(()=>0),pinnedChords));
   },[vType,strSetIdx]);
 
+  // Is the exact current setup already in Favorites? Drives the save button's
+  // label, so a second tap reads as "already saved" instead of doing nothing.
+  const faveSaved=savedFaves.some(f=>f.form===form&&f.bpm===bpm&&f.vType===vType&&
+    (form!=='custom'||JSON.stringify(f.prog)===JSON.stringify(customProg)));
+  // A labelled row of form buttons on one horizontally-scrolling line, with a
+  // fade on the right edge hinting there is more past the cut. Keeps a long
+  // form list to ~46px instead of wrapping into several ragged rows.
+  const formShelf=(label,forms)=>e('div',{style:{display:'flex',gap:6,alignItems:'center',marginBottom:5}},
+    e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},label),
+    e('div',{style:{position:'relative',flex:1,minWidth:0}},
+      e('div',{style:{display:'flex',gap:6,overflowX:'auto',paddingBottom:2,
+        scrollbarWidth:'none',msOverflowStyle:'none'}},
+        forms.map(f=>e('button',{key:f,onClick:()=>setForm(f),
+          style:{...modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg),flexShrink:0}},FORM_DEFS[f].lbl))
+      ),
+      e('div',{style:{position:'absolute',top:0,right:0,width:40,height:'100%',
+        background:'linear-gradient(to right, transparent, var(--bg))',pointerEvents:'none'}})
+    )
+  );
   const modeBtn=(act,col,actBg)=>({padding:'6px 13px',borderRadius:5,cursor:'pointer',
     fontFamily:UI_FONT,fontSize:'0.78rem',border:'1px solid '+(act?col:BTN_BRD),
     background:act?actBg:'transparent',color:act?accTxt(col):BTN_OFF,fontWeight:act?700:400,minHeight:44});
@@ -3890,38 +3909,36 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
           )
         )
       :e('div',{'data-tour':'play-form-row',style:{marginBottom:10}},
-          e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',marginBottom:5}},
-            e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Progressions'),
-            ['major','minor','turn','blues','minblues','tritone','secdom','custom'].map(f=>
-              e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
-            )
-          ),
-          e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}},
-            e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Standards'),
-            ['bluebossa','autumn','attya','stella','twnbay'].map(f=>
-              e('button',{key:f,onClick:()=>setForm(f),style:modeBtn(form===f,FORM_DEFS[f].col,FORM_DEFS[f].bg)},FORM_DEFS[f].lbl)
-            ),
+          // Two horizontal shelves rather than free-wrapping rows. Wrapping put
+          // 13 variable-width buttons into five ragged rows — 292px of chooser
+          // that pushed the lead sheet and fretboard off a 390x844 screen. This
+          // is the same shelf the Essentials branch above already uses.
+          formShelf('Progressions',['major','minor','turn','blues','minblues','tritone','secdom','custom']),
+          formShelf('Standards',['bluebossa','autumn','attya','stella','twnbay']),
+          // Favorites: one labelled row. The save control used to be a bare ★
+          // pushed to the far right by marginLeft:auto, so it orphaned onto its
+          // own line with no label and only a tooltip — invisible on touch.
+          e('div',{style:{display:'flex',gap:5,flexWrap:'wrap',alignItems:'center',marginTop:6}},
+            e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Favorites'),
             e('button',{
               'data-tour':'play-faves',
-              title:'Save current progression as a favorite',
+              title:faveSaved?'This progression, tempo and voicing is already saved'
+                             :'Save current progression, tempo and voicing',
               onClick:()=>{
+                if(faveSaved) return;   // button reads "Saved ✓" in this state
                 const lbl=(FORM_DEFS[form]?.lbl||form)+' · '+bpm+'bpm · '+vType;
                 const prog=form==='custom'?customProg:undefined;
                 const bvts=barVTypes.some(Boolean)?[...barVTypes]:undefined;
-                if(savedFaves.some(f=>f.form===form&&f.bpm===bpm&&f.vType===vType&&
-                  (form!=='custom'||JSON.stringify(f.prog)===JSON.stringify(prog)))) return;
                 const extra={};if(prog)extra.prog=prog;if(bvts)extra.barVTypes=bvts;
                 setSavedFaves(fs=>[...fs,{form,bpm,vType,lbl,...extra}]);
               },
-              style:{padding:'4px 10px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,
-                fontSize:'0.75rem',border:'1px solid '+BTN_BRD,background:'transparent',
-                color:savedFaves.some(f=>f.form===form&&f.bpm===bpm&&f.vType===vType)?GOLD_TXT:BTN_OFF,
-                minHeight:44,flexShrink:0,marginLeft:'auto',
+              style:{padding:'4px 12px',borderRadius:5,cursor:faveSaved?'default':'pointer',
+                fontFamily:UI_FONT,fontSize:'0.72rem',fontWeight:600,
+                border:'1px solid '+(faveSaved?GOLD+'55':BTN_BRD),
+                background:faveSaved?ACT_GOLD:'transparent',
+                color:faveSaved?GOLD_TXT:BTN_OFF,minHeight:40,flexShrink:0,
               }
-            },'★')
-          ),
-          savedFaves.length>0?e('div',{style:{display:'flex',gap:5,flexWrap:'wrap',alignItems:'center',marginTop:5}},
-            e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Saved'),
+            },faveSaved?'★ Saved':'★ Save this'),
             savedFaves.map((fav,i)=>
               e('div',{key:i,style:{display:'flex',alignItems:'center',gap:0,
                 border:'1px solid '+GOLD+'55',borderRadius:5,overflow:'hidden'}},
@@ -3944,7 +3961,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
                 },'×')
               )
             )
-          ):null
+          )
         )
     ):null,
     // Play-along controls
@@ -3971,9 +3988,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
           e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:A_BLUE,textColor:'var(--led-bass-fg)',compact:isPlaying}),
           e('button',{onClick:()=>{setShowEq(v=>!v);setShowGuitarEq(false);setShowRideEq(false);},'aria-label':'Bass Mix',title:'Bass EQ & Volume',style:{
-            width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
+            width:'100%',padding:isPlaying?'2px 0':'8px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:isPlaying?0:44,
             background:showEq?'#74C0FC22':'transparent',color:showEq||eqGains.some(v=>v!==0)||bassVolume!==80?'var(--led-bass-fg)':BTN_OFF,
-            fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
+            fontSize:isPlaying?'0.55rem':'0.7rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
           }},isPlaying?(showEq?'▴':'▾'):(showEq?'MIX ▴':'MIX ▾'))
         ),
         // COMP + Mix
@@ -3981,9 +3998,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
           e(LedToggle,{label:'GUITAR',enabled:guitarEnabled,onToggle:()=>setGuitarEnabled(v=>!v),color:A_GREEN,textColor:'var(--led-guitar-fg)',compact:isPlaying}),
           e('button',{onClick:()=>{setShowGuitarEq(v=>!v);setShowEq(false);setShowRideEq(false);},'aria-label':'Comp Mix',title:'Comp EQ & Volume',style:{
-            width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
+            width:'100%',padding:isPlaying?'2px 0':'8px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:isPlaying?0:44,
             background:showGuitarEq?'#86EFAC22':'transparent',color:showGuitarEq||guitarEqGains.some(v=>v!==0)||guitarVolume!==80?'var(--led-guitar-fg)':BTN_OFF,
-            fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
+            fontSize:isPlaying?'0.55rem':'0.7rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
           }},isPlaying?(showGuitarEq?'▴':'▾'):(showGuitarEq?'MIX ▴':'MIX ▾'))
         ),
         // RIDE + Mix
@@ -3991,9 +4008,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
           e(LedToggle,{label:'RIDE',enabled:rideEnabled,onToggle:()=>setRideEnabled(v=>!v),color:A_AMBER,textColor:'var(--led-ride-fg)',compact:isPlaying}),
           e('button',{onClick:()=>{setShowRideEq(v=>!v);setShowEq(false);setShowGuitarEq(false);},'aria-label':'Ride Mix',title:'Ride EQ & Volume',style:{
-            width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
+            width:'100%',padding:isPlaying?'2px 0':'8px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:isPlaying?0:44,
             background:showRideEq?'#FFD43B22':'transparent',color:showRideEq||rideEqGains.some(v=>v!==0)||rideVolume!==80?'var(--led-ride-fg)':BTN_OFF,
-            fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
+            fontSize:isPlaying?'0.55rem':'0.7rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
           }},isPlaying?(showRideEq?'▴':'▾'):(showRideEq?'MIX ▴':'MIX ▾'))
         ),
         // Separator before click-only control
@@ -4015,7 +4032,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
               e('line',{x1:12,y1:13,x2:17,y2:8,stroke:metronomeEnabled?'#FFD43B':'#FFD43B66',strokeWidth:2,strokeLinecap:'round'}),
               e('circle',{cx:12,cy:22,r:1.5,fill:metronomeEnabled?'#aaaacc':BTN_OFF})
             ),
-            e('span',{style:{fontSize:'0.55rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
+            e('span',{style:{fontSize:'0.7rem',letterSpacing:'1px',fontFamily:UI_FONT,fontWeight:700,
               color:metronomeEnabled?'#aaaacc':BTN_OFF}},'CLICK')
           )
         )
@@ -4383,8 +4400,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
                 )
               :e('div',{style:{width:'100%',marginBottom:6}},
                   e('button',{onClick:()=>setShowBarOverride(true),style:{
-                    padding:'2px 0',background:'none',border:'none',cursor:'pointer',
-                    fontFamily:UI_FONT,fontSize:'0.68rem',color:HINT,minHeight:0,
+                    padding:'6px 0',background:'none',border:'none',cursor:'pointer',
+                    fontFamily:UI_FONT,fontSize:'0.72rem',color:HINT,minHeight:44,
                     textDecoration:'underline',textUnderlineOffset:2}},
                     'Customize this bar ('+ac.name+') →')
                 ),
@@ -4714,7 +4731,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       title:'Open this chord in a key — keeps your voicing (string set & inversion). The key map covers the seven 7th chords, so any extension shows as its base 7th.',
       style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
         fontSize:'0.7rem',border:'1px solid '+BTN_BRD,background:'transparent',
-        color:BTN_OFF,minHeight:0,flexShrink:0,whiteSpace:'nowrap'}
+        color:BTN_OFF,minHeight:44,flexShrink:0,whiteSpace:'nowrap'}
     },'In a key ↗'):null
   );
 
@@ -5052,7 +5069,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
         playQuality?e('button',{onClick:ev=>{ev.stopPropagation();playGuideChord(playQuality);},style:{
           display:'inline-flex',alignItems:'center',gap:3,padding:'2px 8px',borderRadius:10,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,background:BG2,
-          color:HINT,minHeight:0,flexShrink:0}},'▶ hear'):null,
+          color:HINT,minHeight:44,flexShrink:0}},'▶ hear'):null,
         !open&&e('span',{style:{fontSize:'0.79rem',color:HINT,fontFamily:UI_FONT}},' — '+short)
       ),
       open&&e('div',{style:{marginTop:6,paddingLeft:16}},
@@ -5312,7 +5329,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
         st.body.length>1?e('div',{style:{marginTop:6}},
           e('button',{onClick:ev=>{ev.stopPropagation();tog('st_'+st.id);},style:{
             background:'transparent',border:'none',cursor:'pointer',fontFamily:UI_FONT,
-            fontSize:'0.74rem',color:HINT,padding:'4px 0',display:'flex',alignItems:'center',gap:5,minHeight:0}},
+            fontSize:'0.74rem',color:HINT,padding:'4px 0',display:'flex',alignItems:'center',gap:5,minHeight:44}},
             e('span',{style:{color:GOLD_TXT,fontSize:'0.8rem'}},theoryOpen?'▾':'▸'),' Why it works'),
           theoryOpen?e('div',{style:{marginTop:4,paddingLeft:10,borderLeft:'2px solid '+BORDER}},
             ...st.body.slice(1).map((t,i)=>t&&typeof t==='object'&&t.$$typeof
@@ -6134,9 +6151,9 @@ function App(){
         style:{fontFamily:SERIF,fontSize:'1.4rem',fontWeight:700,color:'var(--scale-name)',
           userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',cursor:'default'}},'Jazz Guitar Lab'),
       e('button',{onClick:toggleTheme,'aria-label':'Toggle theme',style:{
-        padding:'4px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
+        padding:'4px 10px',borderRadius:14,cursor:'pointer',fontFamily:UI_FONT,
         fontSize:'0.9rem',border:'1px solid var(--btn-brd)',background:'var(--bg2)',
-        color:'var(--lbl)',minHeight:0,flexShrink:0}},
+        color:'var(--lbl)',minHeight:44,minWidth:44,flexShrink:0}},
         theme==='dark'?'☀':'☾'),
       e('div',{style:{flex:1}}),
       // Tier chip. Three cases, one consistent slot:
@@ -6273,7 +6290,7 @@ function App(){
             e('div',{style:{fontSize:act?'0.9rem':'0.82rem',fontWeight:act?700:500,fontFamily:SERIF,
               color:act?qtxt:BTN_OFF,lineHeight:1.1,textAlign:'center',transition:'font-size 0.1s'}},nn(rPC,key)),
             e('div',{onClick:(ev)=>{ev.stopPropagation();const gk={'maj7':'maj7','m7':'m7','dom7':'dom7','m7b5':'halfdim'}[qt];if(gk)setPopTerm(t=>t===gk?null:gk);},
-              style:{fontSize:'0.58rem',fontFamily:UI_FONT,color:act?qtxt:HINT,lineHeight:1,letterSpacing:'0.2px',
+              style:{fontSize:'0.7rem',fontFamily:UI_FONT,color:act?qtxt:HINT,lineHeight:1,letterSpacing:'0.2px',
                 cursor:'pointer',borderBottom:'1px dotted '+(act?qcol+'88':'var(--gold)44')}},QSYMS[i])
           );
         })
@@ -6307,7 +6324,7 @@ function App(){
           title:'Open this chord in the Chord Explorer — keeps your voicing (string set & inversion); add extensions, change voicing type, or look up another key.',
           style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
             fontSize:'0.7rem',border:'1px solid '+BTN_BRD,background:'transparent',
-            color:BTN_OFF,minHeight:0,flexShrink:0,whiteSpace:'nowrap'}
+            color:BTN_OFF,minHeight:44,flexShrink:0,whiteSpace:'nowrap'}
         },'Explore ↗')
       ),
       // Voicing tabs — Essentials shows the starting trio, Full shows everything
@@ -6519,7 +6536,7 @@ function App(){
           id==='diatonic'?e(CircleOfFifthsIcon,null):
           id==='custom'?e(ChordDiagramIcon,null):
           e('span',{style:{fontSize:'1.1rem',lineHeight:1.2}},icon),
-          e('span',{style:{fontSize:'0.64rem',letterSpacing:'0.5px',fontWeight:act?700:400}},tabLbl)
+          e('span',{style:{fontSize:'0.7rem',letterSpacing:'0.5px',fontWeight:act?700:400}},tabLbl)
         );
       })
     ),
