@@ -506,20 +506,69 @@ async function makeRideBufAsync(sr,vol,accent){
   s4.connect(f4);f4.connect(g4);g4.connect(offCtx.destination);s4.start(0);
   return offCtx.startRendering();
 }
-function playRide(ctx,buf,startTime,eqGains,vol){
+function playRide(ctx,buf,startTime,eqGains,vol,dest){
   if(!buf) return;
   const src=ctx.createBufferSource();
   src.buffer=buf;
   const g=ctx.createGain();g.gain.value=0.42*(vol||1);
   src.connect(g);
+  const out=dest||ctx.destination;
   if(eqGains&&eqGains.some(v=>v!==0)){
     const eq=EQ_FREQS.map((fr,i)=>{const f=ctx.createBiquadFilter();f.type=EQ_TYPES[i];f.frequency.value=fr;f.Q.value=1.2;f.gain.value=eqGains[i]||0;return f;});
-    g.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(ctx.destination);
+    g.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(out);
   } else {
-    g.connect(ctx.destination);
+    g.connect(out);
   }
   src.start(startTime);
   src.stop(startTime+buf.duration+0.1); // release the node when done
+}
+
+// ── Real drum samples ────────────────────────────────────────────────
+// FluidR3 GM percussion (Frank Wen, MIT — see samples/drums/LICENSE.md),
+// extracted from the MIT-licensed webaudiofontdata wavetables. Replaces the
+// synthetic filtered-noise ride, which could never pass as a cymbal: a real
+// cymbal is a dense field of inharmonic partials, not shaped noise. Two
+// distinct rides + a bell give round-robin variation so no two hits are the
+// same waveform — repetition of one buffer is the strongest "machine" cue.
+const DRUM_SAMPLES='./samples/drums/';
+const DRUM_FILES={ride1:'ride1.mp3',ride2:'ride2.mp3',ridebell:'ridebell.mp3',
+  hatPedal:'hihat-pedal.mp3',hatClosed:'hihat-closed.mp3',
+  stick:'sidestick.mp3',kick:'kick.mp3'};
+
+// Procedurally generated room impulse response — no asset, no download.
+// Sparse early reflections carry the size cue; the decaying noise tail is the
+// diffuse field. Decorrelating the two channels is what makes it sound like a
+// space rather than a effect bolted onto a mono signal.
+function makeRoomIR(ctx,seconds,decay){
+  const sr=ctx.sampleRate,len=Math.max(1,Math.round(sr*seconds));
+  const ir=ctx.createBuffer(2,len,sr);
+  const taps=[0.0091,0.0137,0.0193,0.0271,0.0353,0.0441,0.0563,0.0687];
+  for(let ch=0;ch<2;ch++){
+    const d=ir.getChannelData(ch);
+    for(let i=0;i<len;i++){
+      const t=i/sr;
+      d[i]=(Math.random()*2-1)*Math.pow(Math.max(0,1-t/seconds),decay)*0.3;
+    }
+    taps.forEach((tp,k)=>{
+      // Offset one channel slightly so the reflections aren't phase-identical.
+      const idx=Math.round((tp+(ch?0.0013:0))*sr);
+      if(idx<len) d[idx]+=(k%2?-1:1)*0.5*Math.pow(0.72,k);
+    });
+  }
+  return ir;
+}
+
+// ── Humanization ─────────────────────────────────────────────────────
+// Everything used to land exactly on the grid at a fixed 2:1 swing. Perfect
+// quantization is the single most machine-like trait a backing track can have.
+function jitterSec(ms){return (Math.random()*2-1)*ms/1000;}
+function jitterVol(v,amt){return v*(1+(Math.random()*2-1)*amt);}
+// Swing ratio narrows as tempo climbs — ballads sit near a hard triplet, fast
+// bop flattens toward straight 8ths. This is how real rhythm sections phrase.
+function swingFrac(bpm){
+  if(bpm<=80) return 0.68;
+  if(bpm>=200) return 0.56;
+  return 0.68-(bpm-80)*(0.12/120);
 }
 
 // KS synthesis — kept as fast fallback while guitar samples load
@@ -710,7 +759,8 @@ async function runAudioSelfTest(log){
   L('preview path: fetched '+rep.preview.fetched+'/12, decoded '+rep.preview.decoded+'/12'+(rep.preview.decoding?' (decoding…)':''));
   const tests=[];
   Object.values(GUITAR_NOTES).forEach(f=>tests.push({lbl:'guitar/'+f,url:GUITAR_SAMPLES+f}));
-  ['Cs2.mp3','E2.mp3','G2.mp3','As2.mp3'].forEach(f=>tests.push({lbl:'bass/'+f,url:'./samples/bass-electric/'+f}));
+  ['G1.mp3','As1.mp3','Cs2.mp3','E2.mp3','G2.mp3','As2.mp3'].forEach(f=>tests.push({lbl:'bass/'+f,url:'./samples/bass-electric/'+f}));
+  Object.values(DRUM_FILES).forEach(f=>tests.push({lbl:'drums/'+f,url:DRUM_SAMPLES+f}));
   for(const t of tests){
     const row={file:t.lbl};
     try{
@@ -738,8 +788,8 @@ async function runAudioSelfTest(log){
   const served=rep.files.filter(f=>f.bytes>0).length;       // body present, regardless of status
   const status0=rep.files.some(f=>f.bytes>0&&!f.ok);         // iOS capacitor:// quirk present?
   rep.summary={total:rep.files.length,served,decoded:dec,status0quirk:status0};
-  // Note: 2 of the 16 (guitar E3/E4, midi 52/64) are intentionally absent
-  // upstream, so a perfect result is 14 served / 14 decoded.
+  // Note: 2 of the 25 (guitar E3/E4, midi 52/64) are intentionally absent
+  // upstream, so a perfect result is 23 served / 23 decoded.
   const q=status0?' (served via the iOS status-0 quirk — body present despite ok:false; the loader fix now accepts these)':'';
   if(served===0) rep.verdict='NOT SERVED — no sample body reachable in the bundle. Files missing or path unresolved.';
   else if(dec===0) rep.verdict='Served '+served+' files'+q+' but DECODE FAILS — the device rejects this audio format.';
@@ -1174,6 +1224,13 @@ function AboutSheet({onClose,level,onRestore}){
           background:'transparent',border:'1px solid '+GOLD+'66',
           color:restored===null?GOLD:HINT,minHeight:44,marginBottom:10}},
         restored===null?'Restore Purchase':restored?'Purchase restored ✓':'No purchase found'):null,
+      e('div',{style:{borderTop:'1px solid '+BORDER,marginTop:14,paddingTop:14,
+        fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,lineHeight:1.6}},
+        e('div',{style:{color:LBL,fontWeight:700,marginBottom:4}},'Audio credits'),
+        'Drum samples from the ',e('b',null,'FluidR3 GM'),' SoundFont, © 2000–2002, 2008 Frank Wen, ',
+        'used under the MIT license; packaged as Web Audio wavetables by webaudiofontdata, ',
+        '© 2017 Srgy Surkv (MIT). Guitar and bass samples from tonejs-instruments. ',
+        'Full license texts ship with the app in samples/drums/LICENSE.md.'),
       e('div',{style:{borderTop:'1px solid '+BORDER,marginTop:14,paddingTop:14,
         fontSize:'0.75rem',color:HINT,fontFamily:UI_FONT,lineHeight:1.6}},
         '🦶 Bluetooth pedal: works in all tabs. Forward = next chord / next question. Back = previous chord / replay sound. ',
@@ -2897,6 +2954,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
   const rideVolRef=useRef(80); rideVolRef.current=rideVolume;
   const guitarRawRef=useRef(null);
   const guitarSamplesRef=useRef(null);
+  const drumRawRef=useRef(null);     // pre-fetched drum ArrayBuffers
+  const drumBufsRef=useRef(null);    // decoded drum AudioBuffers for current ctx
+  const rideAltRef=useRef(0);        // round-robin cursor across ride1/ride2
+  const busRef=useRef(null);         // {bass,guitar,drums} panned + reverb-sent buses
+  const lastBassMidiRef=useRef(40);  // previous sounding bass note, for voice leading
   const compMidiRef=useRef([]);
   const barPatternRef=useRef({});
   const scaleByQualityRef=useRef({});
@@ -2934,8 +2996,12 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
   useEffect(()=>{
     let live=true;
     const BASE='./samples/bass-electric/';  // bundled locally (offline-safe)
-    // Samples every minor-3rd cover the whole octave with ≤1 semitone shift.
-    const FILES={37:'Cs2.mp3',40:'E2.mp3',43:'G2.mp3',46:'As2.mp3'};
+    // Anchors every minor-3rd from G1 up, so the walking range (E1–C3) is
+    // covered with ≤1.5 semitones of shift. G1/As1 were added when the bass
+    // stopped being pinned to a single octave — without them the low end
+    // would have been stretched down 4+ semitones and gone flabby.
+    const FILES={31:'G1.mp3',34:'As1.mp3',37:'Cs2.mp3',40:'E2.mp3',
+      43:'G2.mp3',46:'As2.mp3'};
     Promise.all(Object.entries(FILES).map(async([midi,file])=>{
       try{
         const r=await fetch(BASE+file);
@@ -2958,8 +3024,15 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
   useEffect(()=>{
     let live=true;
     const BASE='./samples/guitar-electric/';  // bundled locally (offline-safe)
-    // Three anchors spread across guitar range: F#2 (42), F#3 (54), F#4 (66)
-    const FILES={42:'Fs2.mp3',54:'Fs3.mp3',66:'Fs4.mp3'};
+    // Every bundled anchor, not just three. This used to load only F#2/F#3/F#4,
+    // which meant comping notes were resampled by up to ±6 semitones — at +6 the
+    // buffer plays 1.41x fast, so the pick attack is 41% shorter and the formants
+    // shift. That was the "plinky/synthetic" character on this tab, and it was
+    // why tapping a chord elsewhere in the app sounded better than the backing
+    // track: the preview path already used the full map. Max shift is now ≤3.
+    // E3 (52) and E4 (64) don't exist upstream — the ≤3 gap absorbs them.
+    const FILES={40:'E2.mp3',42:'Fs2.mp3',45:'A2.mp3',48:'C3.mp3',
+      54:'Fs3.mp3',57:'A3.mp3',60:'C4.mp3',66:'Fs4.mp3',69:'A4.mp3',72:'C5.mp3'};
     Promise.all(Object.entries(FILES).map(async([midi,file])=>{
       try{
         const r=await fetch(BASE+file);
@@ -2978,7 +3051,29 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
     return ()=>{live=false;};
   },[]);
 
-  // Pre-render high-quality ride buffers asynchronously (before user hits play)
+  // Pre-fetch real drum samples (ride x2 + bell, hats, stick, kick) on mount.
+  useEffect(()=>{
+    let live=true;
+    Promise.all(Object.entries(DRUM_FILES).map(async([name,file])=>{
+      try{
+        const r=await fetch(DRUM_SAMPLES+file);
+        // Accept iOS Capacitor status-0 local responses (see _loadGuitar note).
+        if(!live||(!r.ok&&r.status!==0)) return null;
+        const data=await r.arrayBuffer();
+        if(!data||!data.byteLength) return null;
+        return{name,data};
+      }catch(e){return null;}
+    })).then(res=>{
+      if(!live) return;
+      const raw={};
+      res.forEach(r=>{if(r)raw[r.name]=r.data;});
+      if(Object.keys(raw).length>0) drumRawRef.current=raw;
+    });
+    return ()=>{live=false;};
+  },[]);
+
+  // Pre-render synthetic ride buffers asynchronously. These are now only a
+  // fallback for when the real drum samples fail to load — see playRideHit.
   useEffect(()=>{
     // Probe actual device sample rate via a throwaway context so the buffer matches
     const tmp=new (window.AudioContext||window.webkitAudioContext)();
@@ -3143,6 +3238,67 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
     });
   }
 
+  function decodeDrumRaw(ctx){
+    drumBufsRef.current=null;
+    const raw=drumRawRef.current;
+    if(!raw||Object.keys(raw).length===0) return;
+    Promise.all(Object.entries(raw).map(async([name,arr])=>{
+      try{return{name,buf:await ctx.decodeAudioData(arr.slice(0))};}
+      catch(e){return null;}
+    })).then(res=>{
+      if(ctx!==audioCtxRef.current) return; // playback restarted with a new context
+      const map={};
+      res.forEach(r=>{if(r)map[r.name]=r.buf;});
+      drumBufsRef.current=map;
+    });
+  }
+
+  // One drum hit. detuneCents/vol are jittered per call by the caller so that
+  // repeated hits on the same buffer never sound like a copy-paste loop.
+  function playDrum(ctx,name,startTime,vol,detuneCents,eqGains){
+    const bufs=drumBufsRef.current;
+    if(!bufs||!bufs[name]) return false;
+    const src=ctx.createBufferSource();
+    src.buffer=bufs[name];
+    if(detuneCents) src.detune.value=detuneCents;
+    const g=ctx.createGain();
+    g.gain.value=Math.max(0,vol);
+    src.connect(g);
+    let tail=g;
+    if(eqGains&&eqGains.some(v=>v!==0)){
+      const eq=EQ_FREQS.map((fr,i)=>{const f=ctx.createBiquadFilter();f.type=EQ_TYPES[i];f.frequency.value=fr;f.Q.value=1.2;f.gain.value=eqGains[i]||0;return f;});
+      g.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});
+      tail=eq[4];
+      src.onended=()=>{try{src.disconnect();g.disconnect();eq.forEach(f=>f.disconnect());}catch(_){}};
+    } else {
+      src.onended=()=>{try{src.disconnect();g.disconnect();}catch(_){}};
+    }
+    tail.connect((busRef.current&&busRef.current.drums)||compRef.current||ctx.destination);
+    src.start(startTime);
+    src.stop(startTime+src.buffer.duration+0.05);
+    return true;
+  }
+
+  // A ride hit, with round-robin between two different cymbals plus pitch and
+  // level jitter. Falls back to the synthetic buffers if samples didn't load.
+  function playRideHit(ctx,accent,startTime,eqGains,vol){
+    const alt=(rideAltRef.current++)%2;
+    // Beat-1 accents occasionally land on the bell, the way a drummer marks the
+    // top of a form. Kept rare so it reads as punctuation, not a pattern.
+    const name=(accent&&Math.random()<0.18)?'ridebell':(alt?'ride2':'ride1');
+    // Deliberately conservative: the synthetic ride was shaped noise well under
+    // full scale, while these samples peak near 1.0. The RIDE mix slider is
+    // there for anyone who wants the cymbal further forward.
+    const base=(accent?0.40:0.22)*(vol||1);
+    const ok=playDrum(ctx,name,startTime,jitterVol(base,0.16),
+      (Math.random()*2-1)*45,eqGains);
+    if(!ok){
+      const cb=clickBufsRef.current;
+      playRide(ctx,accent?(cb&&cb.rideAccent):(cb&&cb.rideNorm),startTime,eqGains,vol,
+        (busRef.current&&busRef.current.drums)||compRef.current||null);
+    }
+  }
+
   function playGuitarNote(ctx,midiNote,startTime,sustainSecs,vol){
     const samples=guitarSamplesRef.current;
     if(!samples||Object.keys(samples).length===0) return;
@@ -3153,33 +3309,51 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
     src.detune.value=(midiNote-nearest)*100;
     const eqG=guitarEqRef.current;
     const eq=EQ_FREQS.map((fr,i)=>{const f=ctx.createBiquadFilter();f.type=EQ_TYPES[i];f.frequency.value=fr;f.Q.value=1.2;f.gain.value=eqG[i]||0;return f;});
+    // Jazz archtop voicing. These cuts used to be drastic (+7 / -11 / -17dB),
+    // which stripped out every trace of string and pick detail and left a
+    // muffled pad. Dark is right; airless is not — an archtop still has an
+    // attack transient. Halved, so the recorded character survives.
     const jWarmth=ctx.createBiquadFilter();
-    jWarmth.type='peaking';jWarmth.frequency.value=200;jWarmth.Q.value=0.7;jWarmth.gain.value=7;
+    jWarmth.type='peaking';jWarmth.frequency.value=200;jWarmth.Q.value=0.7;jWarmth.gain.value=4;
     const jPressCut=ctx.createBiquadFilter();
-    jPressCut.type='peaking';jPressCut.frequency.value=2200;jPressCut.Q.value=1.1;jPressCut.gain.value=-11;
+    jPressCut.type='peaking';jPressCut.frequency.value=2200;jPressCut.Q.value=1.1;jPressCut.gain.value=-5;
     const jHiCut=ctx.createBiquadFilter();
-    jHiCut.type='highshelf';jHiCut.frequency.value=3000;jHiCut.gain.value=-17;
+    jHiCut.type='highshelf';jHiCut.frequency.value=3200;jHiCut.gain.value=-7;
+    // Velocity → brightness. A real instrument doesn't just get quieter when
+    // played softer, it gets darker; scaling gain alone is what makes one-layer
+    // sample sets read as synthetic. Soft stabs ~2.6kHz, full strums ~5.4kHz.
+    const velTone=ctx.createBiquadFilter();
+    velTone.type='lowpass';
+    velTone.frequency.value=2600+Math.min(1,vol/0.30)*2800;
+    velTone.Q.value=0.6;
     const gain=ctx.createGain();
     const v=vol*(guitarVolRef.current/100);
+    // Gentle envelope only. The old one stacked three exponential ramps on top
+    // of a recording that already has its own natural decay, re-shaping a real
+    // guitar into a synth-shaped one. Now: short attack, slight settle, release.
     gain.gain.setValueAtTime(0.001,startTime);
-    gain.gain.linearRampToValueAtTime(v,startTime+0.03);
-    gain.gain.exponentialRampToValueAtTime(v*0.6,startTime+0.35);
-    gain.gain.exponentialRampToValueAtTime(v*0.28,startTime+Math.min(sustainSecs*0.7,1.2));
+    gain.gain.linearRampToValueAtTime(v,startTime+0.012);
+    gain.gain.exponentialRampToValueAtTime(v*0.82,startTime+Math.min(sustainSecs*0.55,1.1));
     gain.gain.exponentialRampToValueAtTime(0.001,startTime+sustainSecs);
-    src.connect(jWarmth);jWarmth.connect(jPressCut);jPressCut.connect(jHiCut);
-    jHiCut.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);gain.connect(compRef.current||ctx.destination);
+    src.connect(jWarmth);jWarmth.connect(jPressCut);jPressCut.connect(jHiCut);jHiCut.connect(velTone);
+    velTone.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);
+    gain.connect((busRef.current&&busRef.current.guitar)||compRef.current||ctx.destination);
     src.start(startTime);src.stop(startTime+sustainSecs+0.05);
-    src.onended=()=>{try{src.disconnect();jWarmth.disconnect();jPressCut.disconnect();jHiCut.disconnect();eq.forEach(f=>f.disconnect());gain.disconnect();}catch(_){}};
+    src.onended=()=>{try{src.disconnect();jWarmth.disconnect();jPressCut.disconnect();jHiCut.disconnect();velTone.disconnect();eq.forEach(f=>f.disconnect());gain.disconnect();}catch(_){}};
   }
 
   function playGuitarChord(ctx,midiNotes,startTime,sustainSecs,vol,strum){
     if(!midiNotes||midiNotes.length===0) return;
     const stepSec=strum?(strum.ms/1000):0;
     const notes=(strum&&strum.dir==='up')?[...midiNotes].reverse():[...midiNotes];
+    // Comping lays back a hair behind the beat — a guitarist chasing the click
+    // exactly is the thing that reads as a drum machine. ~6ms late, ±4ms drift.
+    const onset=startTime+0.006+jitterSec(4);
     notes.forEach((midi,i)=>{
-      const t=startTime+i*stepSec;
+      // Uneven pick spacing: a hand never divides a strum into equal steps.
+      const t=onset+i*stepSec+jitterSec(1.8);
       const vScale=Math.max(0.72,1-i*0.05); // slight taper away from first string hit
-      playGuitarNote(ctx,midi,t,sustainSecs,vol*vScale);
+      playGuitarNote(ctx,midi,t,sustainSecs,jitterVol(vol*vScale,0.09));
     });
   }
 
@@ -3195,9 +3369,32 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
     return {dir:'up',ms:14};
   }
 
+  // Pick the register for a bass pitch class by voice-leading from the previous
+  // note, instead of pinning everything into one octave. This used to be
+  // `36 + pc`, which forced every note into C2–B2 — so a line walking B up to C
+  // leapt down 11 semitones instead of stepping up 1. That scramble, more than
+  // the tone, is why the bass never sounded like it was actually walking.
+  const BASS_LO=29,BASS_HI=48,BASS_CENTER=38;
+  function bassMidiFor(pc,prev){
+    const target=((pc%12)+12)%12;
+    let best=null,bestScore=Infinity;
+    for(let m=BASS_LO;m<=BASS_HI;m++){
+      if(((m%12)+12)%12!==target) continue;
+      // Smallest move wins, with a gentle pull back toward the middle of the
+      // range so the line can't drift to an extreme and camp there.
+      const score=Math.abs(m-prev)+Math.abs(m-BASS_CENTER)*0.18;
+      if(score<bestScore){bestScore=score;best=m;}
+    }
+    return best==null?36+target:best;
+  }
+
   function playBassNote(ctx,pc,startTime,beatDur,accent){
-    const midiNote=36+((pc%12+12)%12); // C2–B2
-    const vol=(accent?0.88:0.56)*(bassVolRef.current/100);
+    const midiNote=bassMidiFor(pc,lastBassMidiRef.current);
+    lastBassMidiRef.current=midiNote;
+    // The bass is the timekeeper, so it gets the least timing licence of the
+    // three — just enough drift to not be machine-perfect.
+    startTime+=jitterSec(2.5);
+    const vol=jitterVol((accent?0.88:0.56)*(bassVolRef.current/100),0.07);
     const samples=bassSamplesRef.current;
     if(samples&&Object.keys(samples).length>0){
       const notes=Object.keys(samples).map(Number);
@@ -3211,9 +3408,11 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
       const bThump=ctx.createBiquadFilter();
       bThump.type='peaking';bThump.frequency.value=260;bThump.Q.value=0.9;bThump.gain.value=5;
       const bMidCut=ctx.createBiquadFilter();
-      bMidCut.type='peaking';bMidCut.frequency.value=700;bMidCut.Q.value=0.9;bMidCut.gain.value=-9;
+      bMidCut.type='peaking';bMidCut.frequency.value=700;bMidCut.Q.value=0.9;bMidCut.gain.value=-6;
+      // Eased off (-16 → -11) so the finger/string noise that tells the ear
+      // "this is a played instrument" isn't filtered away entirely.
       const bHiCut=ctx.createBiquadFilter();
-      bHiCut.type='highshelf';bHiCut.frequency.value=2000;bHiCut.gain.value=-16;
+      bHiCut.type='highshelf';bHiCut.frequency.value=2000;bHiCut.gain.value=-11;
       const eqG=eqRef.current;
       const eq=EQ_FREQS.map((fr,i)=>{const f=ctx.createBiquadFilter();f.type=EQ_TYPES[i];f.frequency.value=fr;f.Q.value=1.2;f.gain.value=eqG[i]||0;return f;});
       const gain=ctx.createGain();
@@ -3223,7 +3422,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
       gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*1.65);
       src.connect(bLowBoost);bLowBoost.connect(bThump);bThump.connect(bMidCut);bMidCut.connect(bHiCut);
       bHiCut.connect(eq[0]);eq.reduce((a,b)=>{a.connect(b);return b;});eq[4].connect(gain);
-      gain.connect(compRef.current||ctx.destination);
+      gain.connect((busRef.current&&busRef.current.bass)||compRef.current||ctx.destination);
       src.start(startTime);src.stop(startTime+beatDur*1.65+0.05);
       src.onended=()=>{try{src.disconnect();bLowBoost.disconnect();bThump.disconnect();bMidCut.disconnect();bHiCut.disconnect();eq.forEach(f=>f.disconnect());gain.disconnect();}catch(_){}};
       return;
@@ -3237,7 +3436,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
     const gain=ctx.createGain();
     gain.gain.setValueAtTime(accent?0.70:0.44,startTime);
     gain.gain.exponentialRampToValueAtTime(0.001,startTime+beatDur*0.92);
-    src.connect(gain);gain.connect(compRef.current||ctx.destination);
+    src.connect(gain);gain.connect((busRef.current&&busRef.current.bass)||compRef.current||ctx.destination);
     src.start(startTime);src.stop(startTime+beatDur);
     src.onended=()=>{try{src.disconnect();gain.disconnect();}catch(_){}};
   }
@@ -3245,6 +3444,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
   function tick(gen,ctx){
     if(!audioCtxRef.current) return;
     const beatDur=60/bpmRef.current;
+    // Where the swung offbeat falls, as a fraction of the beat. Tempo-dependent
+    // rather than a fixed triplet — see swingFrac.
+    const swingCur=swingFrac(bpmRef.current);
     while(audioCtxRef.current&&nextTimeRef.current < audioCtxRef.current.currentTime+0.25){
       const bars=barsRef.current;
       const rawBeat=beatRef.current;
@@ -3316,18 +3518,18 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
             if(b===0) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.30,pickStrum(false));
             else if(b===1) playGuitarChord(ctx,top3,nextTimeRef.current,sustStab,0.17,pickStrum(true));
             else if(b===2) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.24,pickStrum(false));
-            else playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*(2/3),sustStab,0.21,pickStrum(true));
+            else playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*swingCur,sustStab,0.21,pickStrum(true));
           } else if(barPat.comp===1){
             // Freddie Green 4-to-bar: all 4 beats, short punchy
             playGuitarChord(ctx,top3,nextTimeRef.current,sustStab,b===0?0.28:0.20,pickStrum(true));
           } else if(barPat.comp===2){
             // Sparse: beat 2 stab + 4-and anticipation only
             if(b===1) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.26,pickStrum(false));
-            else if(b===3) playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*(2/3),sustStab,0.22,pickStrum(true));
+            else if(b===3) playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*swingCur,sustStab,0.22,pickStrum(true));
           } else {
             // Two-beat: beats 1 and 3 full, beat 2-and stab
             if(b===0) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.28,pickStrum(false));
-            else if(b===1) playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*(2/3),sustStab,0.16,pickStrum(true));
+            else if(b===1) playGuitarChord(ctx,top3,nextTimeRef.current+beatDur*swingCur,sustStab,0.16,pickStrum(true));
             else if(b===2) playGuitarChord(ctx,midi,nextTimeRef.current,sustLong,0.22,pickStrum(false));
           }
         }
@@ -3345,18 +3547,34 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
         const b=beat%4;
         const onBeat1=b===0;
         const rVol=rideVolRef.current/100;
+        // The offbeat used to sit at a hard 2:1 triplet at every tempo. Real
+        // swing is wider at ballad tempos and flattens as it gets faster.
+        const andAt=nextTimeRef.current+beatDur*swingCur;
+        // Ride hits get more timing licence than anything else — the drummer's
+        // right hand is what actually breathes in a jazz rhythm section.
+        const at=t=>t+jitterSec(7);
         if(barPat.ride===0){
           // Standard swing 8ths: every beat + every and
-          playRide(ctx,onBeat1?clickBufsRef.current.rideAccent:clickBufsRef.current.rideNorm,nextTimeRef.current,rideEq,rVol);
-          playRide(ctx,clickBufsRef.current.rideNorm,nextTimeRef.current+beatDur*(2/3),rideEq,rVol);
+          playRideHit(ctx,onBeat1,at(nextTimeRef.current),rideEq,rVol);
+          playRideHit(ctx,false,at(andAt),rideEq,rVol);
         } else if(barPat.ride===1){
           // Half-time feel: beats 1 and 3 only (no ands)
-          if(b===0||b===2) playRide(ctx,b===0?clickBufsRef.current.rideAccent:clickBufsRef.current.rideNorm,nextTimeRef.current,rideEq,rVol);
+          if(b===0||b===2) playRideHit(ctx,b===0,at(nextTimeRef.current),rideEq,rVol);
         } else {
           // Lazy: beat 1 accent + ands only
-          if(b===0) playRide(ctx,clickBufsRef.current.rideAccent,nextTimeRef.current,rideEq,rVol);
-          playRide(ctx,clickBufsRef.current.rideNorm,nextTimeRef.current+beatDur*(2/3),rideEq,rVol);
+          if(b===0) playRideHit(ctx,true,at(nextTimeRef.current),rideEq,rVol);
+          playRideHit(ctx,false,at(andAt),rideEq,rVol);
         }
+        // Hi-hat "chick" on 2 and 4. Its absence is why the kit sounded
+        // skeletal — the hat is the backbeat anchor a ride alone can't supply.
+        if(b===1||b===3){
+          playDrum(ctx,'hatPedal',nextTimeRef.current+jitterSec(4),
+            jitterVol(0.26*rVol,0.14),(Math.random()*2-1)*35,rideEq);
+        }
+        // Feathered kick on all four — barely audible by design, the way a
+        // bebop drummer rides the pedal. Adds pulse without becoming a backbeat.
+        playDrum(ctx,'kick',nextTimeRef.current+jitterSec(5),
+          jitterVol(0.07*rVol,0.22),0,null);
       }
       nextTimeRef.current+=beatDur;
       beatRef.current++;
@@ -3382,6 +3600,36 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
     comp.attack.value=0.003;comp.release.value=0.15;
     comp.connect(ctx.destination);
     compRef.current=comp;
+    // ── Mix bus: stereo placement + a shared room ────────────────────
+    // Everything used to run mono, dead centre, bone dry, straight into the
+    // compressor. Three instruments stacked at the same point in space with no
+    // room around them is the sound of "a computer made this" — spreading them
+    // out and putting them in one shared space does more for realism than any
+    // amount of EQ. Reverb is a send, so the dry signal stays present.
+    let conv=null;
+    try{
+      conv=ctx.createConvolver();
+      conv.buffer=makeRoomIR(ctx,1.15,2.6);
+      const revGain=ctx.createGain();revGain.gain.value=0.9;
+      conv.connect(revGain);revGain.connect(comp);
+    }catch(e){conv=null;}
+    const makeBus=(pan,send)=>{
+      const inNode=ctx.createGain();
+      let head=inNode;
+      // StereoPannerNode is unavailable on some older WebKit builds — the bus
+      // still works, it just stays centred rather than throwing.
+      if(ctx.createStereoPanner){
+        try{const p=ctx.createStereoPanner();p.pan.value=pan;inNode.connect(p);head=p;}
+        catch(e){head=inNode;}
+      }
+      head.connect(comp);
+      if(conv){const s=ctx.createGain();s.gain.value=send;head.connect(s);s.connect(conv);}
+      return inNode;
+    };
+    // Bass centred (low end must stay mono or it smears), guitar left of
+    // centre, drums right — a normal small-group stage layout.
+    busRef.current={bass:makeBus(0,0.07),guitar:makeBus(-0.24,0.20),drums:makeBus(0.30,0.26)};
+    lastBassMidiRef.current=BASS_CENTER; // start the walking line mid-range
     ksBufsRef.current=precomputeKS(ctx);
     clickBufsRef.current={accent:makeClickBuf(ctx,1400,1.0),normal:makeClickBuf(ctx,900,0.65)};
     // Use pre-rendered ride if sample rate matches playback context; otherwise fall
@@ -3396,6 +3644,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
     }
     if(bassRef.current) decodeBassRaw(ctx);
     if(guitarEnabledRef.current) decodeGuitarRaw(ctx);
+    decodeDrumRaw(ctx);
     // Schedule 4 count-in clicks, then begin real playback
     countInTimersRef.current=[];
     for(let i=0;i<4;i++){
@@ -3430,6 +3679,9 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
     genRef.current++;
     clearTimeout(timerRef.current);
     if(audioCtxRef.current){audioCtxRef.current.close();audioCtxRef.current=null;}compRef.current=null;
+    // Buses and decoded drums belong to the closed context — drop them so the
+    // next start rebuilds against its own context rather than reusing dead nodes.
+    busRef.current=null;drumBufsRef.current=null;
     barPatternRef.current={};
     setIsPlaying(false);setStarting(false);setCountIn(0);setPlayingChordIdx(null);setPlayingBar(null);
   }
