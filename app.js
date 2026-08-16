@@ -10,6 +10,17 @@ const safeLSSet=(key,val)=>{try{localStorage.setItem(key,val);}catch(ex){}};
 function localDateStr(ts=Date.now()){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 // Streak milestone check — [3,7,14] + every 30 days + 365
 function isStreakMilestone(n){return [3,7,14].includes(n)||(n>0&&n%30===0)||n===365;}
+// A stored streak is only still alive if the last practice was today, yesterday,
+// or — via the same grace day markPracticed() honours — two days ago from a
+// streak of 3+. The stored value is written on practice and never expired on its
+// own, so without this a lapsed user keeps seeing a stale count ("1-day streak —
+// 8 days since last practice"). Expiry is lazy: computed at mount, then persisted.
+function liveStreak(raw,last){
+  if(!last||!(raw>0)) return 0;
+  if(last===localDateStr()||last===localDateStr(Date.now()-86400000)) return raw;
+  if(last===localDateStr(Date.now()-2*86400000)&&raw>=3) return raw;
+  return 0;
+}
 
 // ── Capacitor Local Notifications ─────────────────────────────────────
 // All calls are silent no-ops in the browser (Capacitor bridge not present).
@@ -2178,9 +2189,9 @@ const PAGE_TOURS={
      text:'Wrong answers show you the correct answer immediately. Your score tracks your weakest intervals.'},
   ],
   custom:[
-    {target:'chord-type-tabs', title:'Pick any chord type',
-     text:'Choose a quality — major 7, minor 7, dominant, and more in Pro.',
-     proText:'Choose a quality — major 7, minor 7, dominant, and every extended chord.'},
+    {target:'chord-picker',    title:'Tap the chord name to change it',
+     text:'Opens the root and quality picker — major 7, minor 7, dominant, and more in Pro. Close it again to keep the fretboard in view.',
+     proText:'Opens the root and quality picker — every root, quality and extension. Close it again to keep the fretboard in view.'},
     {target:'neck-area',       title:'See all voicings',
      text:'Every playable shape appears below. Tap any diagram to hear it. Tap any dot on the neck to hear that individual note.'},
     {target:'custom-inkey',    title:'Find this chord in a key',
@@ -4411,6 +4422,13 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
   // "Explore ↗". The index tables (DROP_DATA, D2_INV, SHELLS) are identical
   // across both views, so the values transfer directly.
   const [extOpt,setExtOpt]=useState(null); // active extension id or null
+  // Root/type/extension live in a disclosure whose collapsed header is the chord
+  // summary itself, so nothing is hidden — the grids just stop pushing the neck
+  // (the actual payload of this page) below the fold. Collapsed by default: open,
+  // the grids put the fretboard ~700px down on a 390×844 phone; the page tour's
+  // first custom step points at the header and teaches the toggle.
+  const [pickerOpen,setPickerOpen]=useState(()=>safeLS('jg-chord-picker','0')==='1');
+  function togglePicker(){setPickerOpen(o=>{safeLSSet('jg-chord-picker',o?'0':'1');return !o;});}
   const typeChangeMount=useRef(false); // skip the reset-on-mount run
   const shellResetMount=useRef(false);
   useEffect(()=>{
@@ -4508,10 +4526,12 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     });
   },[allVoicings,selIdx,vType,safeShellIdx,safeSSIdx,tones,degNames]);
 
+  // Even grid cells rather than a wrapping tab strip: six/seven variable-width
+  // "tabs" wrapped to a ragged second row and broke the join with the panel
+  // below, so these are self-contained buttons that tile cleanly at any count.
   const tabStyle=id=>{const act=vType===id;return{
-    padding:'7px 14px',borderRadius:'6px 6px 0 0',cursor:'pointer',
-    border:'1px solid '+(act?'#74C0FC30':BORDER),
-    borderBottom:act?'1px solid '+BG2:'1px solid '+BORDER,
+    padding:'7px 4px',borderRadius:6,cursor:'pointer',
+    border:'1px solid '+(act?'#74C0FC':BORDER),
     background:act?BG2:BG,fontFamily:UI_FONT,fontSize:'0.76rem',
     color:act?'#74C0FC':BTN_OFF,fontWeight:act?700:400,minHeight:44};};
 
@@ -4646,16 +4666,53 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       :e('div',{style:{fontSize:'0.8rem',color:HINT,textAlign:'center',padding:'12px 0'}},'Select 2 or more notes to identify the chord')
   );
 
+  // Collapsed header for the picker disclosure. Doubles as the chord info bar —
+  // name, quality and tones are exactly what the grids below would tell you, so
+  // shutting the picker hides controls, never information.
+  const chordHeader=e('div',{style:{background:BG2,border:'1px solid '+(pickerOpen?BORDER:GOLD+'55'),borderRadius:7,
+    padding:'8px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
+    e('button',{onClick:togglePicker,'aria-expanded':pickerOpen,'data-tour':'chord-picker',
+      title:pickerOpen?'Hide the root & type picker':'Change root, chord type or extension',
+      style:{display:'flex',alignItems:'center',gap:8,padding:'2px 10px 2px 4px',borderRadius:18,
+        border:'1px solid '+(pickerOpen?GOLD:BTN_BRD),background:pickerOpen?ACT_GOLD:'transparent',
+        cursor:'pointer',minHeight:40,flexShrink:0}},
+      e('span',{style:{fontFamily:SERIF,fontSize:'1.35rem',fontWeight:700,color:GOLD,fontStyle:'italic'}},chordName),
+      // Spelled-out affordance — a bare ▾ next to a chord name doesn't read as
+      // "this is how you pick a different chord".
+      e('span',{style:{fontSize:'0.66rem',color:LBL,fontFamily:UI_FONT}},pickerOpen?'close ▲':'change ▼')
+    ),
+    e('span',{style:{fontSize:'0.79rem',color:LBL}},baseType.label+(extDef?' + '+extDef.dn:'')+(extDef?' (5th → '+extDef.dn+')':'')),
+    e('div',{style:{display:'flex',gap:12,flexWrap:'wrap',marginLeft:'auto'}},
+      tones.map((t,i)=>
+        e('span',{key:i,style:{display:'flex',alignItems:'center',gap:5,fontSize:'0.76rem',color:TC[i]}},
+          e('span',{style:{width:8,height:8,borderRadius:'50%',background:TC[i],display:'inline-block',flexShrink:0}}),
+          degNames[i]+'='+nn(t,customRoot)
+        )
+      )
+    ),
+    onFindInKey&&customTypeIdx<4?e('button',{'data-tour':'custom-inkey',
+      onClick:()=>onFindInKey(customRoot,customTypeIdx),
+      title:'Open this chord in a key — keeps your voicing (string set & inversion). The key map covers the seven 7th chords, so any extension shows as its base 7th.',
+      style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
+        fontSize:'0.7rem',border:'1px solid '+BTN_BRD,background:'transparent',
+        color:BTN_OFF,minHeight:0,flexShrink:0,whiteSpace:'nowrap'}
+    },'In a key ↗'):null
+  );
+
   return e('div',null,
     modeToggleRow,
-    // Root + type selectors
-    e('div',{style:{display:'flex',gap:10,flexWrap:'wrap',marginBottom:12,alignItems:'flex-start'}},
+    chordHeader,
+    // Root + type selectors — folded into chordHeader when the picker is shut, so
+    // the neck below starts near the top of the viewport instead of ~600px down.
+    pickerOpen?e('div',{style:{display:'flex',gap:10,flexWrap:'wrap',marginBottom:12,alignItems:'flex-start'}},
       e('div',null,
         e('div',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',marginBottom:6,fontWeight:600}},'Root'),
-        e('div',{style:{display:'flex',flexWrap:'wrap',gap:3}},
+        // Fixed 6-wide grid: 12 roots land as two even rows instead of wrapping
+        // 10 + 2 and leaving an orphan row that reads as a layout accident.
+        e('div',{style:{display:'grid',gridTemplateColumns:'repeat(6,44px)',gap:3}},
           KEYS.map((k,i)=>
             e('button',{key:i,onClick:()=>{setCustomRoot(k.root);setInvIdx(0);previewSelection(k.root,customTypeIdx,extOpt);},style:{
-              padding:'4px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
+              padding:'4px 2px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
               border:'1px solid '+(customRoot===k.root?GOLD:BTN_BRD),
               background:customRoot===k.root?ACT_GOLD:BG2,
               color:customRoot===k.root?GOLD:BTN_OFF,fontWeight:customRoot===k.root?700:400,
@@ -4665,11 +4722,11 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       ),
       e('div',null,
         e('div',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',marginBottom:6,fontWeight:600}},'Chord type'),
-        e('div',{'data-tour':'chord-type-tabs',style:{display:'flex',flexWrap:'wrap',gap:3,marginBottom:4}},
+        e('div',{'data-tour':'chord-type-tabs',style:{display:'grid',gridTemplateColumns:'repeat(5,58px)',gap:3,marginBottom:4}},
           EXT_TYPES.map((t,i)=>{
             const locked=isEss&&i>=4;
             return e('button',{key:i,onClick:locked?()=>onUpgrade(t.sym+' chords'):()=>{setCustomTypeIdx(i);setInvIdx(0);previewSelection(customRoot,i,null);},style:{
-              padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
+              padding:'4px 2px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
               border:'1px solid '+(customTypeIdx===i?'#C084FC':BTN_BRD),
               background:customTypeIdx===i?ACT_PUR:BG2,
               color:customTypeIdx===i?'#C084FC':BTN_OFF,fontWeight:customTypeIdx===i?700:400,
@@ -4678,21 +4735,10 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
         ),
         e('div',{style:{fontSize:'0.62rem',color:HINT,fontFamily:UI_FONT,lineHeight:1.4}},baseType.ctx)
       )
-    ),
-    // Scale overlay selector — Pro only, when scale hints exist for this chord type
-    !isEss&&customScaleOpts.length>0?e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8,alignItems:'center'}},
-      e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Scale'),
-      customScaleOpts.map(sc=>
-        e('button',{key:sc.name,
-          onClick:()=>setScaleHintCustom(scaleHintCustom===sc.name?null:sc.name),
-          style:{padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
-            border:'1px solid '+(scaleHintCustom===sc.name?GOLD:BTN_BRD),
-            background:scaleHintCustom===sc.name?ACT_GOLD:BG2,
-            color:scaleHintCustom===sc.name?GOLD:BTN_OFF,minHeight:36}},sc.name)
-      )
     ):null,
-    // Extension row — Full mode only
-    availExts.length>0&&!isEss?e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12,alignItems:'center'}},
+    // Extension row — Full mode only. Part of the picker: it alters the chord
+    // itself (the 5th becomes the extension), unlike the scale overlay below.
+    pickerOpen&&availExts.length>0&&!isEss?e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12,alignItems:'center'}},
       e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Extension'),
       availExts.map(ex=>
         e('button',{key:ex.id,onClick:()=>{const ne=extOpt===ex.id?null:ex.id;setExtOpt(ne);previewSelection(customRoot,customTypeIdx,ne);},style:{
@@ -4703,34 +4749,13 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
           ex.sym)
       )
     ):null,
-    // Chord info bar
-    e('div',{style:{background:BG2,border:'1px solid '+BORDER,borderRadius:7,
-      padding:'8px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
-      e('span',{style:{fontFamily:SERIF,fontSize:'1.35rem',fontWeight:700,color:GOLD,fontStyle:'italic'}},chordName),
-      e('span',{style:{fontSize:'0.79rem',color:LBL}},baseType.label+(extDef?' + '+extDef.dn:'')+(extDef?' (5th → '+extDef.dn+')':'')),
-      e('div',{style:{display:'flex',gap:12,flexWrap:'wrap',marginLeft:'auto'}},
-        tones.map((t,i)=>
-          e('span',{key:i,style:{display:'flex',alignItems:'center',gap:5,fontSize:'0.76rem',color:TC[i]}},
-            e('span',{style:{width:8,height:8,borderRadius:'50%',background:TC[i],display:'inline-block',flexShrink:0}}),
-            degNames[i]+'='+nn(t,customRoot)
-          )
-        )
-      ),
-      onFindInKey&&customTypeIdx<4?e('button',{'data-tour':'custom-inkey',
-        onClick:()=>onFindInKey(customRoot,customTypeIdx),
-        title:'Open this chord in a key — keeps your voicing (string set & inversion). The key map covers the seven 7th chords, so any extension shows as its base 7th.',
-        style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,
-          fontSize:'0.7rem',border:'1px solid '+BTN_BRD,background:'transparent',
-          color:BTN_OFF,minHeight:0,flexShrink:0,whiteSpace:'nowrap'}
-      },'In a key ↗'):null
-    ),
     // Voicing tabs
-    e('div',{style:{display:'flex',gap:2,marginBottom:0,flexWrap:'wrap'}},
+    e('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(92px,1fr))',gap:4,marginBottom:8}},
       TABS.map(({id,lbl,locked})=>e('button',{key:id,onClick:locked?()=>onUpgrade(lbl+' voicings'):()=>setVType(id),style:{...tabStyle(locked?'':id),opacity:locked?0.65:1}},lbl,(locked?e('span',{style:{fontSize:'0.65rem',marginLeft:3}},'🔒'):null)))
     ),
     // Controls bar
-    e('div',{style:{background:BG2,border:'1px solid '+BORDER,borderTop:'none',
-      borderRadius:'0 6px 6px 6px',padding:'7px 12px',marginBottom:10,
+    e('div',{style:{background:BG2,border:'1px solid '+BORDER,
+      borderRadius:6,padding:'7px 12px',marginBottom:10,
       display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',minHeight:36}},
       DROP_TYPES.has(vType)?[
         e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
@@ -4746,6 +4771,21 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     // notice below isn't sitting under an empty fretboard that looks broken.
     noDropShape?null:e('div',{style:{border:'1px solid '+BORDER,borderRadius:6,overflow:'hidden',marginBottom:10}},
       e(ScrollNeck,{arpPos,highlight,scalePos:customScalePos,degNames,dotMode,dotKeyIdx:customRoot}),
+      // Scale overlay + dot mode sit here, under the neck: both only change what
+      // the fretboard draws, so they belong beside it rather than gating access
+      // to it from above. Pro only, when scale hints exist for this chord type.
+      !isEss&&customScaleOpts.length>0?e('div',{style:{borderTop:'1px solid '+BORDER,padding:'6px 10px',background:BG2,
+        display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}},
+        e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Scale'),
+        customScaleOpts.map(sc=>
+          e('button',{key:sc.name,
+            onClick:()=>setScaleHintCustom(scaleHintCustom===sc.name?null:sc.name),
+            style:{padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
+              border:'1px solid '+(scaleHintCustom===sc.name?GOLD:BTN_BRD),
+              background:scaleHintCustom===sc.name?ACT_GOLD:BG2,
+              color:scaleHintCustom===sc.name?GOLD:BTN_OFF,minHeight:36}},sc.name)
+        )
+      ):null,
       setDotMode?e('div',{style:{borderTop:'1px solid '+BORDER,padding:'4px 10px',background:BG2}},
         e(DotModeToggle,{dotMode,setDotMode})
       ):null
@@ -5774,7 +5814,14 @@ function App(){
 
   // Streak & practice tracking
   const safeInt=(v,def=0)=>{const n=parseInt(v,10);return Number.isFinite(n)?n:def;};
-  const [streak,setStreak]=useState(()=>safeInt(safeLS('jg-streak','0')));
+  const [streak,setStreak]=useState(()=>liveStreak(safeInt(safeLS('jg-streak','0')),safeLS('jg-last-practice','')));
+  // What the streak was before it lapsed (0 if it's still alive). Captured once at
+  // mount so the welcome-back banner can name the lost streak without `streak`
+  // itself carrying a stale value everywhere else.
+  const [lapsedStreak]=useState(()=>{
+    const raw=safeInt(safeLS('jg-streak','0')),last=safeLS('jg-last-practice','');
+    return liveStreak(raw,last)===0?raw:0;
+  });
   const [bestStreak,setBestStreak]=useState(()=>safeInt(safeLS('jg-best-streak','0')));
   const [lastPracticeDay,setLastPracticeDay]=useState(()=>safeLS('jg-last-practice',''));
   const [playSessions,setPlaySessions]=useState(()=>safeInt(safeLS('jg-play-sessions','0')));
@@ -5853,13 +5900,17 @@ function App(){
     else{Notif.schedule(newStreak);}
   }
 
-  // On mount: ensure reminder is queued if streak is at risk, or cancel if already practiced
+  // On mount: expire a lapsed streak, then queue the reminder if one is at risk
+  // (or cancel it if today's practice is already done). Persisting the expiry
+  // here keeps localStorage honest for the next launch and stops the reminder
+  // nagging about a streak that has already been lost.
   useEffect(()=>{
-    const today=localDateStr();
-    const practiced=safeLS('jg-last-practice','')=== today;
-    const s=parseInt(safeLS('jg-streak','0'),10);
-    if(practiced){Notif.cancel();}
+    const last=safeLS('jg-last-practice','');
+    const s=liveStreak(safeInt(safeLS('jg-streak','0')),last);
+    if(s===0) safeLSSet('jg-streak',0);
+    if(last===localDateStr()){Notif.cancel();}
     else if(s>0){Notif.schedule(s);}
+    else{Notif.cancel();}
   },[]);
 
   // Bluetooth page-turner pedal support
@@ -6026,10 +6077,12 @@ function App(){
   },[allVoicings,allRootless,selIdx,vType,safeShellIdx,safeRlIdx,safeSSIdx,tones,rlTones,degNames,rlDegNames]);
 
   // Style helpers
+  // Even grid cells rather than a wrapping tab strip: six/seven variable-width
+  // "tabs" wrapped to a ragged second row and broke the join with the panel
+  // below, so these are self-contained buttons that tile cleanly at any count.
   const tabStyle=id=>{const act=vType===id;return{
-    padding:'7px 14px',borderRadius:'6px 6px 0 0',cursor:'pointer',
-    border:'1px solid '+(act?'#74C0FC30':BORDER),
-    borderBottom:act?'1px solid '+BG2:'1px solid '+BORDER,
+    padding:'7px 4px',borderRadius:6,cursor:'pointer',
+    border:'1px solid '+(act?'#74C0FC':BORDER),
     background:act?BG2:BG,fontFamily:UI_FONT,fontSize:'0.76rem',
     color:act?'#74C0FC':BTN_OFF,fontWeight:act?700:400,minHeight:44};};
   const keyBtnStyle=i=>{const act=key===i;return{
@@ -6119,17 +6172,17 @@ function App(){
     ),
 
     // Loss-aversion / welcome-back banner — shows when streak is at risk or user returning after absence
-    !iiviPlaying&&!practicedToday&&streak>0?e('div',{style:{
+    !iiviPlaying&&!practicedToday&&(streak>0||lapsedStreak>0)?e('div',{style:{
       margin:'-2px 0 10px',padding:'8px 12px',
       background:'rgba(251,191,36,0.07)',border:'1px solid rgba(251,191,36,0.22)',
       borderRadius:8,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',justifyContent:'space-between'
     }},
       e('span',{style:{fontSize:'0.73rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT}},
-        appDaysSince>=2
-          ?'⚠️ '+streak+'-day streak — '+appDaysSince+' days since last practice'
-          :'🔥 '+streak+'-day streak — practice today to keep it'
+        streak>0
+          ?'🔥 '+streak+'-day streak — practice today to keep it'
+          :'👋 Welcome back — '+appDaysSince+' days away. Play a little today to start a new streak.'
       ),
-      daysToNextMil<=7?e('span',{style:{fontSize:'0.68rem',color:'var(--hint)',fontFamily:UI_FONT}},
+      streak>0&&daysToNextMil<=7?e('span',{style:{fontSize:'0.68rem',color:'var(--hint)',fontFamily:UI_FONT}},
         daysToNextMil===1?'1 day to '+nextMil+'d badge':daysToNextMil+'d to '+nextMil+'d badge'
       ):null
     ):null,
@@ -6234,7 +6287,7 @@ function App(){
         },'Explore ↗')
       ),
       // Voicing tabs — Essentials shows the starting trio, Full shows everything
-      e('div',{'data-tour':'voicing-tabs',style:{display:'flex',gap:2,marginBottom:0,flexWrap:'wrap'}},
+      e('div',{'data-tour':'voicing-tabs',style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(92px,1fr))',gap:4,marginBottom:8}},
         ['shell','drop2','drop3','drop24','drop23',...(quality!=='m7b5'?['rootless']:[]),'arpeggio'].map(id=>{
           const lbls={drop2:'Drop 2',drop3:'Drop 3',drop24:'Drop 2+4',drop23:'Drop 2+3',shell:'Shell',rootless:'Rootless',arpeggio:'Arpeggio'};
           const locked=isEss&&(id==='drop2'||id==='drop3'||id==='drop24'||id==='drop23'||id==='rootless');
@@ -6245,8 +6298,8 @@ function App(){
         })
       ),
       // Controls bar
-      e('div',{style:{background:BG2,border:'1px solid '+BORDER,borderTop:'none',
-        borderRadius:'0 6px 6px 6px',padding:'7px 12px',marginBottom:10,
+      e('div',{style:{background:BG2,border:'1px solid '+BORDER,
+        borderRadius:6,padding:'7px 12px',marginBottom:10,
         display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',minHeight:36}},
         DROP_TYPES.has(vType)?[
           e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
