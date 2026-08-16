@@ -6,7 +6,7 @@
 // deploys on one cache version), so the shell is now NETWORK-FIRST: online
 // users always run the latest app.js/index.html; offline still works from cache.
 // Stable assets (CDN libs, icons, audio) stay cache-first for speed.
-const CACHE = 'jglab-v34';
+const CACHE = 'jglab-v35';
 
 const CDN = [
   'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js',
@@ -18,7 +18,9 @@ const CDN = [
 const SAMPLES = [
   'E2','Fs2','A2','C3','Fs3','A3','C4','Fs4','A4','C5',
 ].map((n) => './samples/guitar-electric/' + n + '.mp3')
- .concat(['Cs2','E2','G2','As2'].map((n) => './samples/bass-electric/' + n + '.mp3'));
+ .concat(['G1','As1','Cs2','E2','G2','As2'].map((n) => './samples/bass-electric/' + n + '.mp3'))
+ .concat(['ride1','ride2','ridebell','hihat-closed','hihat-pedal','sidestick','kick']
+   .map((n) => './samples/drums/' + n + '.mp3'));
 const LOCAL = ['./', './index.html', './app.js', './manifest.json', './icons/icon.svg'];
 
 // The app shell: always revalidate from network when online so updates ship.
