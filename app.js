@@ -1211,7 +1211,7 @@ function attachPedalListener(cb){
 }
 
 // ── AboutSheet ────────────────────────────────────────────────────────
-function AboutSheet({onClose,level,onRestore}){
+function AboutSheet({onClose,level,onRestore,onOverview,onPageTour,theme,onToggleTheme}){
   const [restored,setRestored]=React.useState(null); // null = untried, true/false = result
   const [pedalSeen,setPedalSeen]=React.useState(null);
   // Report the real outcome — claiming "restored ✓" after a failed lookup sends
@@ -1247,6 +1247,27 @@ function AboutSheet({onClose,level,onRestore}){
           textDecoration:'none',border:'1px solid '+BORDER,background:'var(--bg)',
           color:'var(--txt)',marginBottom:10,minHeight:44,boxSizing:'border-box'}},
         'Contact Support'),
+      // Everything the header used to hold. Grouped here so the header can be a
+      // single row: help first (contextual tour, then the overview), then the
+      // theme preference, which is set once rather than per screen.
+      onPageTour?e('button',{onClick:onPageTour,
+        style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,textAlign:'center',
+          border:'1px solid '+GOLD+'88',background:'var(--bg)',color:GOLD_TXT,
+          marginBottom:10,minHeight:44}},
+        '? Tour this page'):null,
+      onOverview?e('button',{onClick:onOverview,
+        style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:600,textAlign:'center',
+          border:'1px solid '+BORDER,background:'var(--bg)',color:'var(--txt)',
+          marginBottom:10,minHeight:44}},
+        'Replay app overview tour'):null,
+      onToggleTheme?e('button',{onClick:onToggleTheme,
+        style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:600,textAlign:'center',
+          border:'1px solid '+BORDER,background:'var(--bg)',color:'var(--txt)',
+          marginBottom:10,minHeight:44}},
+        theme==='dark'?'☀  Switch to light theme':'☾  Switch to dark theme'):null,
       level==='essentials'?e('button',{
         onClick:handleRestore,
         style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
@@ -1290,14 +1311,32 @@ function AboutSheet({onClose,level,onRestore}){
 
 // ── ColorLegend ───────────────────────────────────────────────────────
 function ColorLegend(){
-  const pairs=[['R',TC[0]],['3rd',TC[1]],['5th',TC[2]],['7th',TC[3]]];
+  const pairs=[['R',TC[0],TCT[0]],['3rd',TC[1],TCT[1]],['5th',TC[2],TCT[2]],['7th',TC[3],TCT[3]]];
   return e('div',{style:{display:'flex',alignItems:'center',gap:8,flexShrink:0}},
-    pairs.map(([lbl,col])=>
+    pairs.map(([lbl,col,txt])=>
       e('span',{key:lbl,style:{display:'flex',alignItems:'center',gap:3}},
         e('span',{style:{width:9,height:9,borderRadius:'50%',background:col,flexShrink:0,boxShadow:'0 0 4px '+col+'88'}}),
-        e('span',{style:{fontSize:'0.66rem',color:col,fontFamily:UI_FONT,fontWeight:700}},lbl)
+        e('span',{style:{fontSize:'0.7rem',color:txt,fontFamily:UI_FONT,fontWeight:700}},lbl)
       )
     )
+  );
+}
+
+// ── BrandMark ─────────────────────────────────────────────────────────
+// Miniature of the app icon: chord grid plus the four chord-tone dots in the
+// same TC palette every fretboard in the app draws with. Inline so it inherits
+// the theme (grid lines ride --lbl) and stays in sync if TC is ever retuned.
+// The dots keep their vivid hex — they're marks, not type.
+function BrandMark({size=26}){
+  const grid={stroke:'var(--lbl)',strokeWidth:0.9,opacity:0.38};
+  return e('svg',{width:size,height:size,viewBox:'0 0 24 24','aria-hidden':'true',
+    style:{display:'block',flexShrink:0,overflow:'visible'}},
+    e('rect',{x:3,y:3.2,width:18,height:1.7,rx:0.85,fill:GOLD,opacity:0.9}),
+    [4.5,9.5,14.5,19.5].map((x,i)=>e('line',{key:'s'+i,x1:x,y1:4.4,x2:x,y2:21.5,...grid})),
+    [9,14.5,20].map((y,i)=>e('line',{key:'f'+i,x1:3,y1:y,x2:21,y2:y,...grid})),
+    // Same drop-2 diagonal the icon uses: R / 3rd / 5th / 7th
+    [[19.5,6.7,TC[0]],[14.5,11.9,TC[1]],[9.5,6.7,TC[2]],[4.5,17.3,TC[3]]].map(([cx,cy,c],i)=>
+      e('circle',{key:'d'+i,cx,cy,r:2.5,fill:c}))
   );
 }
 
@@ -6155,22 +6194,27 @@ function App(){
   return e('div',{style:{background:BG,minHeight:'100vh',color:'var(--txt)',fontFamily:UI_FONT}},
   e('div',{style:{maxWidth:Math.min(960,winW-28),margin:'0 auto',padding:'14px 14px 84px'}},
 
-    // Header — hidden while the play tab is active to maximise neck real-estate
-    !iiviPlaying&&e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8,flexWrap:'wrap'}},
-      e('span',{
+    // Header — one row, hidden while the play tab is active to maximise neck
+    // real-estate. It used to be a single wrapping row that overflowed onto a
+    // second line (88px, five elements at five different heights); the utility
+    // buttons now sit in one right-hand group and the app-overview tour moved
+    // into the ··· sheet, so everything shares one centre axis.
+    !iiviPlaying&&e('div',{style:{display:'flex',alignItems:'center',gap:6,marginBottom:8}},
+      e('div',{
         // Long-press (700ms) opens the hidden on-device audio self-test.
         onPointerDown:()=>{diagPressRef.current=setTimeout(()=>setAudioDiag(true),700);},
         onPointerUp:()=>{clearTimeout(diagPressRef.current);},
         onPointerLeave:()=>{clearTimeout(diagPressRef.current);},
         onPointerCancel:()=>{clearTimeout(diagPressRef.current);},
-        style:{fontFamily:SERIF,fontSize:'1.4rem',fontWeight:700,color:'var(--scale-name)',
-          userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',cursor:'default'}},'Jazz Guitar Lab'),
-      e('button',{onClick:toggleTheme,'aria-label':'Toggle theme',style:{
-        padding:'4px 10px',borderRadius:14,cursor:'pointer',fontFamily:UI_FONT,
-        fontSize:'0.9rem',border:'1px solid var(--btn-brd)',background:'var(--bg2)',
-        color:'var(--lbl)',minHeight:44,minWidth:44,flexShrink:0}},
-        theme==='dark'?'☀':'☾'),
-      e('div',{style:{flex:1}}),
+        style:{display:'flex',alignItems:'center',gap:7,flexShrink:1,minWidth:27,
+          userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',cursor:'default'}},
+        e(BrandMark,{size:27}),
+        // Wordmark drops below 380px so the row can never overflow — everything
+        // else here is fixed-width, so this is the only elastic element, and the
+        // budget has to survive a three-digit streak chip.
+        winW>=380?e('span',{style:{fontFamily:SERIF,fontSize:'1.0rem',fontWeight:700,
+          color:'var(--scale-name)',whiteSpace:'nowrap',overflow:'hidden'}},'Jazz Guitar Lab'):null),
+      e('div',{style:{flex:1,minWidth:4}}),
       // Tier chip. Three cases, one consistent slot:
       //  · Trial active → preview-Essentials toggle (honor-system, nothing to lose).
       //  · Real purchased Pro → passive status badge on device (no downgrade
@@ -6203,25 +6247,16 @@ function App(){
         e('span',{style:{fontSize:'0.72rem'}},'🔥'),
         e('span',{style:{fontSize:'0.72rem',color:'var(--lbl)',fontFamily:UI_FONT}},streak+'d')
       ):null,
-      e('div',{style:{display:'flex',gap:4,flexShrink:0}},
-        e('button',{onClick:()=>setOverviewStep(0),
-          style:{padding:'3px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
-            fontSize:'0.72rem',border:'1px solid var(--btn-brd)',background:'var(--bg2)',
-            color:'var(--lbl)',minHeight:36}},
-          'Overview'),
-        PAGE_TOURS[viewMode]
-          ?e('button',{'data-tour':'page-tour-btn',onClick:()=>{setPageTourStep(0);setPageTourId(viewMode);},
-              style:{padding:'3px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
-                fontSize:'0.72rem',border:'1px solid '+GOLD+'88',background:'var(--bg2)',
-                color:GOLD_TXT,minHeight:36}},
-              '? Tour')
-          :null,
-        e('button',{'aria-label':'About & support',onClick:()=>setAboutOpen(true),
-          style:{padding:'3px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
-            fontSize:'0.8rem',border:'1px solid var(--btn-brd)',background:'var(--bg2)',
-            color:'var(--lbl)',minHeight:36,letterSpacing:'1px'}},
-          '···')
-      ),
+      // One utility button. Both tours and the theme toggle moved into its sheet:
+      // the header only has ~334px on a 390px phone, and brand + tier + streak +
+      // three buttons measured 401px, which silently clipped ··· off the edge.
+      // A single help menu is also just the conventional place for all of this.
+      e('button',{'data-tour':'page-tour-btn','aria-label':'Menu, help & about',
+        onClick:()=>setAboutOpen(true),
+        style:{padding:'0 12px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
+          fontSize:'0.8rem',border:'1px solid var(--btn-brd)',background:'var(--bg2)',
+          color:'var(--lbl)',minHeight:44,letterSpacing:'1px',flexShrink:0}},
+        '···'),
     ),
 
     // Loss-aversion / welcome-back banner — shows when streak is at risk or user returning after absence
@@ -6448,7 +6483,10 @@ function App(){
       purchaseErr,
       onRestore:async()=>{if(!await doRestore())setPurchaseErr('No previous purchase found on this Apple ID.');}}):null,
     audioDiag?e(AudioDiagSheet,{onClose:()=>setAudioDiag(false)}):null,
-    aboutOpen?e(AboutSheet,{onClose:()=>setAboutOpen(false),level,onRestore:doRestore}):null,
+    aboutOpen?e(AboutSheet,{onClose:()=>setAboutOpen(false),level,onRestore:doRestore,
+      theme,onToggleTheme:()=>{toggleTheme();},
+      onPageTour:PAGE_TOURS[viewMode]?()=>{setAboutOpen(false);setPageTourStep(0);setPageTourId(viewMode);}:null,
+      onOverview:()=>{setAboutOpen(false);setOverviewStep(0);}}):null,
     popTerm&&GLOSS_DEFS[popTerm]?e(React.Fragment,null,
       e('div',{onClick:()=>setPopTerm(null),style:{position:'fixed',inset:0,zIndex:199,background:'rgba(0,0,0,0.35)'}}),
       e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:200,background:'var(--bg2)',
