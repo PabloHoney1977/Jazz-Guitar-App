@@ -982,6 +982,74 @@ const IPHONE14 = {
       await ctx.close();
     });
 
+    // ── 27: Text contrast — every visible label clears WCAG AA in both themes ──
+    // Guards the accent-as-text palette (--tc-txt-*, --acc-*, --gold-txt). The
+    // bright pastels used for dots and glows measure ~1.2:1 as type on the light
+    // background; before this palette existed, 26 labels across the app were
+    // unreadable in light mode. Any new label that hardcodes a bright hex for
+    // `color:` instead of routing through the vars will fail here.
+    await test('Test 27: text contrast meets WCAG AA in both themes', async () => {
+      const measure = () => {
+        const lum = (c) => {
+          const [r, g, b] = c.map((v) => {
+            v /= 255;
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+          });
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const parse = (s) => { const m = s && s.match(/[\d.]+/g); return m ? m.slice(0, 3).map(Number) : null; };
+        // Only opaque backgrounds count — a translucent layer lets the one below show through.
+        const opaque = (s) => {
+          const m = s && s.match(/rgba?\(([^)]+)\)/);
+          if (!m) return false;
+          const p = m[1].split(',').map(Number);
+          return p.length < 4 || p[3] > 0.5;
+        };
+        const bgOf = (el) => {
+          let n = el;
+          while (n && n !== document.documentElement) {
+            const c = getComputedStyle(n).backgroundColor;
+            if (opaque(c)) return parse(c);
+            n = n.parentElement;
+          }
+          return parse(getComputedStyle(document.body).backgroundColor) || [255, 255, 255];
+        };
+        const bad = [];
+        for (const el of document.querySelectorAll('*')) {
+          if (el.children.length) continue;                       // leaf text nodes only
+          const t = (el.textContent || '').trim();
+          if (t.length < 2) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width < 1 || r.height < 1) continue;              // skip hidden/collapsed
+          const cs = getComputedStyle(el);
+          const fg = parse(cs.color);
+          if (!fg) continue;
+          const L1 = lum(fg), L2 = lum(bgOf(el));
+          const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+          const px = parseFloat(cs.fontSize), bold = parseInt(cs.fontWeight, 10) >= 700;
+          const need = (px >= 24 || (px >= 18.66 && bold)) ? 3 : 4.5;  // WCAG "large text"
+          if (ratio < need) bad.push(`"${t.slice(0, 22)}" ${ratio.toFixed(2)}:1 (need ${need})`);
+        }
+        return [...new Set(bad)];
+      };
+
+      for (const theme of ['dark', 'light']) {
+        const { page, ctx } = await freshPage({ storage: { 'jg-level': 'pro', 'jg-theme': theme } });
+        for (const [target, label] of [
+          ['nav-guide', 'Guide'], ['nav-diatonic', 'Keys'], ['nav-custom', 'Chords'],
+          ['nav-iivi', 'Play'], ['nav-quiz', 'Train'],
+        ]) {
+          const btn = await page.$(`[data-tour="${target}"]`);
+          if (!btn) { ok(`${theme}/${label} nav found`, false); continue; }
+          await btn.click();
+          await page.waitForTimeout(350);
+          const bad = await page.evaluate(measure);
+          ok(`${theme} / ${label}: all text meets WCAG AA`, bad.length === 0, bad.slice(0, 3).join(' · '));
+        }
+        await ctx.close();
+      }
+    });
+
   } finally {
     await browser.close();
     server.close();
