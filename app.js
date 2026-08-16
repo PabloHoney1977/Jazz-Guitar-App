@@ -286,6 +286,22 @@ const TC    =['#FF6B6B','#4ECDC4','#74C0FC','#FFD43B'];
 const TC_DIM=['#FF6B6B55','#4ECDC455','#74C0FC55','#FFD43B55'];
 const TC_RIM=['#FF6B6B99','#4ECDC499','#74C0FC99','#FFD43B99'];
 const TC_RL =['#C084FC','#4ECDC4','#74C0FC','#FFD43B'];
+// Text counterparts of TC / TC_RL. The hexes above are for dots, glows and
+// borders — as label text they measure ~1.2:1 on the light background. Anything
+// that renders a chord-tone colour as *type* must use these instead; the CSS
+// vars keep the bright value in dark mode and darken it in light mode.
+const TCT   =['var(--tc-txt-0)','var(--tc-txt-1)','var(--tc-txt-2)','var(--tc-txt-3)'];
+const TCT_RL=['var(--acc-purple)','var(--tc-txt-1)','var(--tc-txt-2)','var(--tc-txt-3)'];
+const A_RED='var(--acc-red)', A_TEAL='var(--acc-teal)', A_BLUE='var(--acc-blue)',
+      A_AMBER='var(--acc-amber)', A_GREEN='var(--acc-green)', A_PURPLE='var(--acc-purple)',
+      A_ORANGE='var(--acc-orange)', A_WARN='var(--acc-warn)';
+// Maps a bright accent hex to its text-safe var. For the places where one value
+// feeds both a border/background (which wants the vivid hex) and the label
+// colour (which does not) — e.g. modeBtn's `col` and FORM_DEFS entries.
+const ACC_TXT={'#FF6B6B':A_RED,'#4ECDC4':A_TEAL,'#74C0FC':A_BLUE,'#FFD43B':A_AMBER,
+  '#86EFAC':A_GREEN,'#C084FC':A_PURPLE,'#F4A261':A_ORANGE,'#F97316':A_WARN,
+  'var(--gold)':'var(--gold-txt)'};  // literal: GOLD_TXT is declared further down
+const accTxt=c=>ACC_TXT[c]||c;
 const BG     ='var(--bg)';
 const BG2    ='var(--bg2)';
 const BORDER ='var(--brd)';
@@ -294,6 +310,9 @@ const HINT   ='var(--hint)';
 const BTN_OFF='var(--btn-off)';
 const BTN_BRD='var(--btn-brd)';
 const GOLD   ='var(--gold)';
+// Gold as label text. --gold stays the CTA-background/border value; this is the
+// darker variant that clears AA at label sizes on the light background.
+const GOLD_TXT='var(--gold-txt)';
 const ACT_GOLD='var(--act-gold)';
 const ACT_RED ='var(--act-red)';
 const ACT_TEAL='var(--act-teal)';
@@ -865,7 +884,7 @@ function AudioDiagSheet({onClose}){
         rep.files.map((f,i)=>e('div',{key:i,style:{display:'flex',alignItems:'center',gap:8,
           padding:'6px 10px',fontFamily:'monospace',fontSize:'0.68rem',
           borderTop:i?'1px solid '+BORDER:'none',
-          color:f.decoded===true?'var(--txt)':f.decoded===false||f.fetchErr?'#FF6B6B':LBL}},
+          color:f.decoded===true?'var(--txt)':f.decoded===false||f.fetchErr?A_RED:LBL}},
           e('span',{style:{width:14,flexShrink:0}},f.decoded===true?'✓':(f.decoded===false||f.fetchErr)?'✗':'·'),
           e('span',{style:{flex:1,minWidth:0,wordBreak:'break-all'}},f.file
             +(f.fetchErr?(' — fetch err: '+f.fetchErr)
@@ -969,7 +988,7 @@ function track(event,props){
 // Shared style for the header tier chip (Pro / Trial / upgrade pill). `interactive`
 // only swaps the cursor — a real purchased Pro badge on device is non-tappable.
 function tierChipStyle(interactive){
-  return {fontSize:'0.72rem',fontWeight:700,fontFamily:UI_FONT,color:GOLD,
+  return {fontSize:'0.72rem',fontWeight:700,fontFamily:UI_FONT,color:GOLD_TXT,
     border:'1px solid '+GOLD+'66',borderRadius:10,padding:'3px 10px',
     cursor:interactive?'pointer':'default',background:ACT_GOLD,flexShrink:0};
 }
@@ -1056,17 +1075,17 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial,on
       e('ul',{style:{listStyle:'none',margin:'0 0 22px',padding:0}},
         PERKS.map((p,i)=>e('li',{key:i,style:{display:'flex',gap:9,padding:'6px 0',
           fontSize:'0.82rem',
-          color:highlightPerk===i?GOLD:'var(--txt)',
+          color:highlightPerk===i?GOLD_TXT:'var(--txt)',
           fontWeight:highlightPerk===i?700:400,
           fontFamily:UI_FONT,lineHeight:1.5}},
-          e('span',{style:{color:GOLD,flexShrink:0,marginTop:1}},'✦'),p))),
+          e('span',{style:{color:GOLD_TXT,flexShrink:0,marginTop:1}},'✦'),p))),
       // Action block is pinned: with a feature description plus six perks the
       // sheet outgrows its 72vh cap, and a paywall whose buy button sits below
       // the fold converts badly. Sticky keeps it reachable at any content length.
       e('div',{style:{position:'sticky',bottom:0,background:BG2,
         paddingTop:12,paddingBottom:28,marginTop:4,
         borderTop:'1px solid '+BORDER}},
-      purchaseErr?e('div',{style:{fontSize:'0.78rem',color:'#F97316',textAlign:'center',
+      purchaseErr?e('div',{style:{fontSize:'0.78rem',color:A_WARN,textAlign:'center',
         marginBottom:10,fontFamily:UI_FONT,lineHeight:1.5,padding:'8px 10px',
         border:'1px solid #F9731655',borderRadius:8,background:'#F9731611'}},purchaseErr):null,
       e('button',{onClick:onUnlock,style:{
@@ -1082,7 +1101,7 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial,on
         width:'100%',padding:'12px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.88rem',fontWeight:600,
         background:'transparent',border:'1px solid '+GOLD+'66',
-        color:GOLD,minHeight:44,marginBottom:10}},
+        color:GOLD_TXT,minHeight:44,marginBottom:10}},
         'Try Pro free for 7 days'):null,
       e('button',{onClick:onClose,style:{
         width:'100%',padding:'10px',borderRadius:10,cursor:'pointer',
@@ -1233,7 +1252,7 @@ function AboutSheet({onClose,level,onRestore}){
         style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,
           background:'transparent',border:'1px solid '+GOLD+'66',
-          color:restored===null?GOLD:HINT,minHeight:44,marginBottom:10}},
+          color:restored===null?GOLD_TXT:HINT,minHeight:44,marginBottom:10}},
         restored===null?'Restore Purchase':restored?'Purchase restored ✓':'No purchase found'):null,
       e('div',{style:{borderTop:'1px solid '+BORDER,marginTop:14,paddingTop:14,
         fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,lineHeight:1.6}},
@@ -1255,7 +1274,7 @@ function AboutSheet({onClose,level,onRestore}){
         pedalSeen===null
           ? e('div',{style:{color:LBL,fontStyle:'italic'}},'waiting for a key…')
           : e('div',null,
-              e('div',{style:{color:pedalSeen.dir?'var(--scale-name)':'#FF6B6B',fontWeight:700}},
+              e('div',{style:{color:pedalSeen.dir?'var(--scale-name)':A_RED,fontWeight:700}},
                 pedalSeen.dir
                   ? '✓ "'+pedalSeen.label+'" → '+(pedalSeen.dir==='fwd'?'Forward':'Back')
                   : '✗ "'+pedalSeen.label+'" — not a page-turn key (try another pedal mode)'),
@@ -1325,7 +1344,7 @@ function BpmKnob({bpm,setBpm,onTap}){
     ),
     e('div',{style:{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:3}},
       e('div',{style:{display:'flex',alignItems:'baseline',gap:4}},
-        e('span',{style:{fontSize:'1.15rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT,lineHeight:1}},bpm),
+        e('span',{style:{fontSize:'1.15rem',fontWeight:700,color:GOLD_TXT,fontFamily:UI_FONT,lineHeight:1}},bpm),
         e('span',{style:{fontSize:'0.6rem',color:'var(--lbl)',letterSpacing:'1px',lineHeight:1}},'BPM')
       ),
       e('button',{onClick:onTap,style:{fontSize:'0.68rem',color:'var(--btn-off)',background:'transparent',
@@ -1796,7 +1815,7 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
       fontFamily:SERIF,fontSize:'0.95rem',fontWeight:700,minHeight:52,transition:'opacity 0.2s',
       border:'2px solid '+(isAns?GOLD:isWrong?'#FF6B6B':BTN_BRD),
       background:isAns?ACT_YEL:isWrong?ACT_RED:BG2,
-      color:isAns?GOLD:isWrong?'#FF6B6B':BTN_OFF,
+      color:isAns?GOLD_TXT:isWrong?A_RED:BTN_OFF,
       opacity:revealed&&!isAns&&!isWrong?0.45:1
     }},label);
     if(mode==='intervals'){
@@ -1830,7 +1849,7 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
     if(lastResult==='auto'){
       return e('div',{style:{textAlign:'center',marginBottom:14,padding:'12px 20px',
         background:BG2,border:'1px solid '+BORDER,borderRadius:8}},
-        e('div',{style:{fontFamily:SERIF,fontSize:'1.1rem',color:GOLD,marginBottom:4}},answerName),
+        e('div',{style:{fontFamily:SERIF,fontSize:'1.1rem',color:GOLD_TXT,marginBottom:4}},answerName),
         e('div',{style:{fontSize:'0.77rem',color:HINT}},answerDesc)
       );
     }
@@ -1838,9 +1857,9 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
       background:lastResult==='right'?ACT_YEL:ACT_RED,
       border:'1px solid '+(lastResult==='right'?GOLD:'#FF6B6B'),borderRadius:8}},
       e('div',{style:{fontSize:'1.05rem',fontWeight:700,
-        color:lastResult==='right'?GOLD:'#FF6B6B',marginBottom:4}},
+        color:lastResult==='right'?GOLD_TXT:A_RED,marginBottom:4}},
         lastResult==='right'?'✓ Correct!':'✗ That was…'),
-      e('div',{style:{fontFamily:SERIF,fontSize:'1.1rem',color:GOLD,marginBottom:4}},answerName),
+      e('div',{style:{fontFamily:SERIF,fontSize:'1.1rem',color:GOLD_TXT,marginBottom:4}},answerName),
       e('div',{style:{fontSize:'0.77rem',color:HINT}},answerDesc)
     );
   }
@@ -1886,11 +1905,11 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
       autoMode
         ?e('div',{style:{fontSize:'0.78rem',color:HINT,fontFamily:UI_FONT}},'Auto mode — listen and learn, no scoring')
         :total>0?e('div',null,
-          e('div',{style:{fontSize:'0.95rem',fontWeight:700,color:pct>=70?GOLD:'#FF6B6B'}},pct+'% — '+sc.r+'/'+total),
+          e('div',{style:{fontSize:'0.95rem',fontWeight:700,color:pct>=70?GOLD_TXT:A_RED}},pct+'% — '+sc.r+'/'+total),
           weakest?e('div',{style:{fontSize:'0.7rem',color:HINT,marginTop:3}},
             '⚠ Weakest: '+weakest.label+' ('+weakest.missed+'/'+weakest.total+' missed)'):null,
           total>=20&&pct>=80&&isEss&&mode==='intervals'?e('div',{style:{
-            fontSize:'0.72rem',color:'#86EFAC',marginTop:6,padding:'4px 8px',
+            fontSize:'0.72rem',color:A_GREEN,marginTop:6,padding:'4px 8px',
             borderRadius:6,border:'1px solid #86EFAC44',background:'#86EFAC11',lineHeight:1.5}},
             '🎉 Great ear! Try Pro to unlock all 12 intervals, triads, and 7th chords.'):null
           ):null
@@ -1906,7 +1925,7 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
           if(isEss){onUpgrade('Triads, 7th Chords & Cadences');} else {setMode('cadences');}
           dismissModeNudge();track('nudge.ear.applied',{essentials:isEss});
         },style:{padding:'7px 12px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',fontWeight:700,
-          border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,minHeight:36}},
+          border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD_TXT,minHeight:36}},
           isEss?'See Pro →':'Try Cadences →'),
         e('button',{onClick:dismissModeNudge,style:{padding:'7px 9px',borderRadius:6,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.75rem',border:'1px solid '+BORDER,background:'transparent',
@@ -1925,7 +1944,7 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
             padding:'7px 16px',borderRadius:'6px 6px 0 0',cursor:'pointer',
             fontFamily:UI_FONT,fontSize:'0.79rem',fontWeight:400,
             border:'1px solid '+GOLD,borderBottom:'1px solid '+BTN_BRD,
-            background:'transparent',color:GOLD,minHeight:44,opacity:0.8
+            background:'transparent',color:GOLD_TXT,minHeight:44,opacity:0.8
           }},'3 more modes ',e('span',{style:{fontSize:'0.6rem'}},'🔒'))]
         :TABS.map(({id,lbl,locked})=>e('button',{key:id,onClick:locked?()=>onUpgrade(lbl):()=>setMode(id),style:{
             padding:'7px 16px',borderRadius:'6px 6px 0 0',cursor:'pointer',
@@ -1940,7 +1959,7 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
       e('button',{onClick:toggleAuto,title:autoMode?'Turn off auto-advance':'Auto-advance: hear the answer, then next question',
         style:{padding:'5px 10px',borderRadius:8,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           fontWeight:autoMode?700:400,border:'1px solid '+(autoMode?GOLD:BTN_BRD),
-          background:autoMode?ACT_GOLD:'transparent',color:autoMode?GOLD:BTN_OFF,
+          background:autoMode?ACT_GOLD:'transparent',color:autoMode?GOLD_TXT:BTN_OFF,
           minHeight:40,flexShrink:0,whiteSpace:'nowrap'}},
         autoMode?'Auto ●':e(React.Fragment,null,'Auto ○',(isEss?e('span',{style:{fontSize:'0.6rem',marginLeft:3}},'🔒'):null)))
     ),
@@ -1952,12 +1971,12 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
         e('button',{onClick:()=>setHarmonic(false),style:{
           padding:'4px 12px',borderRadius:6,cursor:'pointer',fontSize:'0.72rem',fontWeight:!harmonic?700:400,
           border:'1px solid '+(!harmonic?GOLD:BTN_BRD),background:!harmonic?ACT_YEL:'transparent',
-          color:!harmonic?GOLD:BTN_OFF,minHeight:30
+          color:!harmonic?GOLD_TXT:BTN_OFF,minHeight:30
         }},'Ascending ↑'),
         e('button',{onClick:()=>setHarmonic(true),style:{
           padding:'4px 12px',borderRadius:6,cursor:'pointer',fontSize:'0.72rem',fontWeight:harmonic?700:400,
           border:'1px solid '+(harmonic?GOLD:BTN_BRD),background:harmonic?ACT_YEL:'transparent',
-          color:harmonic?GOLD:BTN_OFF,minHeight:30
+          color:harmonic?GOLD_TXT:BTN_OFF,minHeight:30
         }},'♪♪ Harmonic')
       ):mode==='intervals'?e('div',{style:{marginBottom:10}}):null,
       mode==='intervals'?e('div',{style:{marginBottom:14}},
@@ -1967,7 +1986,7 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
             return e('button',{key:tn,onClick:locked?()=>onUpgrade('All 12 intervals'):()=>setIvalTier(tn),style:{
               padding:'4px 10px',borderRadius:6,cursor:'pointer',fontSize:'0.7rem',fontWeight:active?700:400,
               border:'1px solid '+(active?GOLD:BTN_BRD),background:active?ACT_YEL:'transparent',
-              color:active?GOLD:BTN_OFF,minHeight:30,opacity:locked?0.6:1}},
+              color:active?GOLD_TXT:BTN_OFF,minHeight:30,opacity:locked?0.6:1}},
               'Lv'+tn+' · '+t.lbl,(locked?e('span',{style:{fontSize:'0.58rem',marginLeft:2}},'🔒'):null));
           })
         )
@@ -1986,7 +2005,7 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
           }},'←'),
           e('button',{'data-tour':'ear-play-btn',onClick:replayCurrent,style:{
             width:72,height:72,borderRadius:'50%',border:'2px solid '+GOLD,
-            background:ACT_YEL,color:GOLD,fontSize:'2rem',cursor:'pointer',
+            background:ACT_YEL,color:GOLD_TXT,fontSize:'2rem',cursor:'pointer',
             display:'flex',alignItems:'center',justifyContent:'center',
             boxShadow:'0 0 16px '+GOLD+'44',transition:'box-shadow 0.15s'
           }},'♪'),
@@ -1995,7 +2014,7 @@ function EarTrainingView({level,profile,onPracticed,onUpgrade,pedalRef}){
             width:44,height:44,borderRadius:'50%',
             border:'1px solid '+(!autoMode&&revealed?GOLD:BTN_BRD),
             background:!autoMode&&revealed?ACT_YEL:'transparent',
-            color:!autoMode&&revealed?GOLD:BTN_OFF,
+            color:!autoMode&&revealed?GOLD_TXT:BTN_OFF,
             fontSize:'1.2rem',cursor:autoMode?'default':'pointer',
             display:'flex',alignItems:'center',justifyContent:'center',
             opacity:autoMode?0.35:1
@@ -2070,7 +2089,7 @@ function OnboardProfileSheet({onComplete,onSkip}){
     e('div',{key:title+'_h',style:{fontSize:'0.75rem',color:HINT,margin:'14px 0 8px',fontFamily:UI_FONT,
       fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}},title),
     ...opts.map(o=>e('button',{key:o.id,onClick:()=>setVal(o.id),style:chip(val===o.id)},
-      e('div',{style:{fontSize:'0.85rem',fontWeight:700,color:val===o.id?GOLD:'var(--txt)'}},o.lbl),
+      e('div',{style:{fontSize:'0.85rem',fontWeight:700,color:val===o.id?GOLD_TXT:'var(--txt)'}},o.lbl),
       e('div',{style:{fontSize:'0.72rem',color:HINT,marginTop:1}},o.sub)))
   ];
   const ready=!!level&&!!goal;
@@ -2311,7 +2330,7 @@ function TourOverlay({steps,step,onNext,onSkip}){
       borderRadius:12,padding:'16px 18px',pointerEvents:'auto',
       boxShadow:'0 8px 32px rgba(0,0,0,0.5)',zIndex:201
     }},
-      e('div',{style:{fontSize:'0.67rem',color:GOLD,letterSpacing:'0.5px',marginBottom:5}},
+      e('div',{style:{fontSize:'0.67rem',color:GOLD_TXT,letterSpacing:'0.5px',marginBottom:5}},
         (step+1)+' / '+steps.length),
       e('div',{style:{fontFamily:SERIF,fontSize:'1.0rem',fontWeight:700,color:'var(--scale-name)',marginBottom:7}},s.title),
       e('div',{style:{fontSize:'0.81rem',color:'var(--txt)',lineHeight:1.65,marginBottom:14,opacity:0.85}},s.text),
@@ -2667,7 +2686,7 @@ function ScalePanel({degree,chordRoot,tones,degNames,keyIdx,scaleIdx,onScaleChan
               padding:'2px 8px',borderRadius:3,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.79rem',
               border:'1px solid '+(scaleIdx===i?'#FFD43B60':BTN_BRD),
               background:scaleIdx===i?ACT_GOLD:BG,
-              color:scaleIdx===i?'#FFD43B':BTN_OFF,fontWeight:scaleIdx===i?700:400}},opt.abbr)
+              color:scaleIdx===i?A_AMBER:BTN_OFF,fontWeight:scaleIdx===i?700:400}},opt.abbr)
           )
         ):null,
         e('span',{style:{fontFamily:SERIF,fontSize:'1rem',fontWeight:700,color:'var(--scale-name)'}},nn(chordRoot,keyIdx)+' '+sc.name),
@@ -2694,7 +2713,7 @@ function ScalePanel({degree,chordRoot,tones,degNames,keyIdx,scaleIdx,onScaleChan
             e('span',{style:{fontSize:'0.71rem',fontWeight:700,fontFamily:UI_FONT,color:n.isTone?'white':'var(--note-non-chord-txt)'}},n.noteName)
           ),
           e('span',{style:{fontSize:'0.64rem',fontFamily:UI_FONT,
-            color:n.isAvoid?'#F97316':n.isTone?TC[n.ti]+'cc':'var(--note-iv-txt)'}},
+            color:n.isAvoid?A_ORANGE:n.isTone?TCT[n.ti]:'var(--note-iv-txt)'}},
             intName(n.interval,n.isTone)+(n.isAvoid?'⚠':''))
         )
       ),
@@ -2732,7 +2751,7 @@ function NoShapes(){
 const mkSsBtn=(active)=>({
   padding:'6px 12px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
   border:'1px solid '+(active?'#74C0FC':BTN_BRD),background:active?ACT_BLUE:BG2,
-  color:active?'#74C0FC':BTN_OFF,fontWeight:active?700:400,minHeight:44,
+  color:active?A_BLUE:BTN_OFF,fontWeight:active?700:400,minHeight:44,
 });
 
 // ── Play-along forms ──────────────────────────────────────────────────
@@ -3799,7 +3818,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
 
   const modeBtn=(act,col,actBg)=>({padding:'6px 13px',borderRadius:5,cursor:'pointer',
     fontFamily:UI_FONT,fontSize:'0.78rem',border:'1px solid '+(act?col:BTN_BRD),
-    background:act?actBg:'transparent',color:act?col:BTN_OFF,fontWeight:act?700:400,minHeight:44});
+    background:act?actBg:'transparent',color:act?accTxt(col):BTN_OFF,fontWeight:act?700:400,minHeight:44});
   const playBtn={
     width:isPlaying?46:64,height:isPlaying?38:52,borderRadius:10,
     cursor:'pointer',border:'none',flexShrink:0,
@@ -3826,7 +3845,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
           if(isEss){onUpgrade('Drop 2 voicings');} else {setVType('drop2');}
           dismissVoicingNudge();track('nudge.play.applied',{goal:profile.goal,essentials:isEss});
         },style:{padding:'7px 12px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.75rem',fontWeight:700,
-          border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,minHeight:36}},
+          border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD_TXT,minHeight:36}},
           isEss?'See Pro →':'Switch to Drop 2 →'),
         e('button',{onClick:dismissVoicingNudge,style:{padding:'7px 9px',borderRadius:6,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.75rem',border:'1px solid '+BORDER,background:'transparent',
@@ -3867,7 +3886,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
             e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',flexShrink:0}},'Favorites'),
             e('span',{style:{fontSize:'0.7rem',color:HINT,opacity:0.7,lineHeight:1.3}},
               'Save a progression, tempo & voicing to recall in one tap'),
-            e('span',{style:{marginLeft:'auto',fontSize:'0.72rem',color:GOLD,fontWeight:700,whiteSpace:'nowrap',flexShrink:0}},'🔒 Pro')
+            e('span',{style:{marginLeft:'auto',fontSize:'0.72rem',color:GOLD_TXT,fontWeight:700,whiteSpace:'nowrap',flexShrink:0}},'🔒 Pro')
           )
         )
       :e('div',{'data-tour':'play-form-row',style:{marginBottom:10}},
@@ -3896,7 +3915,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
               },
               style:{padding:'4px 10px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,
                 fontSize:'0.75rem',border:'1px solid '+BTN_BRD,background:'transparent',
-                color:savedFaves.some(f=>f.form===form&&f.bpm===bpm&&f.vType===vType)?GOLD:BTN_OFF,
+                color:savedFaves.some(f=>f.form===form&&f.bpm===bpm&&f.vType===vType)?GOLD_TXT:BTN_OFF,
                 minHeight:44,flexShrink:0,marginLeft:'auto',
               }
             },'★')
@@ -3914,7 +3933,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
                     if(fav.prog&&fav.form==='custom') setCustomProg(fav.prog);},
                   title:'Restore: '+fav.lbl,
                   style:{padding:'3px 8px',cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.68rem',
-                    border:'none',background:'transparent',color:GOLD,minHeight:0,whiteSpace:'nowrap'}
+                    border:'none',background:'transparent',color:GOLD_TXT,minHeight:0,whiteSpace:'nowrap'}
                 },fav.lbl),
                 e('button',{
                   onClick:()=>setSavedFaves(fs=>fs.filter((_,j)=>j!==i)),
@@ -3950,7 +3969,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
         // BASS + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
-          e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:'#74C0FC',textColor:'var(--led-bass-fg)',compact:isPlaying}),
+          e(LedToggle,{label:'BASS',enabled:bassEnabled,onToggle:()=>setBassEnabled(v=>!v),color:A_BLUE,textColor:'var(--led-bass-fg)',compact:isPlaying}),
           e('button',{onClick:()=>{setShowEq(v=>!v);setShowGuitarEq(false);setShowRideEq(false);},'aria-label':'Bass Mix',title:'Bass EQ & Volume',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
             background:showEq?'#74C0FC22':'transparent',color:showEq||eqGains.some(v=>v!==0)||bassVolume!==80?'var(--led-bass-fg)':BTN_OFF,
@@ -3960,7 +3979,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
         // COMP + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
-          e(LedToggle,{label:'GUITAR',enabled:guitarEnabled,onToggle:()=>setGuitarEnabled(v=>!v),color:'#86EFAC',textColor:'var(--led-guitar-fg)',compact:isPlaying}),
+          e(LedToggle,{label:'GUITAR',enabled:guitarEnabled,onToggle:()=>setGuitarEnabled(v=>!v),color:A_GREEN,textColor:'var(--led-guitar-fg)',compact:isPlaying}),
           e('button',{onClick:()=>{setShowGuitarEq(v=>!v);setShowEq(false);setShowRideEq(false);},'aria-label':'Comp Mix',title:'Comp EQ & Volume',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
             background:showGuitarEq?'#86EFAC22':'transparent',color:showGuitarEq||guitarEqGains.some(v=>v!==0)||guitarVolume!==80?'var(--led-guitar-fg)':BTN_OFF,
@@ -3970,7 +3989,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
         // RIDE + Mix
         e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
           padding:'4px 5px 3px',borderRadius:6,border:'1px solid '+BORDER,background:BG2}},
-          e(LedToggle,{label:'RIDE',enabled:rideEnabled,onToggle:()=>setRideEnabled(v=>!v),color:'#FFD43B',textColor:'var(--led-ride-fg)',compact:isPlaying}),
+          e(LedToggle,{label:'RIDE',enabled:rideEnabled,onToggle:()=>setRideEnabled(v=>!v),color:A_AMBER,textColor:'var(--led-ride-fg)',compact:isPlaying}),
           e('button',{onClick:()=>{setShowRideEq(v=>!v);setShowEq(false);setShowGuitarEq(false);},'aria-label':'Ride Mix',title:'Ride EQ & Volume',style:{
             width:'100%',padding:'2px 0',borderRadius:4,cursor:'pointer',border:'none',minHeight:0,
             background:showRideEq?'#FFD43B22':'transparent',color:showRideEq||rideEqGains.some(v=>v!==0)||rideVolume!==80?'var(--led-ride-fg)':BTN_OFF,
@@ -4014,7 +4033,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
       ),
     }},
       e('div',{style:{display:'flex',alignItems:'center',marginBottom:8}},
-        e('span',{style:{fontSize:'0.72rem',color:'#74C0FC',letterSpacing:'0.3px',fontFamily:UI_FONT}},'Bass Mix'),
+        e('span',{style:{fontSize:'0.72rem',color:A_BLUE,letterSpacing:'0.3px',fontFamily:UI_FONT}},'Bass Mix'),
         e('button',{onClick:()=>setEqGains([0,0,0,0,0]),style:{
           marginLeft:'auto',padding:'2px 10px',borderRadius:4,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,
@@ -4026,14 +4045,14 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
         e('input',{type:'range',min:0,max:100,step:1,value:bassVolume,
           onChange:ev=>setBassVolume(+ev.target.value),
           style:{flex:1,accentColor:'#74C0FC',cursor:'pointer'}}),
-        e('span',{style:{fontSize:'0.65rem',color:'#74C0FC',fontFamily:UI_FONT,minWidth:28,textAlign:'right'}},bassVolume+'%')
+        e('span',{style:{fontSize:'0.65rem',color:A_BLUE,fontFamily:UI_FONT,minWidth:28,textAlign:'right'}},bassVolume+'%')
       ),
       e('div',{style:{display:'flex',justifyContent:'space-around'}},
         EQ_FREQS.map((freq,i)=>
           e('div',{key:i,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4}},
             e('span',{style:{
               fontSize:'0.65rem',fontFamily:UI_FONT,minWidth:28,textAlign:'center',
-              color:eqGains[i]>0?GOLD:eqGains[i]<0?'#FF6B6B':HINT,
+              color:eqGains[i]>0?GOLD_TXT:eqGains[i]<0?A_RED:HINT,
             }},(eqGains[i]>0?'+':'')+eqGains[i]),
             e('input',{
               type:'range',min:-12,max:12,step:1,value:eqGains[i],
@@ -4062,7 +4081,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
       ),
     }},
       e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
-        e('span',{style:{fontSize:'0.72rem',color:'#86EFAC',letterSpacing:'0.3px',fontFamily:UI_FONT}},'Comp Mix'),
+        e('span',{style:{fontSize:'0.72rem',color:A_GREEN,letterSpacing:'0.3px',fontFamily:UI_FONT}},'Comp Mix'),
         e('button',{onClick:()=>setGuitarEqGains([0,0,0,0,0]),style:{
           marginLeft:'auto',padding:'2px 10px',borderRadius:4,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,
@@ -4074,14 +4093,14 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
         e('input',{type:'range',min:0,max:100,step:1,value:guitarVolume,
           onChange:ev=>setGuitarVolume(+ev.target.value),
           style:{flex:1,accentColor:'#86EFAC',cursor:'pointer'}}),
-        e('span',{style:{fontSize:'0.65rem',color:'#86EFAC',fontFamily:UI_FONT,minWidth:28,textAlign:'right'}},guitarVolume+'%')
+        e('span',{style:{fontSize:'0.65rem',color:A_GREEN,fontFamily:UI_FONT,minWidth:28,textAlign:'right'}},guitarVolume+'%')
       ),
       e('div',{style:{display:'flex',justifyContent:'space-around'}},
         EQ_FREQS.map((freq,i)=>
           e('div',{key:i,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4}},
             e('span',{style:{
               fontSize:'0.65rem',fontFamily:UI_FONT,minWidth:28,textAlign:'center',
-              color:guitarEqGains[i]>0?GOLD:guitarEqGains[i]<0?'#FF6B6B':HINT,
+              color:guitarEqGains[i]>0?GOLD_TXT:guitarEqGains[i]<0?A_RED:HINT,
             }},(guitarEqGains[i]>0?'+':'')+guitarEqGains[i]),
             e('input',{
               type:'range',min:-12,max:12,step:1,value:guitarEqGains[i],
@@ -4110,7 +4129,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
       ),
     }},
       e('div',{style:{display:'flex',alignItems:'center',marginBottom:8}},
-        e('span',{style:{fontSize:'0.72rem',color:GOLD,letterSpacing:'0.3px',fontFamily:UI_FONT}},'Ride Mix'),
+        e('span',{style:{fontSize:'0.72rem',color:GOLD_TXT,letterSpacing:'0.3px',fontFamily:UI_FONT}},'Ride Mix'),
         e('button',{onClick:()=>setRideEqGains([0,0,0,0,0]),style:{
           marginLeft:'auto',padding:'2px 10px',borderRadius:4,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.68rem',border:'1px solid '+BTN_BRD,
@@ -4122,13 +4141,13 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
         e('input',{type:'range',min:0,max:100,step:1,value:rideVolume,
           onChange:ev=>setRideVolume(+ev.target.value),
           style:{flex:1,accentColor:GOLD,cursor:'pointer'}}),
-        e('span',{style:{fontSize:'0.65rem',color:GOLD,fontFamily:UI_FONT,minWidth:28,textAlign:'right'}},rideVolume+'%')
+        e('span',{style:{fontSize:'0.65rem',color:GOLD_TXT,fontFamily:UI_FONT,minWidth:28,textAlign:'right'}},rideVolume+'%')
       ),
       e('div',{style:{display:'flex',justifyContent:'space-around'}},
         EQ_FREQS.map((freq,i)=>
           e('div',{key:i,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4}},
             e('span',{style:{fontSize:'0.65rem',fontFamily:UI_FONT,minWidth:28,textAlign:'center',
-              color:rideEqGains[i]>0?GOLD:rideEqGains[i]<0?'#FF6B6B':HINT,
+              color:rideEqGains[i]>0?GOLD_TXT:rideEqGains[i]<0?A_RED:HINT,
             }},(rideEqGains[i]>0?'+':'')+rideEqGains[i]),
             e('input',{type:'range',min:-12,max:12,step:1,value:rideEqGains[i],
               onChange:ev=>{const g=[...rideEqGains];g[i]=+ev.target.value;setRideEqGains(g);},
@@ -4143,7 +4162,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
     // Custom progression controls
     form==='custom'&&!isPlaying?e('div',{style:{marginBottom:8}},
       e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:editingBar>=0?6:0,alignItems:'center'}},
-        e('span',{style:{fontSize:'0.72rem',color:'#9CA3AF',letterSpacing:'0.3px'}},'Custom progression'),
+        e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'Custom progression'),
         e('button',{onClick:()=>setCustomProg(p=>[...p,{root:0,q:'dom7'}]),
           disabled:customProg.length>=12,
           style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
@@ -4161,7 +4180,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
       editingBar>=0?e('div',{style:{padding:'8px 12px',background:BG2,border:'1px solid '+GOLD,
         borderRadius:6,marginBottom:6}},
         e('div',{style:{display:'flex',alignItems:'center',marginBottom:6,gap:10}},
-          e('span',{style:{fontSize:'0.77rem',color:GOLD,letterSpacing:'0.5px',fontWeight:600}},'Bar '+(editingBar+1)+' — Root'),
+          e('span',{style:{fontSize:'0.77rem',color:GOLD_TXT,letterSpacing:'0.5px',fontWeight:600}},'Bar '+(editingBar+1)+' — Root'),
           e('button',{onClick:()=>setEditingBar(-1),style:{marginLeft:'auto',padding:'2px 8px',borderRadius:4,
             cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',border:'1px solid '+BTN_BRD,
             background:'transparent',color:BTN_OFF,minHeight:44}},'✕ Close')
@@ -4171,7 +4190,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
             style:{padding:'3px 8px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',minHeight:44,
               border:'1px solid '+(customProg[editingBar]?.root===k.root?GOLD:BTN_BRD),
               background:customProg[editingBar]?.root===k.root?ACT_GOLD:BG2,
-              color:customProg[editingBar]?.root===k.root?GOLD:BTN_OFF}},k.name))
+              color:customProg[editingBar]?.root===k.root?GOLD_TXT:BTN_OFF}},k.name))
         ),
         e('div',{style:{display:'flex',gap:4,flexWrap:'wrap',alignItems:'center'}},
           e('span',{style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px',marginRight:4}},'Quality'),
@@ -4180,7 +4199,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
             style:{padding:'3px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',minHeight:44,
               border:'1px solid '+(customProg[editingBar]?.q===qid?'#C084FC':BTN_BRD),
               background:customProg[editingBar]?.q===qid?ACT_PUR:BG2,
-              color:customProg[editingBar]?.q===qid?'#C084FC':BTN_OFF}},qt.sym);})
+              color:customProg[editingBar]?.q===qid?A_PURPLE:BTN_OFF}},qt.sym);})
         )
       ):null
     ):null,
@@ -4225,8 +4244,8 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
               e('div',{style:{position:'absolute',top:4,left:hasBarOverride?8:6,fontSize:'0.5rem',lineHeight:1,
                 color:lit?'#FFD43Baa':HINT,fontFamily:UI_FONT}},barIdx+1),
               (()=>{
-                const romanCol=lit?'#FFD43B':isSel||isEditing?GOLD:HINT;
-                const nameCol=lit?'#FFD43B':isSel||isEditing?GOLD:BTN_OFF;
+                const romanCol=lit?A_AMBER:isSel||isEditing?GOLD_TXT:HINT;
+                const nameCol=lit?A_AMBER:isSel||isEditing?GOLD_TXT:BTN_OFF;
                 const half=(cx)=>e('div',{style:{flex:1,minWidth:0,textAlign:'center'}},
                   e('div',{style:{fontSize:'0.58rem',fontWeight:600,lineHeight:1,marginBottom:2,color:romanCol,fontFamily:UI_FONT}},chords[cx].roman),
                   e('div',{style:{fontSize:'0.7rem',fontWeight:lit||isSel?700:400,lineHeight:1.1,color:nameCol,fontFamily:SERIF}},chords[cx].name));
@@ -4262,7 +4281,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
           padding:'3px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           border:'1px solid '+(scaleHint===sc.name?GOLD:BTN_BRD),
           background:scaleHint===sc.name?ACT_GOLD:BG2,
-          color:scaleHint===sc.name?GOLD:BTN_OFF,minHeight:44}},
+          color:scaleHint===sc.name?GOLD_TXT:BTN_OFF,minHeight:44}},
           sc.name+' — '+sc.note)
       ),
       (SCALE_HINTS[ac.quality]||[]).length===0&&e('span',{style:{fontSize:'0.72rem',color:HINT}},'—'),
@@ -4271,7 +4290,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
           padding:'3px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
           border:'1px solid '+(showGTLine?GOLD:BTN_BRD),
           background:showGTLine?ACT_GOLD:BG2,
-          color:showGTLine?GOLD:BTN_OFF,minHeight:44}},'Guide tones ♦')
+          color:showGTLine?GOLD_TXT:BTN_OFF,minHeight:44}},'Guide tones ♦')
       )
     ),
     // Voicing + String Set row — full buttons when stopped, compact label when playing
@@ -4279,7 +4298,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
       isPlaying
         ?e('div',{style:{display:'flex',alignItems:'center',gap:6}},
             e('span',{style:{fontSize:'0.68rem',color:LBL}},'Voicing'),
-            e('span',{style:{fontSize:'0.68rem',color:GOLD,fontWeight:600}},
+            e('span',{style:{fontSize:'0.68rem',color:GOLD_TXT,fontWeight:600}},
               activeVT==='shell'?'Shell':activeVT==='drop3'?'Drop 3':activeVT==='rootless'?'Rootless':'Drop 2'
               +(vType!=='shell'&&dropD.sets[ssIdx]?' · '+dropD.sets[ssIdx].lbl:'')
             )
@@ -4337,7 +4356,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
             padding:'2px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.7rem',
             border:'1px solid '+(activeVT===t?GOLD:BTN_BRD),
             background:activeVT===t?ACT_GOLD:'transparent',
-            color:activeVT===t?GOLD:BTN_OFF,minHeight:0,opacity:locked?0.6:1,
+            color:activeVT===t?GOLD_TXT:BTN_OFF,minHeight:0,opacity:locked?0.6:1,
           }},label,(locked?e('span',{style:{fontSize:'0.55rem',marginLeft:2}},'🔒'):null));
           // Per-bar override is progressive disclosure: collapsed to a link until the
           // user opts in (or the bar already carries an override).
@@ -4533,7 +4552,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     padding:'7px 4px',borderRadius:6,cursor:'pointer',
     border:'1px solid '+(act?'#74C0FC':BORDER),
     background:act?BG2:BG,fontFamily:UI_FONT,fontSize:'0.76rem',
-    color:act?'#74C0FC':BTN_OFF,fontWeight:act?700:400,minHeight:44};};
+    color:act?A_BLUE:BTN_OFF,fontWeight:act?700:400,minHeight:44};};
 
   const TABS=[
     {id:'shell',lbl:'Shell',locked:false},
@@ -4578,12 +4597,12 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     e('button',{onClick:()=>{setDetectMode(false);},style:{
       flex:1,padding:'8px',borderRadius:8,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.82rem',
       fontWeight:!detectMode?700:400,border:'1px solid '+(!detectMode?GOLD:BTN_BRD),
-      background:!detectMode?ACT_GOLD:'transparent',color:!detectMode?GOLD:BTN_OFF,minHeight:40}},
+      background:!detectMode?ACT_GOLD:'transparent',color:!detectMode?GOLD_TXT:BTN_OFF,minHeight:40}},
       'Build a Chord'),
     e('button',{onClick:()=>{if(isEss){onUpgrade('Find Chord');return;}setDetectMode(true);setSelectedFrets({});setFretOffset(0);},style:{
       flex:1,padding:'8px',borderRadius:8,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.82rem',
       fontWeight:detectMode?700:400,border:'1px solid '+(detectMode?GOLD:BTN_BRD),
-      background:detectMode?ACT_GOLD:'transparent',color:detectMode?GOLD:BTN_OFF,minHeight:40,
+      background:detectMode?ACT_GOLD:'transparent',color:detectMode?GOLD_TXT:BTN_OFF,minHeight:40,
       opacity:isEss?0.7:1}},
       'Find Chord',(isEss?e('span',{style:{fontSize:'0.6rem',marginLeft:3}},'🔒'):null))
   );
@@ -4615,7 +4634,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       ?e('div',null,
         e('div',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,marginBottom:8}},'Interval:'),
         e('div',{style:{padding:'8px 14px',borderRadius:8,border:'1px solid '+GOLD,background:ACT_GOLD,display:'inline-block'}},
-          e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:GOLD}},detectInterval.name),
+          e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:GOLD_TXT}},detectInterval.name),
           e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT}},detectInterval.notes+'  ·  '+detectInterval.semi+' semitones')
         )
       )
@@ -4651,10 +4670,10 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
                 cursor:clickable||!ch.exact?'pointer':'default'}},
               e('div',{style:{display:'flex',alignItems:'baseline',gap:6}},
                 e('span',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,
-                  color:ch.exact&&i===0?GOLD:isCompTarget?'#74C0FC':'var(--txt)'}},ch.name),
-                clickable?e('span',{style:{fontSize:'0.62rem',color:GOLD,fontFamily:UI_FONT}},'open ↗'):null,
-                (!ch.exact&&!isCompTarget)?e('span',{style:{fontSize:'0.62rem',color:'#74C0FC',fontFamily:UI_FONT}},'show missing ↓'):null,
-                isCompTarget?e('span',{style:{fontSize:'0.62rem',color:'#74C0FC',fontFamily:UI_FONT}},'showing ✓'):null
+                  color:ch.exact&&i===0?GOLD_TXT:isCompTarget?A_BLUE:'var(--txt)'}},ch.name),
+                clickable?e('span',{style:{fontSize:'0.62rem',color:GOLD_TXT,fontFamily:UI_FONT}},'open ↗'):null,
+                (!ch.exact&&!isCompTarget)?e('span',{style:{fontSize:'0.62rem',color:A_BLUE,fontFamily:UI_FONT}},'show missing ↓'):null,
+                isCompTarget?e('span',{style:{fontSize:'0.62rem',color:A_BLUE,fontFamily:UI_FONT}},'showing ✓'):null
               ),
               e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT}},
                 ch.quality+(invLbl?'  ·  '+invLbl:'')+(ch.exact?'':'  ·  '+ch.matched+'/'+ch.total+' notes'))
@@ -4676,7 +4695,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       style:{display:'flex',alignItems:'center',gap:8,padding:'2px 10px 2px 4px',borderRadius:18,
         border:'1px solid '+(pickerOpen?GOLD:BTN_BRD),background:pickerOpen?ACT_GOLD:'transparent',
         cursor:'pointer',minHeight:40,flexShrink:0}},
-      e('span',{style:{fontFamily:SERIF,fontSize:'1.35rem',fontWeight:700,color:GOLD,fontStyle:'italic'}},chordName),
+      e('span',{style:{fontFamily:SERIF,fontSize:'1.35rem',fontWeight:700,color:GOLD_TXT,fontStyle:'italic'}},chordName),
       // Spelled-out affordance — a bare ▾ next to a chord name doesn't read as
       // "this is how you pick a different chord".
       e('span',{style:{fontSize:'0.66rem',color:LBL,fontFamily:UI_FONT}},pickerOpen?'close ▲':'change ▼')
@@ -4684,7 +4703,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     e('span',{style:{fontSize:'0.79rem',color:LBL}},baseType.label+(extDef?' + '+extDef.dn:'')+(extDef?' (5th → '+extDef.dn+')':'')),
     e('div',{style:{display:'flex',gap:12,flexWrap:'wrap',marginLeft:'auto'}},
       tones.map((t,i)=>
-        e('span',{key:i,style:{display:'flex',alignItems:'center',gap:5,fontSize:'0.76rem',color:TC[i]}},
+        e('span',{key:i,style:{display:'flex',alignItems:'center',gap:5,fontSize:'0.76rem',color:TCT[i]}},
           e('span',{style:{width:8,height:8,borderRadius:'50%',background:TC[i],display:'inline-block',flexShrink:0}}),
           degNames[i]+'='+nn(t,customRoot)
         )
@@ -4715,7 +4734,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
               padding:'4px 2px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
               border:'1px solid '+(customRoot===k.root?GOLD:BTN_BRD),
               background:customRoot===k.root?ACT_GOLD:BG2,
-              color:customRoot===k.root?GOLD:BTN_OFF,fontWeight:customRoot===k.root?700:400,
+              color:customRoot===k.root?GOLD_TXT:BTN_OFF,fontWeight:customRoot===k.root?700:400,
               minHeight:44}},k.name)
           )
         )
@@ -4729,7 +4748,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
               padding:'4px 2px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
               border:'1px solid '+(customTypeIdx===i?'#C084FC':BTN_BRD),
               background:customTypeIdx===i?ACT_PUR:BG2,
-              color:customTypeIdx===i?'#C084FC':BTN_OFF,fontWeight:customTypeIdx===i?700:400,
+              color:customTypeIdx===i?A_PURPLE:BTN_OFF,fontWeight:customTypeIdx===i?700:400,
               minHeight:44,opacity:locked?0.55:1}},t.sym,(locked?e('span',{style:{fontSize:'0.6rem',marginLeft:2}},'🔒'):null));
           })
         ),
@@ -4745,7 +4764,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
           padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
           border:'1px solid '+(extOpt===ex.id?'#F4A261':BTN_BRD),
           background:extOpt===ex.id?ACT_GOLD:BG2,
-          color:extOpt===ex.id?'#F4A261':BTN_OFF,fontWeight:extOpt===ex.id?700:400,minHeight:44}},
+          color:extOpt===ex.id?A_ORANGE:BTN_OFF,fontWeight:extOpt===ex.id?700:400,minHeight:44}},
           ex.sym)
       )
     ):null,
@@ -4783,7 +4802,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
             style:{padding:'4px 10px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.72rem',
               border:'1px solid '+(scaleHintCustom===sc.name?GOLD:BTN_BRD),
               background:scaleHintCustom===sc.name?ACT_GOLD:BG2,
-              color:scaleHintCustom===sc.name?GOLD:BTN_OFF,minHeight:36}},sc.name)
+              color:scaleHintCustom===sc.name?GOLD_TXT:BTN_OFF,minHeight:36}},sc.name)
         )
       ):null,
       setDotMode?e('div',{style:{borderTop:'1px solid '+BORDER,padding:'4px 10px',background:BG2}},
@@ -4987,8 +5006,8 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
   const P={fontSize:'0.80rem',lineHeight:1.75,color:'var(--txt)',fontFamily:UI_FONT,marginBottom:8};
   const LI={fontSize:'0.80rem',lineHeight:1.7,color:'var(--txt)',fontFamily:UI_FONT,paddingLeft:16};
   const HL={color:'var(--scale-name)',fontWeight:700};
-  const TC4={color:'#4ECDC4'};const TRD={color:'#FF6B6B'};
-  const TBL={color:'#74C0FC'};const TYL={color:'#FFD43B'};
+  const TC4={color:A_TEAL};const TRD={color:A_RED};
+  const TBL={color:A_BLUE};const TYL={color:A_AMBER};
   function sec(title,...ch){return e('div',{style:S},e('div',{style:H},title),...ch);}
   function p(...k){return e('p',{style:P},...k);}
   function ul(...items){return e('ul',{style:{listStyle:'none',margin:'0 0 8px'}},
@@ -5001,15 +5020,15 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
       ...items.map((it,i)=>{
         if(isCriterion(it)) return e('li',{key:i,style:{display:'flex',gap:7,alignItems:'flex-start',
           padding:'7px 10px',marginTop:4,background:ACT_GOLD,border:'1px solid '+GOLD+'55',borderRadius:6}},
-          e('span',{style:{color:GOLD,flexShrink:0,fontSize:'0.78rem'}},'◆'),
+          e('span',{style:{color:GOLD_TXT,flexShrink:0,fontSize:'0.78rem'}},'◆'),
           e('span',{style:{fontSize:'0.78rem',lineHeight:1.6,color:'var(--txt)',fontFamily:UI_FONT}},
-            e('b',{style:{color:GOLD}},'You\'ve got it when: '),it.replace(/^Done when:\s*/i,'')));
+            e('b',{style:{color:GOLD_TXT}},'You\'ve got it when: '),it.replace(/^Done when:\s*/i,'')));
         const checked=!!doneItems[stId+':'+i];
         return e('li',{key:i,onClick:()=>toggleItem(stId,i),
           style:{display:'flex',gap:9,alignItems:'flex-start',padding:'7px 2px',cursor:'pointer',minHeight:36}},
           e('span',{style:{flexShrink:0,width:18,height:18,marginTop:1,borderRadius:4,
             border:'1.5px solid '+(checked?GOLD:BTN_BRD),background:checked?ACT_GOLD:'transparent',
-            color:GOLD,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.72rem',fontWeight:700}},checked?'✓':''),
+            color:GOLD_TXT,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.72rem',fontWeight:700}},checked?'✓':''),
           e('span',{style:{fontSize:'0.80rem',lineHeight:1.6,fontFamily:UI_FONT,
             color:checked?HINT:'var(--txt)'}},...[].concat(it)));
       }));
@@ -5028,7 +5047,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
     return e('div',{key:id,style:{borderBottom:'1px solid '+BORDER,paddingBottom:8,marginBottom:8,cursor:'pointer'},
       onClick:()=>tog('g_'+id)},
       e('div',{style:{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}},
-        e('span',{style:{color:GOLD,fontSize:'0.85rem',flexShrink:0,fontFamily:UI_FONT}},open?'▾':'▸'),
+        e('span',{style:{color:GOLD_TXT,fontSize:'0.85rem',flexShrink:0,fontFamily:UI_FONT}},open?'▾':'▸'),
         e('span',{style:{fontFamily:UI_FONT,fontSize:'0.84rem',fontWeight:700,color:'var(--txt)'}},term),
         playQuality?e('button',{onClick:ev=>{ev.stopPropagation();playGuideChord(playQuality);},style:{
           display:'inline-flex',alignItems:'center',gap:3,padding:'2px 8px',borderRadius:10,cursor:'pointer',
@@ -5248,7 +5267,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
       e('div',{style:{display:'flex',gap:12,padding:'12px 14px',cursor:'pointer',alignItems:'center'},
         onClick:()=>toggleStage(st.id)},
         e('div',{style:{flexShrink:0,width:26,height:26,borderRadius:'50%',
-          border:'2px solid '+GOLD,color:isDone?GOLD:LBL,
+          border:'2px solid '+GOLD,color:isDone?GOLD_TXT:LBL,
           display:'flex',alignItems:'center',justifyContent:'center',
           fontSize:'0.8rem',fontWeight:700,fontFamily:UI_FONT,background:isDone?ACT_GOLD:'transparent',
           animation:justDone===st.id?'doneFlash 0.5s ease-out':'none'}},isDone?'✓':String(n)),
@@ -5258,8 +5277,8 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
         ),
         // Per-stage step tally — visible even when collapsed
         !isDone&&taskTotal>0?e('span',{style:{fontSize:'0.68rem',fontFamily:UI_FONT,fontWeight:700,flexShrink:0,
-          color:allTasks?GOLD:taskDone>0?'var(--txt)':HINT}},taskDone+'/'+taskTotal):null,
-        e('span',{style:{color:GOLD,fontSize:'0.85rem',flexShrink:0}},isOpen?'▾':'▸')
+          color:allTasks?GOLD_TXT:taskDone>0?'var(--txt)':HINT}},taskDone+'/'+taskTotal):null,
+        e('span',{style:{color:GOLD_TXT,fontSize:'0.85rem',flexShrink:0}},isOpen?'▾':'▸')
       ),
       isOpen?e('div',{style:{padding:'0 14px 14px',borderTop:'1px solid '+BORDER}},
         st.body.length>0?e('p',{style:{...P,marginBottom:8,marginTop:10}},...[].concat(st.body[0])):null,
@@ -5274,7 +5293,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
             const presetLbl='▶ Open in '+({diatonic:'Keys',iivi:'Play',custom:'Chords',quiz:'Ear Training'}[st.preset.view]||'app');
             return e('button',{onClick:gated?()=>onUpgrade?.(stageFeature):()=>openPreset(st.preset),style:{
               padding:'5px 16px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',
-              border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,fontWeight:700,minHeight:44,
+              border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD_TXT,fontWeight:700,minHeight:44,
               opacity:gated?0.7:1}},
               presetLbl,(gated?e('span',{style:{fontSize:'0.65rem',marginLeft:4}},'🔒'):null));
           })(),
@@ -5284,7 +5303,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
             const playFeature=FORM_FEAT[st.playPreset?.form]||'Play forms';
             return e('button',{onClick:gated?()=>onUpgrade?.(playFeature):()=>openPreset(st.playPreset),style:{
               padding:'5px 14px',borderRadius:5,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',
-              border:'1px solid #74C0FC',background:'#0a1520',color:'#74C0FC',fontWeight:700,minHeight:44,
+              border:'1px solid #74C0FC',background:'#0a1520',color:A_BLUE,fontWeight:700,minHeight:44,
               opacity:gated?0.7:1}},
               '⌾ Try in Play →',(gated?e('span',{style:{fontSize:'0.65rem',marginLeft:4}},'🔒'):null));
           })():null
@@ -5294,7 +5313,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
           e('button',{onClick:ev=>{ev.stopPropagation();tog('st_'+st.id);},style:{
             background:'transparent',border:'none',cursor:'pointer',fontFamily:UI_FONT,
             fontSize:'0.74rem',color:HINT,padding:'4px 0',display:'flex',alignItems:'center',gap:5,minHeight:0}},
-            e('span',{style:{color:GOLD,fontSize:'0.8rem'}},theoryOpen?'▾':'▸'),' Why it works'),
+            e('span',{style:{color:GOLD_TXT,fontSize:'0.8rem'}},theoryOpen?'▾':'▸'),' Why it works'),
           theoryOpen?e('div',{style:{marginTop:4,paddingLeft:10,borderLeft:'2px solid '+BORDER}},
             ...st.body.slice(1).map((t,i)=>t&&typeof t==='object'&&t.$$typeof
               ?e('div',{key:'bt'+i,style:{marginBottom:5}},t)
@@ -5305,7 +5324,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
         st.id==='standard'&&isEss?e('div',{style:{
           marginTop:14,padding:'14px 16px',borderRadius:8,
           border:'1px solid '+GOLD+'80',background:ACT_GOLD}},
-          e('div',{style:{fontFamily:SERIF,fontSize:'1rem',fontWeight:700,color:GOLD,marginBottom:5}},
+          e('div',{style:{fontFamily:SERIF,fontSize:'1rem',fontWeight:700,color:GOLD_TXT,marginBottom:5}},
             '🎵 Ready to play real jazz standards?'),
           e('div',{style:{fontSize:'0.78rem',lineHeight:1.65,color:'var(--txt)',fontFamily:UI_FONT,marginBottom:10}},
             'You\'ve completed the full learning path. Pro unlocks Blue Bossa, Autumn Leaves, All The Things You Are, Stella by Starlight, and There Will Never Be Another You — plus Drop 2/3/Rootless voicings and all ear training modes. One price, forever.'),
@@ -5325,7 +5344,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
         },style:{
           width:'100%',marginTop:12,padding:'9px 14px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',fontWeight:700,
           border:'1px solid '+(isDone?GOLD:BTN_BRD),background:isDone?ACT_GOLD:'transparent',
-          color:isDone?GOLD:BTN_OFF,minHeight:44,
+          color:isDone?GOLD_TXT:BTN_OFF,minHeight:44,
           animation:justDone===st.id?'doneFlash 0.5s ease-out':'none'}},
           isDone?'✓ Marked complete — tap to undo':'I\'ve got this'+(nextSt?' — next stage':''))
       ):null
@@ -5334,7 +5353,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
   return e('div',null,
     streakBump?e('div',{style:{
       position:'fixed',bottom:80,left:'50%',transform:'translateX(-50%)',
-      background:'#222',color:GOLD,fontFamily:UI_FONT,fontWeight:700,fontSize:'0.88rem',
+      background:'#222',color:GOLD_TXT,fontFamily:UI_FONT,fontWeight:700,fontSize:'0.88rem',
       padding:'10px 20px',borderRadius:24,boxShadow:'0 4px 16px #0008',
       zIndex:9999,pointerEvents:'none',whiteSpace:'nowrap',
       animation:'milestoneUp 0.35s ease-out'
@@ -5342,10 +5361,10 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
     // ── Resume / Today card — a single clear next action on every visit ──
     allDone
       ?e('div',{style:{marginBottom:14,padding:'14px 16px',background:ACT_GOLD,border:'1px solid '+GOLD,borderRadius:8}},
-        e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:GOLD,marginBottom:6}},'🎉 You\'ve worked the whole Path'),
+        e('div',{style:{fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:GOLD_TXT,marginBottom:6}},'🎉 You\'ve worked the whole Path'),
         p('You\'ve covered the core of jazz harmony — the four qualities, shells, Drop 2, the ii–V–I and its variations, the common forms, and a standard. That\'s a real foundation. The road from here is open-ended:'),
         ul('Drop 3 and Rootless voicings add harmonic depth (Pro)','Chord melody (the tune inside the chords) and reharmonization (re-coloring the chords)','Learn more standards — every tune you know is a new entry point','Play with other people — the single most accelerating thing you can do'),
-        streak>0?e('div',{style:{fontSize:'0.74rem',color:GOLD,fontWeight:700,fontFamily:UI_FONT,marginTop:4}},'🔥 '+streak+'-day streak — keep it going'):null,
+        streak>0?e('div',{style:{fontSize:'0.74rem',color:GOLD_TXT,fontWeight:700,fontFamily:UI_FONT,marginTop:4}},'🔥 '+streak+'-day streak — keep it going'):null,
         isEss?e('button',{onClick:()=>onUpgrade('Jazz Standards'),style:{
           marginTop:10,width:'100%',padding:'11px 14px',borderRadius:6,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.85rem',fontWeight:700,
@@ -5357,14 +5376,14 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
           daysSince>1?e('div',{style:{fontSize:'0.72rem',color:HINT,fontFamily:UI_FONT,marginBottom:2}},
             '👋 Welcome back after '+daysSince+' day'+(daysSince===1?'':'s')
             +(bestStreak>1?' — your best streak: '+bestStreak+' day'+(bestStreak===1?'':'s'):'')):null,
-          streak>0?e('div',{style:{fontSize:'0.73rem',color:GOLD,fontWeight:700,fontFamily:UI_FONT,marginBottom:2}},'🔥 '+streak+'-day streak'):null,
+          streak>0?e('div',{style:{fontSize:'0.73rem',color:GOLD_TXT,fontWeight:700,fontFamily:UI_FONT,marginBottom:2}},'🔥 '+streak+'-day streak'):null,
           e('div',{style:{fontSize:'0.69rem',color:HINT,fontFamily:UI_FONT,textTransform:'uppercase',letterSpacing:'0.06em'}},
             doneCount===0?'Start here':'Pick up where you left off'),
           e('div',{style:{fontFamily:SERIF,fontSize:'0.96rem',fontWeight:700,color:'var(--scale-name)',marginTop:2}},
             'Stage '+(nextIdx+1)+' — '+nextStage.title)),
         e('button',{onClick:()=>jumpTo(nextStage.id),style:{
           padding:'9px 18px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.8rem',fontWeight:700,
-          border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,minHeight:44,flexShrink:0}},
+          border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD_TXT,minHeight:44,flexShrink:0}},
           doneCount===0?'Start →':'Jump back in →'))
       :null,
     // ── Goal-based suggestion — dismissible, doesn't touch stage order ──
@@ -5378,7 +5397,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
       e('div',{style:{display:'flex',gap:8,flexShrink:0}},
         e('button',{onClick:()=>{jumpTo(goalStage.id);dismissGoalNudge();track('nudge.guide.applied',{stage:goalStage.id});},style:{
           padding:'8px 14px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',fontWeight:700,
-          border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD,minHeight:40}},'Jump there →'),
+          border:'1px solid '+GOLD,background:ACT_GOLD,color:GOLD_TXT,minHeight:40}},'Jump there →'),
         e('button',{onClick:dismissGoalNudge,style:{
           padding:'8px 10px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.78rem',
           border:'1px solid '+BORDER,background:'transparent',color:HINT,minHeight:40}},'✕'))
@@ -5386,7 +5405,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
     e('div',{style:S},
       e('div',{onClick:()=>setIntroOpen(o=>!o),
         style:{display:'flex',alignItems:'baseline',gap:8,cursor:'pointer'}},
-        e('span',{style:{color:GOLD,fontSize:'0.8rem',flexShrink:0}},introOpen?'▾':'▸'),
+        e('span',{style:{color:GOLD_TXT,fontSize:'0.8rem',flexShrink:0}},introOpen?'▾':'▸'),
         e('div',{style:{flex:1}},
           e('div',{style:{...H,marginBottom:introOpen?8:0}},'Start Here'),
           !introOpen?e('div',{style:{fontSize:'0.74rem',lineHeight:1.5,color:HINT,fontFamily:UI_FONT}},
@@ -5404,14 +5423,14 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
     e('div',{style:S},
       e('div',{style:{...H,display:'flex',justifyContent:'space-between',alignItems:'baseline',flexWrap:'wrap',gap:8}},
         e('span',null,'The Learning Path — from first chords to jazz'),
-        e('span',{'data-tour':'guide-progress',style:{fontSize:'0.72rem',fontFamily:UI_FONT,fontWeight:allDone?700:400,color:allDone?GOLD:HINT}},
+        e('span',{'data-tour':'guide-progress',style:{fontSize:'0.72rem',fontFamily:UI_FONT,fontWeight:allDone?700:400,color:allDone?GOLD_TXT:HINT}},
           allDone?'Complete ✓':'Phase '+phaseNum+' of 4 · '+doneCount+'/'+stages.length)
       ),
       p('Work top to bottom. Tap a stage to see what to practice and open the right tool. Stages vary in depth — some take a few sessions, some take months, and the time under each one is a rough guide, not a target to hit. The Path covers everything — some steps use Pro features, which you can unlock anytime.'),
       stages.flatMap((st,i)=>{
         const out=[];
         if(st.phaseLabel) out.push(e('div',{key:'ph_'+st.id,style:{padding:'12px 2px 4px'}},
-          e('div',{style:{fontSize:'0.71rem',fontWeight:700,fontFamily:UI_FONT,color:GOLD,
+          e('div',{style:{fontSize:'0.71rem',fontWeight:700,fontFamily:UI_FONT,color:GOLD_TXT,
             letterSpacing:'0.09em',textTransform:'uppercase',opacity:0.85}},st.phaseLabel),
           st.phaseNote?e('div',{style:{fontSize:'0.74rem',lineHeight:1.6,color:HINT,fontFamily:UI_FONT,marginTop:4}},st.phaseNote):null));
         out.push(stage(i+1,st,stages[i+1],i===0?'guide-stage-0':undefined));
@@ -5507,7 +5526,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
       e('div',{style:{cursor:'pointer',userSelect:'none',display:'flex',alignItems:'center',gap:8,
         fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:'var(--scale-name)',marginBottom:expanded.intervals?8:0},
         onClick:()=>tog('intervals')},
-        e('span',{style:{color:GOLD,marginRight:2}},expanded.intervals?'▾':'▸'),
+        e('span',{style:{color:GOLD_TXT,marginRight:2}},expanded.intervals?'▾':'▸'),
         'Reference — Intervals'
       ),
       !expanded.intervals?e('p',{style:{...P,marginBottom:0,marginTop:4}},'The distance between two notes, measured in semitones. One guitar fret = one semitone. Tap to expand the full reference table.'):null,
@@ -5540,10 +5559,10 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
                 [12,'Octave','8','C → C (high)','Same note, one octave up'],
               ].map(([sem,name,abbr,ex,feel],ri)=>
                 e('tr',{key:ri,style:{background:ri%2===0?'transparent':'var(--bg2)'}},
-                  e('td',{style:{padding:'4px 10px',color:'#FFD43B',fontWeight:700,textAlign:'center'}},sem),
+                  e('td',{style:{padding:'4px 10px',color:A_AMBER,fontWeight:700,textAlign:'center'}},sem),
                   e('td',{style:{padding:'4px 10px',color:'var(--txt)',fontWeight:600}},name),
                   e('td',{style:{padding:'4px 10px',color:HINT,fontFamily:'Georgia,serif',fontStyle:'italic'}},abbr),
-                  e('td',{style:{padding:'4px 10px',color:'#74C0FC'}},[ex]),
+                  e('td',{style:{padding:'4px 10px',color:A_BLUE}},[ex]),
                   e('td',{style:{padding:'4px 10px',color:HINT,fontSize:'0.77rem'}},[feel])
                 )
               )
@@ -5551,10 +5570,10 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
           )
         ),
         p('In the app, the colored dots on the neck each represent one chord-tone interval: ',
-          e('span',{style:{color:'#FF6B6B',fontWeight:700}},'Root (R)'),', ',
+          e('span',{style:{color:A_RED,fontWeight:700}},'Root (R)'),', ',
           e('span',{style:{color:HINT,fontWeight:700}},'3rd'),', ',
-          e('span',{style:{color:'#74C0FC',fontWeight:700}},'5th'),', and ',
-          e('span',{style:{color:'#FFD43B',fontWeight:700}},'7th'),
+          e('span',{style:{color:A_BLUE,fontWeight:700}},'5th'),', and ',
+          e('span',{style:{color:A_AMBER,fontWeight:700}},'7th'),
           '. The dimmer dots show every occurrence of those intervals across the whole neck; the bright ones are the voicing you\'ve selected.'
         )
       ):null
@@ -5563,7 +5582,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
       e('div',{style:{cursor:'pointer',userSelect:'none',display:'flex',alignItems:'center',gap:8,
         fontFamily:SERIF,fontSize:'1.05rem',fontWeight:700,color:'var(--scale-name)',marginBottom:expanded.modes?8:0},
         onClick:()=>tog('modes')},
-        e('span',{style:{color:GOLD,marginRight:2}},expanded.modes?'▾':'▸'),
+        e('span',{style:{color:GOLD_TXT,marginRight:2}},expanded.modes?'▾':'▸'),
         'Reference — Modes'
       ),
       !expanded.modes?e('p',{style:{...P,marginBottom:0,marginTop:4}},'The 7 scales built from a major key — Dorian, Mixolydian, Lydian, etc. Each sets the color over a specific chord type. Tap to expand.'):null,
@@ -5590,10 +5609,10 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
                 ['Locrian',  'vii', 'Diminished — ♭2 and ♭5',       'viiø7, dissonant',       'B–C–D–E–F–G–A'],
               ].map(([mode,deg,char,use,notes],ri)=>
                 e('tr',{key:ri,style:{background:ri%2===0?'transparent':'var(--bg2)'}},
-                  e('td',{style:{padding:'4px 10px',color:GOLD,fontWeight:700}},mode),
-                  e('td',{style:{padding:'4px 10px',color:'#C084FC',fontWeight:600,textAlign:'center'}},deg),
+                  e('td',{style:{padding:'4px 10px',color:GOLD_TXT,fontWeight:700}},mode),
+                  e('td',{style:{padding:'4px 10px',color:A_PURPLE,fontWeight:600,textAlign:'center'}},deg),
                   e('td',{style:{padding:'4px 10px',color:'var(--txt)',fontSize:'0.78rem'}},char),
-                  e('td',{style:{padding:'4px 10px',color:'#74C0FC',fontSize:'0.78rem'}},use),
+                  e('td',{style:{padding:'4px 10px',color:A_BLUE,fontSize:'0.78rem'}},use),
                   e('td',{style:{padding:'4px 10px',color:HINT,fontSize:'0.76rem',fontFamily:'Georgia,serif'}},notes)
                 )
               )
@@ -5601,7 +5620,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
           )
         ),
         p('Two modes go beyond the major scale: ',
-          e('b',{style:{color:GOLD}},'Melodic Minor'),' (root–2–♭3–4–5–6–7) is the most important in jazz — its modes include Lydian Dominant (V7#11), Altered (V7alt, all tensions altered), and Lydian Augmented. The Scale panel in the Keys tab shows which mode applies to each chord in the key.')
+          e('b',{style:{color:GOLD_TXT}},'Melodic Minor'),' (root–2–♭3–4–5–6–7) is the most important in jazz — its modes include Lydian Dominant (V7#11), Altered (V7alt, all tensions altered), and Lydian Augmented. The Scale panel in the Keys tab shows which mode applies to each chord in the key.')
       ):null
     ),
     popTerm&&GLOSS_DEFS[popTerm]?e(React.Fragment,null,
@@ -5612,7 +5631,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
         maxHeight:'60vh',overflowY:'auto',
       }},
         e('div',{style:{display:'flex',alignItems:'center',marginBottom:10}},
-          e('span',{style:{fontWeight:700,color:GOLD,fontSize:'0.92rem',fontFamily:UI_FONT}},GLOSS_DEFS[popTerm].term),
+          e('span',{style:{fontWeight:700,color:GOLD_TXT,fontSize:'0.92rem',fontFamily:UI_FONT}},GLOSS_DEFS[popTerm].term),
           e('button',{onClick:()=>setPopTerm(null),style:{marginLeft:'auto',background:'transparent',
             border:'none',cursor:'pointer',color:BTN_OFF,fontSize:'1.1rem',minHeight:0,padding:'2px 6px'}
           },'✕')
@@ -6057,6 +6076,8 @@ function App(){
   const selIdx=vType==='shell'?safeShellIdx:invIdx;
   const isRl=vType==='rootless';
   const hlTc=isRl?TC_RL:TC;
+  // Same colours as type rather than as dots — see TCT.
+  const hlTct=isRl?TCT_RL:TCT;
 
   const highlight=useMemo(()=>{
     if(vType==='arpeggio') return null;
@@ -6084,15 +6105,15 @@ function App(){
     padding:'7px 4px',borderRadius:6,cursor:'pointer',
     border:'1px solid '+(act?'#74C0FC':BORDER),
     background:act?BG2:BG,fontFamily:UI_FONT,fontSize:'0.76rem',
-    color:act?'#74C0FC':BTN_OFF,fontWeight:act?700:400,minHeight:44};};
+    color:act?A_BLUE:BTN_OFF,fontWeight:act?700:400,minHeight:44};};
   const keyBtnStyle=i=>{const act=key===i;return{
     padding:'4px 9px',borderRadius:4,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.74rem',
     border:'1px solid '+(act?GOLD:BTN_BRD),background:act?ACT_GOLD:BG2,
-    color:act?GOLD:BTN_OFF,fontWeight:act?700:400,minHeight:44};};
+    color:act?GOLD_TXT:BTN_OFF,fontWeight:act?700:400,minHeight:44};};
   const chordBtnStyle=i=>{const act=deg===i;return{
     padding:'6px 10px',borderRadius:8,cursor:'pointer',fontFamily:UI_FONT,
     border:'1px solid '+(act?'#FF6B6B':BTN_BRD),background:act?ACT_RED:BG2,
-    color:act?'#FF6B6B':BTN_OFF,minWidth:58,textAlign:'center',minHeight:48};};
+    color:act?A_RED:BTN_OFF,minWidth:58,textAlign:'center',minHeight:48};};
   const voiceOrder=DROP_TYPES.has(vType)&&invData[invIdx]
     ?invData[invIdx].a.map(idx=>degNames[idx]).join(' - '):'';
 
@@ -6160,7 +6181,7 @@ function App(){
           ?e('button',{'data-tour':'page-tour-btn',onClick:()=>{setPageTourStep(0);setPageTourId(viewMode);},
               style:{padding:'3px 8px',borderRadius:12,cursor:'pointer',fontFamily:UI_FONT,
                 fontSize:'0.72rem',border:'1px solid '+GOLD+'88',background:'var(--bg2)',
-                color:GOLD,minHeight:36}},
+                color:GOLD_TXT,minHeight:36}},
               '? Tour')
           :null,
         e('button',{'aria-label':'About & support',onClick:()=>setAboutOpen(true),
@@ -6177,7 +6198,7 @@ function App(){
       background:'rgba(251,191,36,0.07)',border:'1px solid rgba(251,191,36,0.22)',
       borderRadius:8,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',justifyContent:'space-between'
     }},
-      e('span',{style:{fontSize:'0.73rem',fontWeight:700,color:GOLD,fontFamily:UI_FONT}},
+      e('span',{style:{fontSize:'0.73rem',fontWeight:700,color:GOLD_TXT,fontFamily:UI_FONT}},
         streak>0
           ?'🔥 '+streak+'-day streak — practice today to keep it'
           :'👋 Welcome back — '+appDaysSince+' days away. Play a little today to start a new streak.'
@@ -6194,7 +6215,7 @@ function App(){
         cursor:'pointer',fontFamily:UI_FONT,border:'1px solid '+(keyOpen?GOLD:BTN_BRD),
         background:keyOpen?ACT_GOLD:BG2,minHeight:44}},
         e('span',{style:{fontSize:'0.7rem',color:LBL,letterSpacing:'1px'}},'KEY'),
-        e('span',{style:{fontSize:'1rem',color:GOLD,fontWeight:700}},KEYS[key].name),
+        e('span',{style:{fontSize:'1rem',color:GOLD_TXT,fontWeight:700}},KEYS[key].name),
         e('span',{style:{fontSize:'0.7rem',color:LBL}},keyOpen?'▲':'▼')
       ),
       keyOpen?e('div',{style:{display:'flex',flexWrap:'wrap',gap:3,marginTop:8}},
@@ -6227,6 +6248,9 @@ function App(){
           const rPC=(KEYS[key].root+MAJOR_SCALE[i])%12;
           const qt=QTYPES[i];
           const qcol=qt==='maj7'?GOLD:qt==='dom7'?'#FF6B6B':qt==='m7b5'?'#C084FC':'#74C0FC';
+          // qcol drives the border/underline (wants the vivid hex); qtxt drives
+          // the Roman numeral, note name and quality symbol (needs contrast).
+          const qtxt=accTxt(qcol);
           const qbg=qt==='maj7'?ACT_GOLD:qt==='dom7'?ACT_RED:qt==='m7b5'?'#1a0a2a':'#0a1520';
           const act=deg===i;
           return e('button',{key:i,onClick:()=>{
@@ -6245,11 +6269,11 @@ function App(){
             minHeight:44,transition:'border-color 0.1s,background 0.1s',
           }},
             e('div',{style:{fontSize:'0.65rem',fontWeight:700,fontFamily:UI_FONT,
-              color:act?qcol:LBL,letterSpacing:'0.3px',lineHeight:1}},r),
+              color:act?qtxt:LBL,letterSpacing:'0.3px',lineHeight:1}},r),
             e('div',{style:{fontSize:act?'0.9rem':'0.82rem',fontWeight:act?700:500,fontFamily:SERIF,
-              color:act?qcol:BTN_OFF,lineHeight:1.1,textAlign:'center',transition:'font-size 0.1s'}},nn(rPC,key)),
+              color:act?qtxt:BTN_OFF,lineHeight:1.1,textAlign:'center',transition:'font-size 0.1s'}},nn(rPC,key)),
             e('div',{onClick:(ev)=>{ev.stopPropagation();const gk={'maj7':'maj7','m7':'m7','dom7':'dom7','m7b5':'halfdim'}[qt];if(gk)setPopTerm(t=>t===gk?null:gk);},
-              style:{fontSize:'0.58rem',fontFamily:UI_FONT,color:act?qcol+'cc':HINT,lineHeight:1,letterSpacing:'0.2px',
+              style:{fontSize:'0.58rem',fontFamily:UI_FONT,color:act?qtxt:HINT,lineHeight:1,letterSpacing:'0.2px',
                 cursor:'pointer',borderBottom:'1px dotted '+(act?qcol+'88':'var(--gold)44')}},QSYMS[i])
           );
         })
@@ -6257,16 +6281,16 @@ function App(){
       // Chord info bar
       e('div',{style:{background:BG2,border:'1px solid '+BORDER,borderRadius:7,
         padding:'8px 14px',marginBottom:10,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
-        e('span',{style:{fontFamily:SERIF,fontSize:'1.35rem',fontWeight:700,color:GOLD,fontStyle:'italic'}},chordName),
+        e('span',{style:{fontFamily:SERIF,fontSize:'1.35rem',fontWeight:700,color:GOLD_TXT,fontStyle:'italic'}},chordName),
         e('span',{style:{fontSize:'0.79rem',color:LBL,letterSpacing:'0.3px'}},KEYS[key].name+' major — '+ROMAN[deg]),
         e('div',{style:{display:'flex',gap:12,flexWrap:'wrap',marginLeft:'auto'}},
           tones.map((t,i)=>
-            e('span',{key:i,style:{display:'flex',alignItems:'center',gap:5,fontSize:'0.76rem',color:TC[i]}},
+            e('span',{key:i,style:{display:'flex',alignItems:'center',gap:5,fontSize:'0.76rem',color:TCT[i]}},
               e('span',{style:{width:8,height:8,borderRadius:'50%',background:TC[i],display:'inline-block',flexShrink:0,boxShadow:'0 0 6px '+TC[i]+'88'}}),
               degNames[i]+'='+nn(t,key)
             )
           ),
-          isRl?e('span',{style:{display:'flex',alignItems:'center',gap:5,fontSize:'0.76rem',color:'#C084FC'}},
+          isRl?e('span',{style:{display:'flex',alignItems:'center',gap:5,fontSize:'0.76rem',color:A_PURPLE}},
             e('span',{style:{width:8,height:8,borderRadius:'50%',background:'#C084FC',display:'inline-block',flexShrink:0,boxShadow:'0 0 6px #C084FC88'}}),
             '9='+nn(rlTones[0],key)):null
         ),
@@ -6309,7 +6333,7 @@ function App(){
             style:{...mkSsBtn(safeSSIdx===i),opacity:ok?1:0.4,cursor:ok?'pointer':'not-allowed'}},ss.lbl);}),
           voiceOrder?e('span',{key:'vo',style:{marginLeft:'auto',fontSize:'0.7rem',color:LBL}},'voices: '+voiceOrder):null
         ]:null,
-        vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:quality==='m7b5'?'#FFD43B':HINT,fontFamily:UI_FONT}},
+        vType==='shell'?e('span',{style:{fontSize:'0.72rem',color:quality==='m7b5'?A_AMBER:HINT,fontFamily:UI_FONT}},
           quality==='m7b5'
             ?'⚠ Shell (R-3-7) omits the ♭5 — the note that defines this chord. Dimmed neck dots show all ♭5 positions.'
             :'Guide tones: R + 3rd + 7th  ·  Form A = skip-string  ·  Form B = adjacent strings'
@@ -6381,7 +6405,7 @@ function App(){
         (isRl?['9th','3rd','5th','7th']:['Root','3rd','5th','7th']).map((l,i)=>
           e('span',{key:i,style:{display:'flex',alignItems:'center',gap:5}},
             e('span',{style:{width:10,height:10,borderRadius:'50%',background:hlTc[i],display:'inline-block',flexShrink:0,boxShadow:'0 0 5px '+hlTc[i]+'88'}}),
-            e('span',{style:{color:hlTc[i],fontSize:'0.74rem'}},l)
+            e('span',{style:{color:hlTct[i],fontSize:'0.74rem'}},l)
           )
         ),
         e('span',{style:{display:'flex',alignItems:'center',gap:5,marginLeft:4}},
@@ -6392,7 +6416,7 @@ function App(){
       ),
       // Footnote
       e('div',{style:{marginTop:8,padding:'6px 14px',fontSize:'0.79rem',color:LBL,lineHeight:1.7}},
-        e('span',{style:{color:GOLD,fontWeight:700}},'△'),
+        e('span',{style:{color:GOLD_TXT,fontWeight:700}},'△'),
         ' = major 7th (Δ7 interval).  Shell Form A: skip-string.  Shell Form B: adjacent-string R-3-7.  Drop 2: 2nd-highest note dropped an octave.  Drop 3: 3rd-highest dropped.  Rootless: 9th replaces root.')
     ):null,
 
@@ -6434,7 +6458,7 @@ function App(){
           border:'1px solid '+GOLD+'80',borderRadius:16,padding:'22px 24px 18px'}},
           e('div',{style:{fontSize:'2.4rem',textAlign:'center',marginBottom:8}},
             streakMilestone===3?'🔥':streakMilestone===7?'⭐':streakMilestone===14?'🌟':streakMilestone===365?'💎':'🏆'),
-          e('div',{style:{fontFamily:SERIF,fontSize:'1.6rem',fontWeight:700,color:GOLD,
+          e('div',{style:{fontFamily:SERIF,fontSize:'1.6rem',fontWeight:700,color:GOLD_TXT,
             textAlign:'center',marginBottom:6}},
             streakMilestone+'-day streak'),
           e('div',{style:{fontSize:'0.84rem',lineHeight:1.65,color:'var(--txt)',fontFamily:UI_FONT,

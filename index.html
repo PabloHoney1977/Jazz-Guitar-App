@@ -34,7 +34,7 @@
       --bg: #07070f; --bg2: #0d0d1e; --brd: #22223a;
       --lbl: #a8a8cc; --hint: #9898bc; --btn-off: #8888b8; --btn-brd: #28284a;
       --txt: #d0d0e8; --neck-wrap: #0b0b1c;
-      --gold: #d4a855; --scale-name: #e8d8a0;
+      --gold: #d4a855; --gold-txt: #d4a855; --scale-name: #e8d8a0;
       --cb-bg: #09091a; --cb-sel: #09182a; --cb-str: #1e1e38;
       --scale-circ: rgba(255,255,255,0.04); --scale-circ-str: rgba(255,255,255,0.20);
       --scale-circ-txt: rgba(255,255,255,0.26); --hi-dot-str: rgba(255,255,255,0.85);
@@ -56,18 +56,28 @@
       --tc-dim-2: #74C0FC55; --tc-dim-3: #FFD43B55;
       /* LedToggle label text — bright pastels read fine on the dark bg */
       --led-bass-fg: #74C0FC; --led-guitar-fg: #86EFAC; --led-ride-fg: #FFD43B;
+      /* Accent colours used as TEXT. The bright hexes above are dot/glow/border
+         colours: as label text on the light background they fall to ~1.2:1, far
+         under WCAG AA. Every accent-coloured label routes through these instead,
+         so dots stay vivid while text stays readable in both themes. Dark mode
+         keeps the bright values; the light block darkens each to >= 4.5:1. */
+      --tc-txt-0: #FF6B6B; --tc-txt-1: #4ECDC4;
+      --tc-txt-2: #74C0FC; --tc-txt-3: #FFD43B;
+      --acc-red: #FF6B6B; --acc-teal: #4ECDC4; --acc-blue: #74C0FC;
+      --acc-amber: #FFD43B; --acc-green: #86EFAC; --acc-purple: #C084FC;
+      --acc-orange: #F4A261; --acc-warn: #F97316;
     }
     :root[data-theme="light"] {
       --bg: #f5f5fa; --bg2: #eaeaf5; --brd: #b8b8d8;
       --lbl: #363663; --hint: #525285; --btn-off: #3d3d65; --btn-brd: #b8b8d8;
       --txt: #0e0e20; --neck-wrap: #e8e4de;
-      --gold: #b07418; --scale-name: #5a3a00;
+      --gold: #b07418; --gold-txt: #8a5a10; --scale-name: #5a3a00;
       --cb-bg: #ffffff; --cb-sel: #ddf0fa; --cb-str: #a8a8c8;
       --scale-circ: rgba(0,0,0,0.06); --scale-circ-str: rgba(0,0,0,0.22);
       --scale-circ-txt: rgba(0,0,0,0.50); --hi-dot-str: rgba(0,0,0,0.70);
       --dot-lbl: #1a1a2e;
       --leg-circ: rgba(0,0,0,0.28); --leg-txt: rgba(0,0,0,0.65);
-      --parent-key: #1a8a80; --parent-key-brd: rgba(78,205,196,0.35); --parent-other: #484890;
+      --parent-key: #0b6e66; --parent-key-brd: rgba(78,205,196,0.35); --parent-other: #484890;
       --parent-box-act: #d0f0ee;
       --note-non-chord: rgba(0,0,0,0.07); --note-non-chord-txt: #505090; --note-iv-txt: #6060a0;
       --act-gold: #fff8e0; --act-red: #ffe8e8; --act-teal: #d8f5f0;
@@ -82,7 +92,16 @@
       --tc-dim-3: rgba(172,108,0,0.85);  /* 7th:  dark amber */
       /* LedToggle label text — darkened so it stays legible on the light bg
          (the bright pastels failed contrast — see screenshot report) */
-      --led-bass-fg: #1971c2; --led-guitar-fg: #2b8a3e; --led-ride-fg: #8a6d00;
+      --led-bass-fg: #1a5fae; --led-guitar-fg: #1b6b2f; --led-ride-fg: #7a4d00;
+      /* Accent-as-text, darkened. Each measured >= 4.5:1 against --bg2 (#eaeaf5),
+         the lightest surface any of them sits on, so they clear WCAG AA at the
+         small sizes these labels actually use. Do NOT swap these back to the
+         bright hexes — those are for dots, glows and borders only. */
+      --tc-txt-0: #b71c1c; --tc-txt-1: #0b6e66;
+      --tc-txt-2: #1a5fae; --tc-txt-3: #8a5600;
+      --acc-red: #b71c1c; --acc-teal: #0b6e66; --acc-blue: #1a5fae;
+      --acc-amber: #8a5600; --acc-green: #1b6b2f; --acc-purple: #7c3aed;
+      --acc-orange: #8f4d0c; --acc-warn: #b3480a;
     }
 
     body {
