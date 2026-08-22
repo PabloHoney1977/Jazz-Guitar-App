@@ -94,3 +94,34 @@ test('FREE affordances are NOT over-gated (anti-crippling guards)', () => {
   // The major ii–V–I must remain directly playable (setForm, not onUpgrade).
   assert.ok(has("onClick:()=>setForm('major')"), 'major form must stay free/playable');
 });
+
+test('web/PWA build cannot hand out Pro (public GitHub Pages copy)', () => {
+  // The repo is public and served on Pages, so anyone can load the web build.
+  // Every free-Pro path there must be armed by ?dev=1 first, or the browser
+  // copy becomes a free edition of the $14.99 product.
+  assert.ok(has("localStorage.setItem('jg-dev','1')") && has("const DEV_UNLOCK="),
+    'DEV_UNLOCK opt-in flag missing');
+  assert.ok(has('if(!DEV_UNLOCK){') && has("track('upgrade.web'"),
+    'doUpgrade web branch must fail closed unless the dev unlock is armed');
+  assert.ok(has('if(!DEV_UNLOCK) return false;'),
+    'doRestore web branch must fail closed unless the dev unlock is armed');
+  assert.ok(has('(IAP.isNative()||DEV_UNLOCK)?startTrial:null'),
+    'the 7-day trial must not be offered where no purchase can follow');
+  assert.ok(has('IAP.isNative()||!DEV_UNLOCK'),
+    'the header Pro chip revert must be a dev-only affordance');
+});
+
+test('no code path grants a tier from a Guide preset', () => {
+  // openPreset applies key/degree/voicing/form only. A stage carrying
+  // `level:'pro'` would permanently unlock Pro with one tap.
+  assert.ok(!/if\(p\.level\)/.test(SRC), 'openPreset must not set the tier');
+  assert.ok(!/preset:\{[^}]*level:/.test(SRC), 'no Guide preset may carry a level');
+});
+
+test('purchase paths fail closed on device', () => {
+  // A native build with a missing/misconfigured Purchases bridge must never
+  // fall through to the dev unlock — that ships the product for free.
+  assert.ok(has('if(IAP.isNative()){') && has("track('upgrade.unavailable'"),
+    'doUpgrade must fail closed on native when the IAP bridge is unavailable');
+  assert.ok(has('if(IAP.isNative()) return false;'), 'doRestore must fail closed on native');
+});
