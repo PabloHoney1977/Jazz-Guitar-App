@@ -117,6 +117,20 @@ const IAP=(()=>{
   return{available,checkEntitlement,purchase,restore,isNative};
 })();
 
+// ── Dev unlock (web/PWA only) ─────────────────────────────────────────
+// The web build has no App Store bridge, so `doUpgrade` used to hand out Pro
+// for free to anyone who tapped it. The repo is public and served on GitHub
+// Pages, which made the whole $14.99 product free-and-installable in a browser.
+// The dev unlock now has to be armed explicitly with `?dev=1` (sticky, so it
+// survives navigation) — that keeps the fast Pro/Essentials testing loop for us
+// and leaves the public web build fail-closed like the device build.
+const DEV_UNLOCK=(()=>{
+  try{
+    if(new URLSearchParams(location.search).get('dev')==='1') localStorage.setItem('jg-dev','1');
+    return localStorage.getItem('jg-dev')==='1';
+  }catch(ex){return false;}
+})();
+
 // ── Native "Rate the app" prompt (App Store review) ────────────────────
 // Wraps @capacitor-community/in-app-review's requestReview(), which calls
 // SKStoreReviewController on iOS (Apple throttles to ~3 prompts/user/year
@@ -912,73 +926,6 @@ function DotModeToggle({dotMode,setDotMode}){
   );
 }
 
-// ── GuitarToggle ──────────────────────────────────────────────────────
-// Front view of a Gibson Les Paul 3-way pickup selector: cream "poker chip"
-// ring with a chrome nut and a bat-handle lever that flips up (Full) or
-// down (Basics). The cream amber tip and poker chip are the iconic LP cues.
-function GuitarToggle({level,setLevel}){
-  const isBasic=level==='essentials';
-  const up=!isBasic;                 // Full = lever thrown up, Basics = down
-  const px=36,py=42;                 // pivot (center of the poker chip / nut)
-  const tip=up?{x:33,y:14}:{x:39,y:70}; // bat-handle tip travel
-  const ACT='#C084FC',OFF='#6a6a7e';
-  return e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:1,flexShrink:0}},
-    e('span',{style:{fontSize:'0.55rem',color:'var(--lbl)',letterSpacing:'2px',fontFamily:UI_FONT}},'MODE'),
-    e('button',{
-      onClick:()=>setLevel(isBasic?'pro':'essentials'),
-      'aria-label':'Currently '+(isBasic?'Essentials':'Pro')+' — tap to switch',
-      title:isBasic?'Switch to Pro: adds Drop 3, Rootless voicings, Altered scale, extended chord types':'Switch to Essentials: simplified view for building fundamentals',
-      style:{background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:0,touchAction:'manipulation'},
-    },
-      e('svg',{width:50,height:60,viewBox:'0 0 72 86',style:{display:'block'}},
-        e('defs',null,
-          e('radialGradient',{id:'lpChip',cx:'38%',cy:'32%',r:'70%'},
-            e('stop',{offset:'0%',stopColor:'#f4ecd2'}),
-            e('stop',{offset:'62%',stopColor:'#e6d9b2'}),
-            e('stop',{offset:'100%',stopColor:'#cdbd8a'}),
-          ),
-          e('radialGradient',{id:'lpNut',cx:'36%',cy:'30%',r:'72%'},
-            e('stop',{offset:'0%',stopColor:'#fbfbff'}),
-            e('stop',{offset:'48%',stopColor:'#c9c9d6'}),
-            e('stop',{offset:'100%',stopColor:'#8b8b9c'}),
-          ),
-          e('linearGradient',{id:'lpLever',x1:'0',y1:'0',x2:'1',y2:'0'},
-            e('stop',{offset:'0%',stopColor:'#8b8b9a'}),
-            e('stop',{offset:'42%',stopColor:'#e8e8f0'}),
-            e('stop',{offset:'100%',stopColor:'#7a7a88'}),
-          ),
-          e('radialGradient',{id:'lpTip',cx:'34%',cy:'30%',r:'68%'},
-            e('stop',{offset:'0%',stopColor:'#fbf4d8'}),
-            e('stop',{offset:'52%',stopColor:'#e7d39a'}),
-            e('stop',{offset:'100%',stopColor:'#bd9f5c'}),
-          ),
-        ),
-        // Position labels (active one lights up purple)
-        e('text',{x:36,y:9,textAnchor:'middle',fontFamily:UI_FONT,fontSize:'8',fontWeight:up?'700':'400',
-          letterSpacing:'1',fill:up?ACT:OFF},'FULL'),
-        e('text',{x:36,y:84,textAnchor:'middle',fontFamily:UI_FONT,fontSize:'8',fontWeight:up?'400':'700',
-          letterSpacing:'1',fill:up?OFF:ACT},'BASIC'),
-        // Poker chip — drop shadow, cream rim, cream face
-        e('circle',{cx:36,cy:45,r:20,fill:'rgba(0,0,0,0.45)'}),
-        e('circle',{cx:px,cy:py,r:20,fill:'#bfb086',stroke:'#23232f',strokeWidth:1.2}),
-        e('circle',{cx:px,cy:py,r:16.5,fill:'url(#lpChip)'}),
-        e('circle',{cx:px,cy:py,r:13,fill:'none',stroke:'rgba(80,60,20,0.18)',strokeWidth:0.8}),
-        // Bat-handle lever — metallic shaft + cream amber tip
-        e('line',{x1:px,y1:py,x2:tip.x,y2:tip.y,stroke:'#26262f',strokeWidth:9,strokeLinecap:'round'}),
-        e('line',{x1:px,y1:py,x2:tip.x,y2:tip.y,stroke:'url(#lpLever)',strokeWidth:6,strokeLinecap:'round'}),
-        e('circle',{cx:tip.x,cy:tip.y,r:6.5,fill:'url(#lpTip)',stroke:'#9c8348',strokeWidth:0.9}),
-        e('ellipse',{cx:tip.x-2,cy:tip.y-2.3,rx:2.2,ry:1.4,fill:'rgba(255,255,255,0.45)'}),
-        // Active glow halo on the thrown tip
-        e('circle',{cx:tip.x,cy:tip.y,r:9.5,fill:'none',stroke:ACT,strokeWidth:1.3,opacity:0.32}),
-        // Chrome mounting nut at the pivot
-        e('circle',{cx:px,cy:py,r:7,fill:'url(#lpNut)',stroke:'#54545f',strokeWidth:0.9}),
-        e('circle',{cx:px,cy:py,r:3.2,fill:'none',stroke:'rgba(0,0,0,0.35)',strokeWidth:0.8}),
-        e('ellipse',{cx:px-2,cy:py-2.4,rx:2.4,ry:1.5,fill:'rgba(255,255,255,0.5)'}),
-      )
-    )
-  );
-}
-
 // ── Analytics ─────────────────────────────────────────────────────────
 function track(event,props){
   try{if(window.posthog&&typeof window.posthog.capture==='function')window.posthog.capture(event,props||{});}catch(e){}
@@ -1097,7 +1044,7 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial,on
       // only in the 'Pro overview' copy, i.e. absent from most impressions.
       e('div',{style:{fontSize:'0.72rem',color:HINT,textAlign:'center',
         marginBottom:10,fontFamily:UI_FONT}},'One-time purchase · no subscription'),
-      !trialUsed?e('button',{onClick:onTrial,style:{
+      !trialUsed&&onTrial?e('button',{onClick:onTrial,style:{
         width:'100%',padding:'12px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'0.88rem',fontWeight:600,
         background:'transparent',border:'1px solid '+GOLD+'66',
@@ -5863,7 +5810,14 @@ function App(){
       track('upgrade.unavailable',{feature:upgradeSheet});
       return;
     }
-    // Web / PWA only: dev unlock (Pro chip in header reverts).
+    // Web / PWA. There is no way to take payment here, so the only honest
+    // outcome is to point at the iOS app. The dev unlock is opt-in (`?dev=1`)
+    // so the public web build can't be used as a free Pro edition.
+    if(!DEV_UNLOCK){
+      setPurchaseErr('Pro is unlocked in the Jazz Guitar Lab app for iPhone and iPad.');
+      track('upgrade.web',{feature:upgradeSheet});
+      return;
+    }
     track('upgrade.completed',{feature:upgradeSheet});
     goPro();setUpgradeSheet(null);
   }
@@ -5872,6 +5826,7 @@ function App(){
     // Same fail-closed rule as doUpgrade — a device build with no bridge must
     // not hand out Pro just because "restore" was tapped.
     if(IAP.isNative()) return false;
+    if(!DEV_UNLOCK) return false;
     goPro();return true;
   }
   function startTrial(){
@@ -6043,7 +5998,6 @@ function App(){
   // bpm/minor belong to IIVIView, which is unmounted while the Path is
   // open, so writing localStorage here is picked up when it mounts.
   function openPreset(p){
-    if(p.level) setLevel(p.level);
     if(p.key!==undefined) setKey(p.key);
     if(p.deg!==undefined) setDeg(p.deg);
     if(p.vType) setVType(p.vType);
@@ -6227,7 +6181,7 @@ function App(){
             style:tierChipStyle(true)},
             'Trial ✦')
         :level==='pro'
-          ?(IAP.isNative()
+          ?(IAP.isNative()||!DEV_UNLOCK
               ?e('div',{title:'Pro unlocked — thank you ✦',style:tierChipStyle(false)},'Pro ✦')
               :e('div',{'data-tour':'level-switch',
                   onClick:()=>{setLevel('essentials');safeLSSet('jg-level','essentials');},
@@ -6479,7 +6433,10 @@ function App(){
         ' = major 7th (Δ7 interval).  Shell Form A: skip-string.  Shell Form B: adjacent-string R-3-7.  Drop 2: 2nd-highest note dropped an octave.  Drop 3: 3rd-highest dropped.  Rootless: 9th replaces root.')
     ):null,
 
-    upgradeSheet?e(UpgradeSheet,{feature:upgradeSheet,onClose:()=>setUpgradeSheet(null),onUnlock:doUpgrade,trialUsed,trialActive,onTrial:startTrial,
+    upgradeSheet?e(UpgradeSheet,{feature:upgradeSheet,onClose:()=>setUpgradeSheet(null),onUnlock:doUpgrade,trialUsed,trialActive,
+      // No trial where there is no purchase to convert to: on the public web
+      // build it is a dead end, and clearing site data re-arms it forever.
+      onTrial:(IAP.isNative()||DEV_UNLOCK)?startTrial:null,
       purchaseErr,
       onRestore:async()=>{if(!await doRestore())setPurchaseErr('No previous purchase found on this Apple ID.');}}):null,
     audioDiag?e(AudioDiagSheet,{onClose:()=>setAudioDiag(false)}):null,
