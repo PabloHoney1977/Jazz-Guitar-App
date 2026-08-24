@@ -2,11 +2,33 @@
   "permissions": {
     "allow": [
       "PowerShell(Get-ChildItem \"c:\\\\Users\\\\pehre\\\\Projects\\\\Jazz Guitar App\" -Recurse | Select-Object FullName, @{N='KB';E={[math]::Round\\($_.Length/1KB,1\\)}} | Format-Table -AutoSize)",
+      "Bash(node --check app.js)",
+      "PowerShell($cmds = 'node','npx','deno','bun','volta','fnm','nvm'; foreach\\($c in $cmds\\){ $p=\\(Get-Command $c -ErrorAction SilentlyContinue\\).Source; if\\($p\\){\"$c -> $p\"} }; \"--- scan ---\"; Get-ChildItem -Path \"$env:APPDATA\",\"$env:LOCALAPPDATA\",\"$env:ProgramFiles\",\"$env:USERPROFILE\\\\scoop\\\\apps\" -Filter node.exe -Recurse -ErrorAction SilentlyContinue -Depth 4 | Select-Object -First 5 -ExpandProperty FullName)",
+      "Read(//c/Users/pehre/AppData/Local/OpenAI/Codex/bin/5b9024f90663758b//**)",
+      "Read(//c/Users/pehre/AppData/Local/OpenAI/Codex/bin/5b9024f90663758b/node_modules/npm/**)",
+      "Bash(git log *)",
+      "Bash(git ls-remote *)",
+      "Bash(gh api *)",
       "Bash(git fetch *)",
+      "Bash(cd \"c:/Users/pehre/Projects/Jazz Guitar App\" && echo \"=== isEss usages in deployed \\(live\\) app.js ===\" && grep -n \"isEss\" /tmp/live_app.js | head -40)",
+      "Read(//tmp/**)",
+      "Bash(awk '/function IIVIView/{f=1} f{print NR\": \"$0; if\\(++n>12\\)exit}' live_app.js)",
+      "Bash(git worktree *)",
+      "Bash(git rev-list *)",
       "Bash(git push *)",
-      "Bash(git merge *)",
+      "Read(//c/Users/pehre/AppData/Local/Temp/jgfeat/**)",
+      "Bash(awk '/function detectChords/{f=1} f{print NR\": \"$0; if\\(/^}/&&f&&NR>start+2\\){exit} if\\(f&&!start\\)start=NR}' app.js)",
+      "Bash(cd \"C:/Users/pehre/AppData/Local/Temp/jgbuild\"; echo \"=== constants/colors/fonts ===\"; sed -n '40,75p' app.js; echo \"=== INT_NAMES/INTERVAL_NAMES/color+font consts ===\"; grep -n \"const INT_NAMES\\\\|const INTERVAL_NAMES\\\\|const GOLD\\\\|const BG2\\\\|const BG=\\\\|const BORDER\\\\|const BTN_BRD\\\\|const BTN_OFF\\\\|const HINT\\\\|const LBL\\\\|const UI_FONT\\\\|const SERIF\\\\|const MONO\\\\|const ACT_GOLD\\\\|const ACT_RED\\\\|const ACT_TEAL\\\\|const TC=\\\\|const FLAT_KEYS\\\\|function safeLS\\\\|const safeLS\\\\|function nn\\\\|const nn=\" app.js)",
+      "Read(//c/Users/pehre/AppData/Local/Temp/jgbuild/**)",
+      "Bash(grep -n \"React.createElement\\\\|const {useState\\\\|useState, useMemo\\\\|useState,useMemo\" app.js)",
+      "Bash(grep -n \"viewMode==='quiz'\\\\|EarTrainingView,{\\\\|earPedalRef\\\\|markPracticed\\\\|showUpgrade\\\\|'jg-viewMode'\\\\|level,onPracticed\" app.js)",
+      "Bash(python -)",
+      "PowerShell($node = \\(Get-Command node -ErrorAction SilentlyContinue\\).Source; if\\(-not $node\\){ $node = Get-ChildItem -Path \"$env:APPDATA\",\"$env:LOCALAPPDATA\",\"$env:ProgramFiles\",\"$env:ProgramFiles\\(x86\\)\",\"$env:USERPROFILE\\\\scoop\\\\apps\" -Filter node.exe -Recurse -ErrorAction SilentlyContinue -Depth 5 | Select-Object -First 1 -ExpandProperty FullName }; if\\($node\\){ \"node: $node\"; & $node --version } else { \"node: NOT FOUND\" }; \"--- npx playwright? ---\"; \\(Get-Command npx -ErrorAction SilentlyContinue\\).Source)",
+      "PowerShell($p = \"C:\\\\Users\\\\pehre\\\\Projects\\\\Jazz Guitar App\"; \"playwright pkg:\"; Test-Path \"$p\\\\node_modules\\\\playwright\\\\package.json\"; \"playwright-core:\"; Test-Path \"$p\\\\node_modules\\\\playwright-core\"; \"@playwright/test:\"; Test-Path \"$p\\\\node_modules\\\\@playwright\\\\test\"; \"--- chromium browsers ---\"; Get-ChildItem \"$env:USERPROFILE\\\\AppData\\\\Local\\\\ms-playwright\" -ErrorAction SilentlyContinue -Directory | Select-Object -ExpandProperty Name; \"--- package.json test scripts ---\"; if\\(Test-Path \"$p\\\\package.json\"\\){ \\(Get-Content \"$p\\\\package.json\" -Raw | ConvertFrom-Json\\).scripts.PSObject.Properties | ForEach-Object { \"$\\($_.Name\\): $\\($_.Value\\)\" } })",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit -q -m ' *)",
+      "Bash(git rebase *)",
+      "Bash(git stash *)"
     ]
   }
 }
