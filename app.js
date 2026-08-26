@@ -771,6 +771,37 @@ function playMidiPreview(midis){
     });
   }catch(ex){}
 }
+// Resolve the exact MIDI notes a Keys/Chords voicing will sound, given the
+// voicing type + current selection. Button handlers (chord/voicing-type/string-set)
+// can't read the on-screen `highlight` at click time — setState is async, so the
+// shape they're about to display hasn't been computed yet — so they call this to
+// preview exactly what the fretboard is about to draw. Mirrors the `highlight`
+// memos: same calcVoicing calls, same safe-index fallback to the first playable
+// shape. Returns null for arpeggio (whole-neck map, nothing single to sound) or
+// when no shape is playable.
+function voicingMidis(vType,tones,rlTones,ssIdx,invIdx,shellIdx,rlIdx){
+  try{
+    let v,ss;
+    if(vType==='rootless'){
+      if(!rlTones) return null;
+      const all=ROOTLESS.map(cfg=>calcVoicing(cfg.s,cfg.a,rlTones,1));
+      const idx=all[rlIdx]?rlIdx:all.findIndex(x=>x);
+      if(idx<0) return null; v=all[idx]; ss=ROOTLESS[idx].s;
+    } else if(vType==='shell'){
+      const all=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,tones,1));
+      const idx=all[shellIdx]?shellIdx:all.findIndex(x=>x);
+      if(idx<0) return null; v=all[idx]; ss=SHELLS[idx].s;
+    } else if(DROP_TYPES.has(vType)){
+      const dropD=DROP_DATA[vType]||DROP_DATA.drop2;
+      const set=dropD.sets[Math.min(ssIdx,dropD.sets.length-1)].s;
+      const all=dropD.inv.map(inv=>calcVoicing(set,inv.a,tones));
+      const idx=all[invIdx]?invIdx:all.findIndex(x=>x);
+      if(idx<0) return null; v=all[idx]; ss=set;
+    } else return null; // arpeggio — nothing single to preview
+    if(!v) return null;
+    return v.frets.map((f,i)=>OPEN_MIDI[ss[i]]+f);
+  }catch(ex){ return null; }
+}
 
 // ── Audio self-test (on-device root-cause diagnostic) ─────────────────
 // Headless Chromium (our smoke tests) can't reproduce iOS WebKit audio, so
@@ -4778,7 +4809,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
     ):null,
     // Voicing tabs
     e('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(92px,1fr))',gap:4,marginBottom:8}},
-      TABS.map(({id,lbl,locked})=>e('button',{key:id,onClick:locked?()=>onUpgrade(lbl+' voicings'):()=>setVType(id),style:{...tabStyle(locked?'':id),opacity:locked?0.65:1}},lbl,(locked?e('span',{style:{fontSize:'0.65rem',marginLeft:3}},'🔒'):null)))
+      TABS.map(({id,lbl,locked})=>e('button',{key:id,onClick:locked?()=>onUpgrade(lbl+' voicings'):()=>{setVType(id);playMidiPreview(voicingMidis(id,tones,null,ssIdx,invIdx,shellIdx,0));},style:{...tabStyle(locked?'':id),opacity:locked?0.65:1}},lbl,(locked?e('span',{style:{fontSize:'0.65rem',marginLeft:3}},'🔒'):null)))
     ),
     // Controls bar — only when there is something to operate; the voicing note
     // renders under the neck instead (see vtypeNote).
@@ -4787,7 +4818,7 @@ function CustomChordView({customRoot,setCustomRoot,customTypeIdx,setCustomTypeId
       display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',minHeight:36}},
       e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
       setsData.map((ss,i)=>{const ok=playableSets[i]!==false;return e('button',{key:i,disabled:!ok,
-        onClick:ok?()=>{setSsIdx(i);setInvIdx(0);}:undefined,
+        onClick:ok?()=>{setSsIdx(i);setInvIdx(0);playMidiPreview(voicingMidis(vType,tones,null,i,0,shellIdx,0));}:undefined,
         title:ok?undefined:'No playable shape for this chord on these strings',
         style:{...mkSsBtn(safeSSIdx===i),opacity:ok?1:0.4,cursor:ok?'pointer':'not-allowed'}},ss.lbl);})
     ):null,
@@ -6276,12 +6307,12 @@ function App(){
           const act=deg===i;
           return e('button',{key:i,onClick:()=>{
             setDeg(i);
-            try{
-              const ti=getChordTones(rPC,qt);
-              const vs=SHELLS.map(sh=>calcVoicing(sh.s,sh.a,ti,1));
-              const vi=vs.findIndex(v=>v!==null);
-              if(vi>=0)playChordPreview(vs[vi],SHELLS[vi].s);
-            }catch(ex){}
+            // Preview the chord in the *current* voicing type/string set — i.e.
+            // exactly what the fretboard is about to draw — not a fixed shell.
+            // m7b5 has no rootless shape (an effect drops rootless→shell on this
+            // change), so mirror that here so the preview isn't silent.
+            const pvt=(vType==='rootless'&&qt==='m7b5')?'shell':vType;
+            playMidiPreview(voicingMidis(pvt,getChordTones(rPC,qt),getRootlessTones(rPC,qt),ssIdx,invIdx,shellIdx,rlIdx));
           },style:{
             flex:'1 0 48px',padding:'6px 4px 5px',borderRadius:6,cursor:'pointer',
             border:'1px solid '+(act?qcol:BTN_BRD),
@@ -6337,7 +6368,7 @@ function App(){
           const lbls={drop2:'Drop 2',drop3:'Drop 3',drop24:'Drop 2+4',drop23:'Drop 2+3',shell:'Shell',rootless:'Rootless',arpeggio:'Arpeggio'};
           const locked=isEss&&(id==='drop2'||id==='drop3'||id==='drop24'||id==='drop23'||id==='rootless');
           return e('button',{key:id,
-            onClick:locked?()=>showUpgrade(lbls[id]+' voicings'):()=>setVType(id),
+            onClick:locked?()=>showUpgrade(lbls[id]+' voicings'):()=>{setVType(id);playMidiPreview(voicingMidis(id,tones,rlTones,ssIdx,invIdx,shellIdx,rlIdx));},
             style:{...tabStyle(locked?'':id),opacity:locked?0.65:1}},
             lbls[id],(locked?e('span',{style:{fontSize:'0.65rem',marginLeft:3}},'🔒'):null));
         })
@@ -6350,7 +6381,7 @@ function App(){
         display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',minHeight:36}},
         e('span',{key:'lbl',style:{fontSize:'0.72rem',color:LBL,letterSpacing:'0.3px'}},'String set'),
         setsData.map((ss,i)=>{const ok=playableSets[i]!==false;return e('button',{key:i,disabled:!ok,
-          onClick:ok?()=>{setSsIdx(i);setInvIdx(0);}:undefined,
+          onClick:ok?()=>{setSsIdx(i);setInvIdx(0);playMidiPreview(voicingMidis(vType,tones,rlTones,i,0,shellIdx,rlIdx));}:undefined,
           title:ok?undefined:'No playable shape for this chord on these strings',
           style:{...mkSsBtn(safeSSIdx===i),opacity:ok?1:0.4,cursor:ok?'pointer':'not-allowed'}},ss.lbl);}),
         voiceOrder?e('span',{key:'vo',style:{marginLeft:'auto',fontSize:'0.7rem',color:LBL}},'voices: '+voiceOrder):null
