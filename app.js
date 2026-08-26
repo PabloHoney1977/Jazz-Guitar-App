@@ -5911,7 +5911,7 @@ function App(){
   // who isn't delighted to Contact Support instead of a public bad review.
   // A 'yes' locks it out permanently; a decline gets a 60-day cooldown before
   // asking again (SKStoreReviewController throttles further on top of this).
-  const RATE_MILESTONES=[14,60,180];
+  const RATE_MILESTONES=[7,60,180];
   function maybeAskRate(newStreak){
     if(safeLS('jg-rate-asked','')==='yes') return;
     if(!RATE_MILESTONES.includes(newStreak)) return;
