@@ -164,11 +164,50 @@
   </style>
 </head>
 <body>
-  <div id="root"></div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+  <!-- Boot fallback. #root is not empty before React mounts: if a script fails
+       to load or throws, the user sees this instead of a black screen. React
+       replaces the whole subtree on mount, so it costs nothing when all is
+       well. #boot-err is revealed by the watchdog below. -->
+  <div id="root">
+    <div id="boot" style="min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center">
+      <svg width="44" height="44" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="14" y="10" width="36" height="5" rx="1.5" fill="#d4a855"/>
+        <g stroke="#a8a8cc" stroke-width="1.4" opacity="0.5">
+          <line x1="20" y1="15" x2="20" y2="56"/><line x1="28" y1="15" x2="28" y2="56"/>
+          <line x1="36" y1="15" x2="36" y2="56"/><line x1="44" y1="15" x2="44" y2="56"/>
+          <line x1="14" y1="28" x2="50" y2="28"/><line x1="14" y1="42" x2="50" y2="42"/>
+        </g>
+        <circle cx="20" cy="35" r="4" fill="#FF6B6B"/><circle cx="28" cy="21" r="4" fill="#4ECDC4"/>
+        <circle cx="36" cy="49" r="4" fill="#74C0FC"/><circle cx="44" cy="35" r="4" fill="#FFD43B"/>
+      </svg>
+      <div style="font-size:0.95rem;color:#a8a8cc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">Jazz Guitar Lab</div>
+      <div id="boot-err" hidden style="max-width:22rem;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <div style="font-size:0.95rem;color:#d0d0e8;line-height:1.5">Jazz Guitar Lab didn&rsquo;t finish loading.</div>
+        <div style="font-size:0.82rem;color:#a8a8cc;line-height:1.5;margin-top:8px">Everything in the app works offline once it has started &mdash; this is a loading problem, not a connection one. Reopening usually fixes it.</div>
+        <button type="button" onclick="location.reload()" style="margin-top:16px;padding:10px 22px;font-size:0.9rem;border-radius:10px;border:1px solid #d4a855;background:transparent;color:#d4a855">Reload</button>
+      </div>
+    </div>
+  </div>
+  <!-- React is bundled locally, NOT loaded from a CDN. It used to come from
+       cdnjs, which meant no connection (or a blocked/slow CDN) left `React`
+       undefined, app.js threw on its very first line, #root stayed empty and
+       the app was a black screen. The native iOS build in particular has no
+       service worker to fall back on. Keep these local. See vendor/LICENSE.md. -->
+  <script src="vendor/react.production.min.js"></script>
+  <script src="vendor/react-dom.production.min.js"></script>
   <script src="app.js"></script>
   <script>
+    // Watchdog: app.js clears #boot itself by rendering over it. If the boot
+    // node is still on screen shortly after load, something failed to execute,
+    // so swap the spinner copy for an actionable message + Reload.
+    (function () {
+      var reveal = function () {
+        var b = document.getElementById('boot-err');
+        if (b && document.getElementById('boot')) b.hidden = false;
+      };
+      window.addEventListener('error', reveal, true);
+      setTimeout(reveal, 4000);
+    })();
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
     }

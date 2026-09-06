@@ -6,6 +6,15 @@ const {useState, useMemo, useEffect, useRef} = React;
 const safeLS=(key,fb='')=>{try{const v=localStorage.getItem(key);return v!==null?v:fb;}catch(ex){return fb;}};
 const safeLSSet=(key,val)=>{try{localStorage.setItem(key,val);}catch(ex){}};
 
+// Connection check. Everything in the app works offline — the ONLY paths that
+// genuinely need the network are the App Store purchase/restore calls, so this
+// is used to give those an honest message instead of a generic failure (an
+// offline restore otherwise reports "no previous purchase", which tells a
+// paying customer they never bought it). `navigator.onLine` is conservative:
+// false is reliable, true only means "there is an interface", so it is used to
+// pick the wording, never to block a call outright.
+const isOffline=()=>{try{return navigator.onLine===false;}catch(ex){return false;}};
+
 // Local date string (YYYY-MM-DD) using device timezone — avoids UTC midnight rollover bug
 function localDateStr(ts=Date.now()){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 // Streak milestone check — [3,7,14] + every 30 days + 365
@@ -5827,8 +5836,10 @@ function App(){
     if(IAP.available()){
       const r=await IAP.purchase();
       if(r==='purchased'){track('upgrade.completed',{feature:upgradeSheet});goPro();setUpgradeSheet(null);return;}
-      // cancelled: user backed out on purpose, say nothing.
-      if(r!=='cancelled')setPurchaseErr('That didn’t go through. Check your connection and try again.');
+      if(r==='cancelled')return;   // user backed out on purpose, say nothing
+      setPurchaseErr(isOffline()
+        ?'You’re offline. Connect to the internet to unlock Pro — everything you’ve already got keeps working without a connection.'
+        :'That didn’t go through. Check your connection and try again.');
       return;
     }
     // Native build but the purchase bridge is missing — the plugin isn't
@@ -6469,7 +6480,10 @@ function App(){
       // build it is a dead end, and clearing site data re-arms it forever.
       onTrial:(IAP.isNative()||DEV_UNLOCK)?startTrial:null,
       purchaseErr,
-      onRestore:async()=>{if(!await doRestore())setPurchaseErr('No previous purchase found on this Apple ID.');}}):null,
+      onRestore:async()=>{if(await doRestore())return;
+        setPurchaseErr(isOffline()
+          ?'You’re offline, so your purchase can’t be checked right now. Reconnect and tap Restore again.'
+          :'No previous purchase found on this Apple ID.');}}):null,
     audioDiag?e(AudioDiagSheet,{onClose:()=>setAudioDiag(false)}):null,
     aboutOpen?e(AboutSheet,{onClose:()=>setAboutOpen(false),level,onRestore:doRestore,
       theme,onToggleTheme:()=>{toggleTheme();},
@@ -6577,11 +6591,25 @@ function App(){
 }
 
 // ── Mount ─────────────────────────────────────────────────────────────
+// index.html seeds #root with a static boot placeholder so a failed script load
+// shows the brand + a Reload button instead of a black screen. Remove it
+// explicitly here rather than relying on createRoot to clear the container.
 try {
-  ReactDOM.createRoot(document.getElementById('root')).render(e(App,null));
+  const root=document.getElementById('root');
+  const boot=document.getElementById('boot');
+  if(boot&&boot.parentNode===root) root.removeChild(boot);
+  ReactDOM.createRoot(root).render(e(App,null));
 } catch(err) {
+  // Mount itself threw. Surface the boot fallback's error state (friendly copy
+  // + Reload) rather than a raw stack trace on a near-black background; the
+  // stack still goes to the console for anyone debugging.
+  try{console.error('Jazz Guitar Lab failed to start:',err);}catch(ex){}
   const r=document.getElementById('root');
-  r.style.cssText='color:#ff6b6b;padding:20px;font-family:monospace;white-space:pre';
-  r.textContent='Error: '+err.message+'\n\n'+err.stack;
+  const be=document.getElementById('boot-err');
+  if(be){be.hidden=false;}
+  else if(r){
+    r.style.cssText='color:#d0d0e8;padding:24px;text-align:center;line-height:1.6';
+    r.textContent='Jazz Guitar Lab didn\u2019t finish loading. Please reopen the app.';
+  }
 }
 
