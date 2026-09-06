@@ -39,12 +39,9 @@ const check = (ok, label, detail) => {
   const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 
-  // Local React stand-ins for the blocked CDN (same trick as smoke.cjs).
-  await page.route('**/cdnjs.cloudflare.com/**', (route) => {
-    const u = route.request().url();
-    const f = u.includes('react-dom') ? 'react-dom.production.min.js' : 'react.production.min.js';
-    route.fulfill({ status: 200, contentType: 'application/javascript', body: fs.readFileSync(path.join(__dirname, f)) });
-  });
+  // React is vendored and served locally, so nothing should reach a CDN.
+  // Abort rather than stub: a cdnjs hit means a CDN <script> crept back in.
+  await page.route('**/cdnjs.cloudflare.com/**', (route) => route.abort());
 
   // Instrument BEFORE any app code runs.
   await page.addInitScript(() => {

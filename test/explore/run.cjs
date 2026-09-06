@@ -34,12 +34,6 @@ const MIME = {
   '.html': 'text/html', '.js': 'application/javascript',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
 };
-const CDN_MAP = {
-  'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js':
-    path.join(__dirname, '..', 'react.production.min.js'),
-  'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js':
-    path.join(__dirname, '..', 'react-dom.production.min.js'),
-};
 function startServer() {
   return new Promise(resolve => {
     const srv = http.createServer((req, res) => {
@@ -483,11 +477,8 @@ async function runSession(persona, port, reportDir, browser) {
     serviceWorkers:  'block',
   });
   const page = await ctx.newPage();
-  await page.route('https://cdnjs.cloudflare.com/**', route => {
-    const local = CDN_MAP[route.request().url()];
-    if (local && fs.existsSync(local)) return route.fulfill({ path: local, contentType: 'application/javascript' });
-    return route.abort();
-  });
+  // React is vendored and served locally — nothing should reach a CDN.
+  await page.route('https://cdnjs.cloudflare.com/**', route => route.abort());
 
   const jsErrors = [];
   const audioRequests = [];

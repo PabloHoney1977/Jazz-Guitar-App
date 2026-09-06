@@ -39,21 +39,15 @@
 //
 // Run:  node test/smoke.cjs
 //
-// Setup (once, to get local React copies — CDN is blocked in this CI env):
-//   cd /tmp && npm install react@18.2.0 react-dom@18.2.0
-//   cp /tmp/node_modules/react/umd/react.production.min.js test/
-//   cp /tmp/node_modules/react-dom/umd/react-dom.production.min.js test/
+// React is vendored in vendor/ and served by the static server below, so there
+// is no CDN setup step any more (and no more "React is not defined" cascade in
+// a fresh container). Any cdnjs request is aborted on purpose — see freshPage.
 //
 // Network restriction: WebKit binary unavailable in this CI environment, so we
 // use Chromium with an iPhone 14 UA + viewport. This exercises the real DOM
 // layout engine and catches viewport/positioning bugs like the iOS tour fix.
 //
 // Run:  node test/smoke.cjs
-//
-// Setup (once, to get local React copies — CDN is blocked in this CI env):
-//   cd /tmp && npm install react@18.2.0 react-dom@18.2.0
-//   cp /tmp/node_modules/react/umd/react.production.min.js test/
-//   cp /tmp/node_modules/react-dom/umd/react-dom.production.min.js test/
 
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const http = require('http');
@@ -67,14 +61,6 @@ const SHOTS_DIR = path.join(__dirname, 'screenshots');
 const MIME = {
   '.html': 'text/html', '.js': 'application/javascript',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
-};
-
-// CDN requests served from local copies (CDN blocked in CI).
-const CDN_MAP = {
-  'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js':
-    path.join(__dirname, 'react.production.min.js'),
-  'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js':
-    path.join(__dirname, 'react-dom.production.min.js'),
 };
 
 function serve() {
@@ -127,7 +113,7 @@ const IPHONE14 = {
     executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
   });
 
-  // ── Helper: new page with CDN intercept ────────────────────────────────────
+  // ── Helper: new page (third-party requests blocked) ─────────────────────────
   // suppressTour=true (default): sets jg-toured so the overlay doesn't block clicks.
   // suppressTour=false: leaves tour intact (for the tour alignment test).
   async function freshPage({ suppressTour = true, extraContextOpts = {}, storage = {} } = {}) {
@@ -137,13 +123,11 @@ const IPHONE14 = {
       ...extraContextOpts,
     });
     const page = await ctx.newPage();
-    await page.route('https://cdnjs.cloudflare.com/**', (route) => {
-      const local = CDN_MAP[route.request().url()];
-      if (local && fs.existsSync(local)) {
-        return route.fulfill({ path: local, contentType: 'application/javascript' });
-      }
-      return route.abort();
-    });
+    // Hard offline guard: the app must boot with ZERO third-party requests.
+    // React is vendored, so any cdnjs hit means a CDN <script> crept back in —
+    // which is exactly the regression that made the app a black screen with no
+    // connection. Aborting here turns that into loud, obvious test failures.
+    await page.route('https://cdnjs.cloudflare.com/**', (route) => route.abort());
     const jsErrors = [];
     page.on('pageerror', (e) => jsErrors.push(e.message));
 

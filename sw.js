@@ -5,13 +5,9 @@
 // PWA users would never get the update. That discipline slipped (20+ app.js
 // deploys on one cache version), so the shell is now NETWORK-FIRST: online
 // users always run the latest app.js/index.html; offline still works from cache.
-// Stable assets (CDN libs, icons, audio) stay cache-first for speed.
-const CACHE = 'jglab-v35';
+// Stable assets (vendored React, icons, audio) stay cache-first for speed.
+const CACHE = 'jglab-v36';
 
-const CDN = [
-  'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js',
-];
 
 // Bundled audio samples — same-origin, precached best-effort so the PWA has
 // working audio offline even on first launch (native bundles these anyway).
@@ -21,7 +17,12 @@ const SAMPLES = [
  .concat(['G1','As1','Cs2','E2','G2','As2'].map((n) => './samples/bass-electric/' + n + '.mp3'))
  .concat(['ride1','ride2','ridebell','hihat-closed','hihat-pedal','sidestick','kick']
    .map((n) => './samples/drums/' + n + '.mp3'));
-const LOCAL = ['./', './index.html', './app.js', './manifest.json', './icons/icon.svg'];
+// React is vendored (see vendor/LICENSE.md), so it belongs in the ATOMIC
+// precache alongside the shell — it is required to boot and must never be
+// missing offline. It used to be a best-effort CDN fetch, which is exactly how
+// the app ended up as a black screen with no connection.
+const LOCAL = ['./', './index.html', './app.js', './manifest.json', './icons/icon.svg',
+  './vendor/react.production.min.js', './vendor/react-dom.production.min.js'];
 
 // The app shell: always revalidate from network when online so updates ship.
 const SHELL = ['/', '/index.html', '/app.js', '/manifest.json'];
@@ -38,11 +39,6 @@ self.addEventListener('install', (ev) => {
     const c = await caches.open(CACHE);
     // Same-origin shell must cache successfully (atomic).
     await c.addAll(LOCAL);
-    // CDN is best-effort: a blocked/slow CDN must not abort the whole install
-    // (which would leave the user on the previous service worker).
-    await Promise.all(CDN.map((u) =>
-      fetch(u, { mode: 'cors' }).then((r) => (r.ok ? c.put(u, r) : null)).catch(() => null)
-    ));
     // Samples are best-effort too — a missing/blocked one must not abort install.
     await Promise.all(SAMPLES.map((u) =>
       fetch(u).then((r) => (r.ok ? c.put(u, r) : null)).catch(() => null)
@@ -89,7 +85,7 @@ self.addEventListener('fetch', (ev) => {
     return;
   }
 
-  // Everything else (CDN libs, icons, audio): cache-first for speed.
+  // Everything else (vendored React, icons, audio): cache-first for speed.
   ev.respondWith(
     caches.match(request).then((hit) =>
       hit || fetch(request).then((res) => {
