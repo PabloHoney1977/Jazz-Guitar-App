@@ -31,6 +31,17 @@ function liveStreak(raw,last){
   return 0;
 }
 
+// ── Platform ──────────────────────────────────────────────────
+// 'ios' | 'android' | 'web'. Everything platform-specific keys off this: the
+// RevenueCat SDK key, the hardware back button (Android only), and the store
+// name in purchase copy. Read lazily — Capacitor injects its bridge before
+// app.js runs on device, but on web the global is simply never there.
+function platform(){try{return window?.Capacitor?.getPlatform?.()||'web';}catch(ex){return 'web';}}
+function isAndroid(){return platform()==='android';}
+// What to call the store in user-facing copy. On web (where we can't take
+// payment) we name both, since the reader could be on either device.
+const STORE_NAME=isAndroid()?'Google Play':'the App Store';
+
 // ── Capacitor Local Notifications ─────────────────────────────────────
 // All calls are silent no-ops in the browser (Capacitor bridge not present).
 // In the native iOS/Android app, schedules a daily 7 pm reminder that
@@ -74,21 +85,31 @@ const Notif=(()=>{
 //
 // To go live (after Apple Developer enrollment):
 //   1. App Store Connect → create non-consumable IAP, product id `pro_unlock`.
+//      Google Play → Monetize → Products → one-time product, same id.
 //   2. revenuecat.com → new project → add the App Store app → create an
 //      entitlement `pro`, attach product `pro_unlock`, put it in the default
-//      offering.
+//      offering. Add the Play app to the SAME project and attach the Play
+//      `pro_unlock` to the SAME `pro` entitlement, so one code path serves both.
 //   3. Replace __REVENUECAT_IOS_KEY__ with the project's PUBLIC iOS SDK key
-//      (starts with `appl_`). Public key is safe to ship in the client.
+//      (starts with `appl_`) and __REVENUECAT_ANDROID_KEY__ with the public
+//      Android one (`goog_…`). Public keys are safe to ship in the client.
 const IAP=(()=>{
   const ENTITLEMENT='pro';
-  const API_KEY='appl_YuGTDIZwKqHfOVZHGFJkyKRpCmJ'; // RevenueCat public iOS SDK key (appl_…)
+  const IOS_KEY='appl_YuGTDIZwKqHfOVZHGFJkyKRpCmJ';      // RevenueCat public iOS SDK key (appl_…)
+  const ANDROID_KEY='__REVENUECAT_ANDROID_KEY__';        // RevenueCat public Android SDK key (goog_…)
+  // Picked per platform, lazily — one hardcoded key would mean the Android
+  // build configures RevenueCat with an App Store key and every purchase dies
+  // at the dialog. An unset key leaves available() false, so the tier stays
+  // fail-closed exactly like a native build with no bridge.
+  function apiKey(){return isAndroid()?ANDROID_KEY:IOS_KEY;}
+  function keySet(){return !apiKey().startsWith('__');}
   function plug(){return window?.Capacitor?.Plugins?.Purchases||null;}
   // True only when the native plugin is present AND a real key is configured.
-  function available(){return !!plug()&&!API_KEY.startsWith('__');}
+  function available(){return !!plug()&&keySet();}
   let configured=false;
   async function configure(){
-    const P=plug();if(!P||configured||API_KEY.startsWith('__'))return;
-    try{await P.configure({apiKey:API_KEY});configured=true;}catch(ex){}
+    const P=plug();if(!P||configured||!keySet())return;
+    try{await P.configure({apiKey:apiKey()});configured=true;}catch(ex){}
   }
   function entitled(info){
     try{return !!info?.customerInfo?.entitlements?.active?.[ENTITLEMENT];}catch(ex){return false;}
@@ -5287,7 +5308,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
            e('div',{style:{fontSize:'0.8rem',color:'var(--hint)',marginBottom:8}},'Set key to B♭. The opening Em7♭5–A7 is a ii–V of D that doesn\'t resolve to D — it dissolves into Cm7–F7 instead, which is the harmonic ambiguity that defines the tune. After that, three ii–V–I chains shift the key center: vm7–I7 to E♭maj7 (key of E♭), then Am7♭5–D7 to Gmaj7 (key of G), then iim7–V7 to B♭maj7 home. Every ii–V you\'ve practiced is in here — Stella just moves through all of them back to back.'),
            e('div',{style:{marginTop:14,padding:'10px 12px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,fontSize:'0.82rem',lineHeight:1.5}},[
              e('b',null,'Use iReal Pro for backing tracks. '),'It\'s a separate app ($21.99, the jazz musician\'s standard tool) with 3,000+ chord charts and playable backing tracks. Jazz Guitar Lab teaches the harmony — iReal Pro is where you apply it to real tunes. Get it, search "Autumn Leaves," set the tempo to 80 BPM, and ',term('comp','comp'),' through the changes (play the chords in time through the progression) with what you\'ve learned here. These two apps are designed to work together.',
-             e('div',{style:{marginTop:6,fontSize:'0.76rem',color:'var(--hint)'}},'Search "iReal Pro" on the App Store, or find charts at ',e('span',{style:{textDecoration:'underline',color:'var(--txt)'}},'irealpro.com'),' and ',e('span',{style:{textDecoration:'underline',color:'var(--txt)'}},'jazzstandards.com'),'.')
+             e('div',{style:{marginTop:6,fontSize:'0.76rem',color:'var(--hint)'}},'Search "iReal Pro" on '+STORE_NAME+', or find charts at ',e('span',{style:{textDecoration:'underline',color:'var(--txt)'}},'irealpro.com'),' and ',e('span',{style:{textDecoration:'underline',color:'var(--txt)'}},'jazzstandards.com'),'.')
            ]),
            'What comes after: Drop 3 and Rootless voicings add harmonic depth (Pro). Chord melody (playing the tune inside the chords), reharmonization (re-coloring the chords under a melody), and playing with other humans are the next frontiers. Finding a musician to play with is the single most accelerating thing you can do from here.'],
      items:['Open iReal Pro (or jazzstandards.com) and find Autumn Leaves — look at the changes and map every chord to a shell voicing you know','Play bars 1–4 only at 60 BPM until the two-bar major ii–V–I resolves cleanly to Bbmaj7','Play bars 5–8 at 60 BPM — the minor ii–V–I to Gm. Notice how Am7♭5 has a different pull than Am7','Play all 8 bars without stopping — you\'ve already practiced every chord in this sequence','[Pro] Open BLUE BOSSA in the Play tab (key C, 70 BPM) — play bars 1–8, then let bar 9 arrive and notice the key shift to D♭','[Pro] Open STELLA in the Play tab (key B♭, 65 BPM) — name each key center as the ii–V–I chains arrive: E♭, G, B♭','[Pro] Upgrade to Drop 2 for any standard once the shells are solid','Play your chosen standard in one other key']},
@@ -5848,13 +5869,16 @@ function App(){
     // and log a phantom `upgrade.completed`. Never fall through to dev unlock
     // on device.
     if(IAP.isNative()){
-      setPurchaseErr('The App Store is unavailable right now. Please try again later.');
+      setPurchaseErr('We couldn\u2019t reach '+STORE_NAME+' right now. Please try again later.');
       track('upgrade.unavailable',{feature:upgradeSheet});
       return;
     }
     // Web / PWA. There is no way to take payment here, so the only honest
     // outcome is to point at the iOS app. The dev unlock is opt-in (`?dev=1`)
     // so the public web build can't be used as a free Pro edition.
+    // NOTE: name only the stores the app is actually ON. Add Google Play here
+    // the day the Play listing goes live — not before, or this promises an
+    // Android build that can't be installed yet.
     if(!DEV_UNLOCK){
       setPurchaseErr('Pro is unlocked in the Jazz Guitar Lab app for iPhone and iPad.');
       track('upgrade.web',{feature:upgradeSheet});
