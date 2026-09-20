@@ -5928,6 +5928,38 @@ function App(){
   const [streakAnimPending,setStreakAnimPending]=useState(false);
   const [streakMilestone,setStreakMilestone]=useState(null); // day count at which milestone fires
   const [ratePrompt,setRatePrompt]=useState(false);
+
+  // ── Android hardware / gesture back ────────────────────────────────
+  // The app is one page with no history stack, so Capacitor's default back
+  // handling quits from any tab — which reads as a crash and is a reliable
+  // 1-star on Play. Back now peels off one layer at a time: open sheet → tour
+  // → back to Guide → exit. Kept in a ref so the listener registers once but
+  // always sees current state (a re-registering effect would race the sheets).
+  // No-op everywhere but Android: iOS has no back button, web has no bridge.
+  const backRef=useRef(null);
+  backRef.current=function(){
+    if(audioDiag){setAudioDiag(false);return true;}
+    if(popTerm){setPopTerm(null);return true;}
+    if(upgradeSheet){setUpgradeSheet(null);return true;}
+    if(aboutOpen){setAboutOpen(false);return true;}
+    if(ratePrompt){setRatePrompt(false);return true;}
+    if(streakMilestone){setStreakMilestone(null);return true;}
+    if(keyOpen){setKeyOpen(false);return true;}
+    if(showOnboard){skipOnboard();return true;}
+    if(overviewStep!==null){overviewSkip();return true;}
+    if(pageTourStep!==null){pageTourSkip();return true;}
+    if(viewMode!=='guide'){setViewMode('guide');window.scrollTo(0,0);return true;}
+    return false; // on Guide with nothing open — the only place back exits
+  };
+  useEffect(()=>{
+    const P=window?.Capacitor?.Plugins?.App;
+    if(!P||!P.addListener) return;
+    let handle=null,dead=false;
+    Promise.resolve(P.addListener('backButton',()=>{
+      if(!backRef.current()){try{P.exitApp();}catch(ex){}}
+    })).then(h=>{if(dead){try{h&&h.remove();}catch(ex){}}else handle=h;}).catch(()=>{});
+    return ()=>{dead=true;try{handle&&handle.remove();}catch(ex){}};
+  },[]);
   const practicedToday=lastPracticeDay===localDateStr();
   const appDaysSince=lastPracticeDay?Math.round((Date.now()-new Date(lastPracticeDay+'T00:00:00'))/86400000):0;
   const nextMil=[3,7,14,30,60,100,180,365].find(m=>m>streak)||(Math.floor(streak/30)+1)*30;

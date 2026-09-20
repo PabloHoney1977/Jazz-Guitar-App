@@ -116,12 +116,15 @@ const IPHONE14 = {
   // ── Helper: new page (third-party requests blocked) ─────────────────────────
   // suppressTour=true (default): sets jg-toured so the overlay doesn't block clicks.
   // suppressTour=false: leaves tour intact (for the tour alignment test).
-  async function freshPage({ suppressTour = true, extraContextOpts = {}, storage = {} } = {}) {
+  async function freshPage({ suppressTour = true, extraContextOpts = {}, storage = {}, initScript = null } = {}) {
     const ctx = await browser.newContext({
       ...IPHONE14,
       serviceWorkers: 'block',
       ...extraContextOpts,
     });
+    // Runs before any page script — the only place a native bridge can be faked,
+    // since app.js reads window.Capacitor at module scope and at mount.
+    if (initScript) await ctx.addInitScript(initScript);
     const page = await ctx.newPage();
     // Hard offline guard: the app must boot with ZERO third-party requests.
     // React is vendored, so any cdnjs hit means a CDN <script> crept back in —
@@ -1042,6 +1045,77 @@ const IPHONE14 = {
         }
         await ctx.close();
       }
+    });
+
+    // ── Test 28: Android hardware back button ────────────────────────────────
+    // The app is a single page with no history stack, so Capacitor's DEFAULT
+    // back handling quits from any tab. That reads as a crash on Android and is
+    // a reliable 1-star on Play. These checks pin the layered behaviour: an open
+    // sheet closes, a non-Guide tab returns to Guide, and only Guide-with-
+    // nothing-open exits. iOS/web are unaffected (no bridge, no event).
+    await test('Test 28: Android back button peels one layer at a time', async () => {
+      const bridge = () => {
+        window.__back = null; window.__exited = 0;
+        window.Capacitor = {
+          getPlatform: () => 'android',
+          isNativePlatform: () => true,
+          Plugins: {
+            App: {
+              addListener: (name, cb) => {
+                if (name === 'backButton') window.__back = cb;
+                return Promise.resolve({ remove() {} });
+              },
+              exitApp: () => { window.__exited++; },
+            },
+          },
+        };
+      };
+      const { page, ctx, jsErrors } = await freshPage({
+        storage: { 'jg-level': 'essentials', 'jg-ear-intro': '1' },
+        initScript: bridge,
+      });
+
+      ok('back-button listener registered on Android', await page.evaluate(() => typeof window.__back === 'function'));
+
+      const fireBack = async () => {
+        await page.evaluate(() => window.__back && window.__back());
+        await page.waitForTimeout(350);
+      };
+      const onGuide = () => page.evaluate(() =>
+        /Start Here|How this guide works/i.test(document.body.innerText));
+
+      // A non-Guide tab returns to Guide instead of quitting.
+      await (await page.$('[data-tour="nav-iivi"]')).click({ timeout: 5000 });
+      await page.waitForTimeout(400);
+      await fireBack();
+      ok('back from a tab returns to Guide', await onGuide());
+      ok('back from a tab does not exit the app', await page.evaluate(() => window.__exited) === 0);
+
+      // An open sheet closes, and back does NOT also change tab underneath it.
+      await (await page.$('[data-tour="nav-quiz"]')).click({ timeout: 5000 });
+      await page.waitForTimeout(400);
+      await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button'))
+          .find(b => /3 more modes/.test(b.textContent));
+        if (btn) btn.click();
+      });
+      await page.waitForTimeout(400);
+      const sheetOpen = await page.evaluate(() => document.body.innerText.includes('14.99'));
+      ok('upgrade sheet opened (precondition)', sheetOpen);
+      await fireBack();
+      ok('back closes the upgrade sheet', await page.evaluate(() => !document.body.innerText.includes('14.99')));
+      ok('back that closed a sheet stays on the same tab', !(await onGuide()));
+      ok('closing a sheet with back does not exit', await page.evaluate(() => window.__exited) === 0);
+
+      // Guide with nothing open is the ONLY place back is allowed to quit.
+      await fireBack();               // Train → Guide
+      ok('now on Guide (precondition)', await onGuide());
+      await fireBack();               // Guide, nothing open → exit
+      ok('back on Guide with nothing open exits the app', await page.evaluate(() => window.__exited) === 1);
+
+      const realErrors = jsErrors.filter(e => !isNoise(e));
+      ok('no JS errors driving the back button', realErrors.length === 0, realErrors.join('; ').slice(0, 200));
+      await ctx.close();
     });
 
   } finally {
