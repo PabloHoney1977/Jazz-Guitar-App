@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Midpoint of the icon's own #111124 → #07070f gradient. A flat colour is
+         deliberate: the launcher animates the background layer independently, so
+         detail here would slide around behind the mark. -->
+    <color name="ic_launcher_background">#0D0D1E</color>
 </resources>
