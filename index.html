@@ -122,11 +122,24 @@
     ::-webkit-scrollbar-thumb { background: var(--brd); border-radius: 2px; }
     /* viewport-fit=cover lets content fill the screen edge-to-edge, so we must
        inset the app below the status bar / notch (top) and above the home
-       indicator (bottom) ourselves via the safe-area-inset env() values.
+       indicator (bottom) ourselves.
        The header scrolls with the content (it is not position:fixed), so the
        top inset belongs on #root; fixed overlays/nav position against the
-       viewport and are unaffected by this padding. */
-    #root { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+       viewport and are unaffected by this padding.
+
+       TWO SOURCES, because the platforms disagree. iOS/WebKit exposes the
+       insets as env(safe-area-inset-*). Android does NOT: env() is 0 there,
+       and Capacitor's SystemBars plugin instead injects --safe-area-inset-*
+       custom properties onto <html>. That matters now that targetSdk is 36 —
+       Android 15 FORCES edge-to-edge, so the webview really does draw under
+       the status bar and the gesture pill. max() takes whichever source is
+       live; the other reads 0. Use var(--sa-top/--sa-bottom) everywhere
+       rather than env() directly, or Android loses the inset. */
+    :root {
+      --sa-top:    max(env(safe-area-inset-top),    var(--safe-area-inset-top,    0px));
+      --sa-bottom: max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px));
+    }
+    #root { padding-top: var(--sa-top); padding-bottom: var(--sa-bottom); }
     @keyframes barPulse {
       0%   { box-shadow: inset 0 0 0 1px var(--gold); }
       50%  { box-shadow: inset 0 0 0 2px var(--gold), 0 0 8px 1px rgba(212,168,85,0.35); }

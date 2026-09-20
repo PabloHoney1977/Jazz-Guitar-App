@@ -4092,7 +4092,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
       ...(isPlaying
         ?{position:'fixed',bottom:0,left:0,right:0,zIndex:150,
            borderRadius:'12px 12px 0 0',boxShadow:'0 -4px 20px rgba(0,0,0,0.5)',
-           paddingBottom:'calc(10px + env(safe-area-inset-bottom))'}
+           paddingBottom:'calc(10px + var(--sa-bottom))'}
         :{borderRadius:8}
       ),
     }},
@@ -4140,7 +4140,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
       ...(isPlaying
         ?{position:'fixed',bottom:0,left:0,right:0,zIndex:150,
            borderRadius:'12px 12px 0 0',boxShadow:'0 -4px 20px rgba(0,0,0,0.5)',
-           paddingBottom:'calc(10px + env(safe-area-inset-bottom))'}
+           paddingBottom:'calc(10px + var(--sa-bottom))'}
         :{borderRadius:8}
       ),
     }},
@@ -4188,7 +4188,7 @@ function IIVIView({keyIdx,dotMode,setDotMode,level,profile,onPlayStateChange,ped
       ...(isPlaying
         ?{position:'fixed',bottom:0,left:0,right:0,zIndex:150,
            borderRadius:'12px 12px 0 0',boxShadow:'0 -4px 20px rgba(0,0,0,0.5)',
-           paddingBottom:'calc(10px + env(safe-area-inset-bottom))'}
+           paddingBottom:'calc(10px + var(--sa-bottom))'}
         :{borderRadius:8}
       ),
     }},
@@ -6568,7 +6568,7 @@ function App(){
     // ── Streak milestone card ─────────────────────────────────────────
     streakMilestone?e('div',{onClick:()=>setStreakMilestone(null),
       style:{position:'fixed',inset:0,zIndex:210,display:'flex',alignItems:'flex-end',
-        justifyContent:'center',paddingBottom:'calc(72px + env(safe-area-inset-bottom))'}},
+        justifyContent:'center',paddingBottom:'calc(72px + var(--sa-bottom))'}},
       e('div',{onClick:ev=>ev.stopPropagation(),
         style:{width:'min(400px,calc(100vw - 32px))',borderRadius:16,overflow:'hidden',
           boxShadow:'0 -8px 40px rgba(0,0,0,0.7)',
@@ -6625,7 +6625,7 @@ function App(){
     // ── Bottom tab bar ───────────────────────────────────────────────
     e('nav',{'data-tour':'bottom-nav',style:{position:'fixed',bottom:0,left:0,right:0,zIndex:50,
       display:'flex',background:BG2,borderTop:'1px solid '+BORDER,
-      paddingBottom:'env(safe-area-inset-bottom)',
+      paddingBottom:'var(--sa-bottom)',
       boxShadow:'0 -4px 16px rgba(0,0,0,0.35)'}},
       [['guide','⚑','Guide'],['diatonic','◎','Keys'],['custom','♪','Chords'],['iivi','▶','Play'],['quiz','♫','Train']].map(([id,icon,lbl])=>{
         const act=viewMode===id;

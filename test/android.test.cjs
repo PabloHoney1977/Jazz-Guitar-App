@@ -155,6 +155,20 @@ test('the Play listing assets exist at the sizes Play accepts', () => {
   assert.ok(shots.length <= 8, 'Play accepts at most 8 phone screenshots, found ' + shots.length);
 });
 
+test('safe-area insets read BOTH platforms\' sources', () => {
+  // iOS exposes insets as env(safe-area-inset-*); Android does not (env() is 0
+  // there) and Capacitor injects --safe-area-inset-* onto <html> instead. With
+  // targetSdk 36 Android 15 forces edge-to-edge, so using env() alone puts the
+  // header under the status bar and the nav under the gesture pill.
+  const html = read('index.html');
+  for (const side of ['top', 'bottom']) {
+    const re = new RegExp(`--sa-${side}:\\s*max\\(env\\(safe-area-inset-${side}\\),\\s*var\\(--safe-area-inset-${side},\\s*0px\\)\\)`);
+    assert.ok(re.test(html), `--sa-${side} must max() the env() and the injected custom property`);
+  }
+  assert.ok(!/env\(safe-area/.test(app),
+    'app.js must go through var(--sa-top/--sa-bottom); a bare env() silently reads 0 on Android');
+});
+
 test('the copied web assets are not committed to the Android project', () => {
   // android/app/src/main/assets/public is `cap sync` output, regenerated on
   // every build — same reason www/ is gitignored.
