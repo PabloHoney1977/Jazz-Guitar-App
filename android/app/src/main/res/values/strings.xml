@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Jazz Guitar Lab</string>
+    <string name="title_activity_main">Jazz Guitar Lab</string>
+    <string name="package_name">com.pablohoney.jazzguitarlab</string>
+    <string name="custom_url_scheme">com.pablohoney.jazzguitarlab</string>
+</resources>

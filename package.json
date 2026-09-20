@@ -5,6 +5,7 @@
   "scripts": {
     "build": "mkdir -p www && cp index.html app.js sw.js manifest.json www/ && cp -r icons www/ && cp -r vendor www/ && cp -r samples www/ && ([ -d audio ] && cp -r audio www/ || true)",
     "sync": "npm run build && npx cap sync ios",
+    "sync:android": "npm run build && npx cap sync android",
     "test": "node --test test/theory.test.cjs test/content.test.cjs test/gating.test.cjs test/offline.test.cjs",
     "test:smoke": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node test/smoke.cjs",
     "test:explore": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node test/explore/run.cjs",
@@ -14,6 +15,8 @@
   "license": "ISC",
   "dependencies": {
     "@capacitor-community/in-app-review": "^8.0.0",
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/app": "^8.1.1",
     "@capacitor/cli": "^8.4.0",
     "@capacitor/core": "^8.4.0",
     "@capacitor/ios": "^8.4.0",
