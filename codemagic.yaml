@@ -118,3 +118,89 @@ workflows:
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID     # set in Codemagic dashboard
         submit_to_testflight: true
         submit_to_app_store: false   # flip to true when ready for production
+
+  android-play:
+    name: Jazz Guitar Lab — Google Play
+    max_build_duration: 60
+    # Linux, not a Mac mini: Android needs no macOS, and Linux minutes are the
+    # cheap ones. Nothing here touches the iOS workflow above.
+    instance_type: linux_x2
+
+    # Deliberately NO `triggering:` block. A push to main already fires the iOS
+    # workflow; auto-building Android on the same push would double the build
+    # minutes for a store that releases on its own schedule. Start this one from
+    # the Codemagic UI ("Start new build" → android-play). Add a `triggering:`
+    # block matching the iOS one once the Play release cadence is worth it.
+
+    environment:
+      # Add to a Codemagic variable group named EXACTLY "google_play_credentials"
+      # (App settings → Environment variables), marked Secure:
+      #   GCLOUD_SERVICE_ACCOUNT_CREDENTIALS ← the JSON key for a Google Cloud
+      #     service account that has been invited in Play Console → Users and
+      #     permissions with "Release to testing tracks" + "Release to production".
+      #     Paste the whole JSON file contents as the value.
+      groups:
+        - google_play_credentials
+      # The upload keystore, uploaded once in Codemagic → Teams/App settings →
+      # Code signing identities → Android keystores, under this reference name.
+      # ⚠️ BACK THE KEYSTORE UP OFF CODEMAGIC. Losing it means losing the ability
+      # to sign updates for this listing; Play App Signing gives a recovery path
+      # only if it was enrolled at first upload.
+      android_signing:
+        - jgl_upload_keystore
+      java: 21
+      node: v22
+
+    scripts:
+      - name: Install dependencies
+        script: npm install
+
+      - name: Build web assets
+        script: npm run build
+
+      - name: Capacitor sync
+        script: npx cap sync android
+
+      # Gradle finds the SDK through local.properties, which is gitignored (it
+      # holds a machine-specific path), so CI has to write its own.
+      - name: Point Gradle at the Android SDK
+        script: echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
+
+      # Play refuses an AAB whose versionCode isn't higher than the highest
+      # already uploaded — across ALL tracks, including ones you've archived.
+      # Same belt-and-braces shape as the iOS build-number step: ask Play, fall
+      # back to Codemagic's monotonic index, take whichever is higher.
+      - name: Set version code from Google Play
+        script: |
+          LATEST=$(google-play get-latest-build-number \
+            --credentials "$GCLOUD_SERVICE_ACCOUNT_CREDENTIALS" \
+            --package-name "com.pablohoney.jazzguitarlab" \
+            --tracks internal alpha beta production 2>/dev/null || echo 0)
+          NEXT=$(($LATEST + 1))
+          if [ "${PROJECT_BUILD_NUMBER:-0}" -gt "$NEXT" ]; then NEXT=$PROJECT_BUILD_NUMBER; fi
+          echo "Setting versionCode to $NEXT (Play latest=$LATEST, Codemagic PROJECT_BUILD_NUMBER=${PROJECT_BUILD_NUMBER:-unset})"
+          echo "JGL_VERSION_CODE=$NEXT" >> "$CM_ENV"
+
+      # An .aab, not an .apk — Play has required App Bundles for new apps since
+      # August 2021. The signing config reads the CM_KEYSTORE_* vars that the
+      # android_signing block above exports (see android/app/build.gradle).
+      - name: Build signed AAB
+        script: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew bundleRelease -PjglVersionCode=$JGL_VERSION_CODE
+
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+      - android/app/build/outputs/**/mapping.txt
+
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        # Start on `internal` — it reaches testers in minutes and needs no
+        # review. Promote to production from the Play Console when you're ready,
+        # or change this to `production` once the flow is proven. `internal` is
+        # also what a brand-new listing needs first: Play will not accept a
+        # production release until the app has passed its initial review.
+        track: internal
+        submit_as_draft: false
