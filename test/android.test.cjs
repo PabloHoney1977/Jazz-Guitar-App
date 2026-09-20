@@ -103,6 +103,58 @@ test('the build can produce an uploadable AAB', () => {
   assert.ok(wf.includes('google_play:'), 'the workflow must publish to Google Play');
 });
 
+test('the launcher icons are ours, not the Capacitor template defaults', () => {
+  // Shipping the stock Capacitor logo to Play is the kind of mistake nobody
+  // notices until it's on the listing. These are the md5s of the generated
+  // template's assets, recorded before they were replaced.
+  const STOCK = {
+    'ic_launcher.png': '9e029293ab1ae8e3a6a7b7d0b7177e46',
+    'ic_launcher_foreground.png': 'ed3696b7c52d9747411a475dbe3fa34a',
+    'ic_launcher_round.png': '85addb4159ecd3f76f02fbacd5ec86de',
+  };
+  const crypto = require('crypto');
+  for (const [file, stockHash] of Object.entries(STOCK)) {
+    const fp = path.join(ROOT, 'android/app/src/main/res/mipmap-xxxhdpi', file);
+    assert.ok(fs.existsSync(fp), fp + ' is missing');
+    const hash = crypto.createHash('md5').update(fs.readFileSync(fp)).digest('hex');
+    assert.notEqual(hash, stockHash, file + ' is still the stock Capacitor icon');
+  }
+  // Every density must be present, or the launcher falls back and rescales.
+  for (const dens of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
+    for (const f of ['ic_launcher.png', 'ic_launcher_round.png', 'ic_launcher_foreground.png']) {
+      assert.ok(exists(`android/app/src/main/res/mipmap-${dens}/${f}`), `mipmap-${dens}/${f} is missing`);
+    }
+  }
+});
+
+test('the adaptive icon background is the brand colour, not the template white', () => {
+  const xml = read('android/app/src/main/res/values/ic_launcher_background.xml');
+  assert.ok(!/#FFFFFF/i.test(xml),
+    'a white adaptive background puts this dark icon in a white circle');
+  assert.ok(/#0D0D1E/i.test(xml), 'expected the icon gradient\'s midpoint');
+});
+
+test('the splash screen is not the blank white default', () => {
+  // The template splash is a plain white PNG, which flashes against the app's
+  // near-black UI. A branded one carries a gradient + the mark, so it cannot
+  // compress anywhere near as small.
+  const fp = 'android/app/src/main/res/drawable-port-xxxhdpi/splash.png';
+  assert.ok(exists(fp), fp + ' is missing');
+  const bytes = fs.statSync(path.join(ROOT, fp)).size;
+  assert.ok(bytes > 25000, `${fp} is only ${bytes} bytes — that looks like the blank default`);
+});
+
+test('the Play listing assets exist at the sizes Play accepts', () => {
+  // Play's rules that differ from Apple's: a feature graphic is required, and
+  // a phone screenshot may not be more than twice as tall as it is wide.
+  assert.ok(exists('play-store/feature-graphic-1024x500.png'),
+    'Play requires a 1024x500 feature graphic — Apple has no equivalent');
+  assert.ok(exists('play-store/icon-512.png'), 'Play requires a 512x512 icon');
+  const shots = fs.readdirSync(path.join(ROOT, 'play-store/screenshots')).filter((f) => f.endsWith('.png'));
+  assert.ok(shots.length >= 2, 'Play requires at least 2 phone screenshots, found ' + shots.length);
+  assert.ok(shots.length <= 8, 'Play accepts at most 8 phone screenshots, found ' + shots.length);
+});
+
 test('the copied web assets are not committed to the Android project', () => {
   // android/app/src/main/assets/public is `cap sync` output, regenerated on
   // every build — same reason www/ is gitignored.
