@@ -1,6 +1,6 @@
 {
-  "name": "Jazz Guitar Lab",
-  "short_name": "JG Lab",
+  "name": "Archtone",
+  "short_name": "Archtone",
   "description": "Learn jazz guitar step by step — shell and drop voicings, II-V-I practice, chord scales, and a guided path from rock & blues to jazz",
   "start_url": "./",
   "display": "standalone",

@@ -54,7 +54,7 @@ const Notif=(()=>{
       const at=new Date();at.setHours(19,0,0,0);
       if(at<=new Date())at.setDate(at.getDate()+1);
       const body=streak>0?`${streak}-day streak — practice today to keep it going`:'Your daily jazz practice is waiting';
-      await P.schedule({notifications:[{id:ID,title:'🎸 Jazz Guitar Lab',body,
+      await P.schedule({notifications:[{id:ID,title:'🎸 Archtone',body,
         schedule:{at,allowWhileIdle:true},channelId:CH}]});
     }catch(ex){}
   }
@@ -1122,7 +1122,7 @@ function RatePromptSheet({onClose,onYes,onNo}){
       e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},'🎸'),
       e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
         color:'var(--scale-name)',textAlign:'center',marginBottom:8}},
-        'Enjoying Jazz Guitar Lab?'),
+        'Enjoying Archtone?'),
       e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
         marginBottom:20,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},
         'You\'ve been putting in real practice time. Mind leaving a quick rating?'),
@@ -1225,7 +1225,7 @@ function AboutSheet({onClose,level,onRestore,onOverview,onPageTour,theme,onToggl
       boxShadow:'0 -8px 32px rgba(0,0,0,0.55)',maxHeight:'72vh',overflowY:'auto'}},
       e('div',{style:{width:40,height:4,background:BORDER,borderRadius:2,margin:'0 auto 18px'}}),
       e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
-        color:'var(--scale-name)',textAlign:'center',marginBottom:3}},'Jazz Guitar Lab'),
+        color:'var(--scale-name)',textAlign:'center',marginBottom:3}},'Archtone'),
       e('div',{style:{fontSize:'0.78rem',color:HINT,textAlign:'center',fontFamily:UI_FONT,marginBottom:24}},
         'Version '+APP_VERSION+' · '+(level==='pro'?'Pro ✦':'Essentials')),
       e('a',{href:SUPPORT_URL,target:'_blank',rel:'noopener noreferrer',
@@ -5286,7 +5286,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
            e('div',{style:{marginTop:14,marginBottom:4,fontWeight:700,fontSize:'0.9rem'}},'▸ Stella by Starlight — three key centers'),
            e('div',{style:{fontSize:'0.8rem',color:'var(--hint)',marginBottom:8}},'Set key to B♭. The opening Em7♭5–A7 is a ii–V of D that doesn\'t resolve to D — it dissolves into Cm7–F7 instead, which is the harmonic ambiguity that defines the tune. After that, three ii–V–I chains shift the key center: vm7–I7 to E♭maj7 (key of E♭), then Am7♭5–D7 to Gmaj7 (key of G), then iim7–V7 to B♭maj7 home. Every ii–V you\'ve practiced is in here — Stella just moves through all of them back to back.'),
            e('div',{style:{marginTop:14,padding:'10px 12px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,fontSize:'0.82rem',lineHeight:1.5}},[
-             e('b',null,'Use iReal Pro for backing tracks. '),'It\'s a separate app ($21.99, the jazz musician\'s standard tool) with 3,000+ chord charts and playable backing tracks. Jazz Guitar Lab teaches the harmony — iReal Pro is where you apply it to real tunes. Get it, search "Autumn Leaves," set the tempo to 80 BPM, and ',term('comp','comp'),' through the changes (play the chords in time through the progression) with what you\'ve learned here. These two apps are designed to work together.',
+             e('b',null,'Use iReal Pro for backing tracks. '),'It\'s a separate app ($21.99, the jazz musician\'s standard tool) with 3,000+ chord charts and playable backing tracks. Archtone teaches the harmony — iReal Pro is where you apply it to real tunes. Get it, search "Autumn Leaves," set the tempo to 80 BPM, and ',term('comp','comp'),' through the changes (play the chords in time through the progression) with what you\'ve learned here. These two apps are designed to work together.',
              e('div',{style:{marginTop:6,fontSize:'0.76rem',color:'var(--hint)'}},'Search "iReal Pro" on the App Store, or find charts at ',e('span',{style:{textDecoration:'underline',color:'var(--txt)'}},'irealpro.com'),' and ',e('span',{style:{textDecoration:'underline',color:'var(--txt)'}},'jazzstandards.com'),'.')
            ]),
            'What comes after: Drop 3 and Rootless voicings add harmonic depth (Pro). Chord melody (playing the tune inside the chords), reharmonization (re-coloring the chords under a melody), and playing with other humans are the next frontiers. Finding a musician to play with is the single most accelerating thing you can do from here.'],
@@ -5856,7 +5856,7 @@ function App(){
     // outcome is to point at the iOS app. The dev unlock is opt-in (`?dev=1`)
     // so the public web build can't be used as a free Pro edition.
     if(!DEV_UNLOCK){
-      setPurchaseErr('Pro is unlocked in the Jazz Guitar Lab app for iPhone and iPad.');
+      setPurchaseErr('Pro is unlocked in the Archtone app for iPhone and iPad.');
       track('upgrade.web',{feature:upgradeSheet});
       return;
     }
@@ -6209,7 +6209,7 @@ function App(){
         // else here is fixed-width, so this is the only elastic element, and the
         // budget has to survive a three-digit streak chip.
         winW>=380?e('span',{style:{fontFamily:SERIF,fontSize:'1.0rem',fontWeight:700,
-          color:'var(--scale-name)',whiteSpace:'nowrap',overflow:'hidden'}},'Jazz Guitar Lab'):null),
+          color:'var(--scale-name)',whiteSpace:'nowrap',overflow:'hidden'}},'Archtone'):null),
       e('div',{style:{flex:1,minWidth:4}}),
       // Tier chip. Three cases, one consistent slot:
       //  · Trial active → preview-Essentials toggle (honor-system, nothing to lose).
@@ -6603,13 +6603,13 @@ try {
   // Mount itself threw. Surface the boot fallback's error state (friendly copy
   // + Reload) rather than a raw stack trace on a near-black background; the
   // stack still goes to the console for anyone debugging.
-  try{console.error('Jazz Guitar Lab failed to start:',err);}catch(ex){}
+  try{console.error('Archtone failed to start:',err);}catch(ex){}
   const r=document.getElementById('root');
   const be=document.getElementById('boot-err');
   if(be){be.hidden=false;}
   else if(r){
     r.style.cssText='color:#d0d0e8;padding:24px;text-align:center;line-height:1.6';
-    r.textContent='Jazz Guitar Lab didn\u2019t finish loading. Please reopen the app.';
+    r.textContent='Archtone didn\u2019t finish loading. Please reopen the app.';
   }
 }
 

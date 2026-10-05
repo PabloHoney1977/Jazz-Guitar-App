@@ -1,6 +1,6 @@
 {
   "appId": "com.pablohoney.jazzguitarlab",
-  "appName": "Jazz Guitar Lab",
+  "appName": "Archtone",
   "webDir": "www",
   "plugins": {
     "LocalNotifications": {

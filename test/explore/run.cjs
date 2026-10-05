@@ -1,4 +1,4 @@
-// Jazz Guitar Lab — Exploratory Agent Test Harness
+// Archtone — Exploratory Agent Test Harness
 //
 // Simulates real users with different musical backgrounds, learning styles,
 // devices, and journey stages navigating the app — finding bugs and UX issues
@@ -558,7 +558,7 @@ async function runSession(persona, port, reportDir, browser) {
 // ── Text report (no API key) ──────────────────────────────────────────────────
 function buildTextReport(sessions, codeFindings, reportDir, runAt, seed) {
   const L = [];
-  L.push(`# Jazz Guitar Lab — Exploratory Test Report`);
+  L.push(`# Archtone — Exploratory Test Report`);
   L.push(`**Run:** ${runAt}  |  **Seed:** ${seed}  |  **Personas:** ${sessions.length}`);
   L.push(`**Screenshots:** \`${path.relative(ROOT, reportDir)}/screenshots/\`\n`);
 
@@ -664,7 +664,7 @@ async function llmSynthesize(sessions, codeFindings, reportDir) {
     .map(f => `[${f.severity.toUpperCase()}/${f.category}] ${f.finding}`)
     .join('\n');
 
-  const prompt = `You are a UX researcher and mobile app QA analyst reviewing simulated user sessions for "Jazz Guitar Lab" — a freemium iOS app that teaches jazz guitar harmony to adult guitarists. The app has 5 tabs: Guide (learning path), Keys (diatonic chords), Chords (any chord), Play (backing track), and Ear Training.
+  const prompt = `You are a UX researcher and mobile app QA analyst reviewing simulated user sessions for "Archtone" — a freemium iOS app that teaches jazz guitar harmony to adult guitarists. The app has 5 tabs: Guide (learning path), Keys (diatonic chords), Chords (any chord), Play (backing track), and Ear Training.
 
 Freemium model: Essentials (free) gets shell voicings + major ii-V-I + basic ear training. Pro ($14.99 one-time) unlocks everything.
 
@@ -726,7 +726,7 @@ Be specific and cite which persona/step you're drawing from. Prioritise findings
   const seed     = parseInt(getArg('--seed', String(Date.now() & 0xFFFFFF)), 10);
   const forcedDay = getArg('--day', null) ? parseInt(getArg('--day',''), 10) : null;
 
-  console.log(`\n╔══ Jazz Guitar Lab — Exploratory Agent Test ══╗`);
+  console.log(`\n╔══ Archtone — Exploratory Agent Test ══╗`);
   console.log(`  Seed: ${seed}  |  Personas: ${count}${forcedDay ? `  |  Day: ${forcedDay}` : ''}`);
   console.log(`  LLM synthesis: ${process.env.ANTHROPIC_API_KEY ? '✓ enabled' : '✗ set ANTHROPIC_API_KEY to enable'}\n`);
 
