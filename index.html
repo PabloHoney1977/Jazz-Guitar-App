@@ -21,7 +21,12 @@
   </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { -webkit-text-size-adjust: 100%; font-size: 16px; }
+    /* Base type scale. Everything sizes in rem off this. iPhone was 16px vs
+       iPad 19px — a flat ~19% gap that made phones feel tiny. Phones raised to
+       17px to close the gap; kept conservative so nothing wraps at 375–430px
+       (the header can't overflow — its wordmark is the one flex-shrink element
+       with overflow:hidden — so the real risk is only interior layouts). */
+    html { -webkit-text-size-adjust: 100%; font-size: 17px; }
     @media (min-width: 768px) { html { font-size: 19px; } }
     /* Guard against a page-level horizontal scrollbar on narrow iPhones. Every
        genuinely wide element (fretboard, chord rows, nav) has its OWN
@@ -180,7 +185,7 @@
         <circle cx="20" cy="35" r="4" fill="#FF6B6B"/><circle cx="28" cy="21" r="4" fill="#4ECDC4"/>
         <circle cx="36" cy="49" r="4" fill="#74C0FC"/><circle cx="44" cy="35" r="4" fill="#FFD43B"/>
       </svg>
-      <div style="font-size:0.95rem;color:#a8a8cc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">Archtone</div>
+      <div style="font-size:1.3rem;letter-spacing:0.02em;color:#d4a855;font-family:'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif">Archtone</div>
       <div id="boot-err" hidden style="max-width:22rem;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
         <div style="font-size:0.95rem;color:#d0d0e8;line-height:1.5">Archtone didn&rsquo;t finish loading.</div>
         <div style="font-size:0.82rem;color:#a8a8cc;line-height:1.5;margin-top:8px">Everything in the app works offline once it has started &mdash; this is a loading problem, not a connection one. Reopening usually fixes it.</div>

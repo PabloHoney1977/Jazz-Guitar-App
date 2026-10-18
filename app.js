@@ -6208,7 +6208,7 @@ function App(){
         // Wordmark drops below 380px so the row can never overflow — everything
         // else here is fixed-width, so this is the only elastic element, and the
         // budget has to survive a three-digit streak chip.
-        winW>=380?e('span',{style:{fontFamily:SERIF,fontSize:'1.0rem',fontWeight:700,
+        winW>=330?e('span',{style:{fontFamily:"'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif",fontSize:'1.18rem',fontWeight:700,letterSpacing:'0.01em',
           color:'var(--scale-name)',whiteSpace:'nowrap',overflow:'hidden'}},'Archtone'):null),
       e('div',{style:{flex:1,minWidth:4}}),
       // Tier chip. Three cases, one consistent slot:

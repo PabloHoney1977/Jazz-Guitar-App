@@ -13,19 +13,18 @@
   <!-- Background -->
   <rect width="512" height="512" rx="90" fill="url(#bg)"/>
 
-  <!-- Fret lines (4 frets) -->
+  <!-- Fret lines (3 frets) -->
   <line x1="110" y1="158" x2="402" y2="158" stroke="#2a2848" stroke-width="4"/>
   <line x1="110" y1="250" x2="402" y2="250" stroke="#2a2848" stroke-width="4"/>
   <line x1="110" y1="342" x2="402" y2="342" stroke="#2a2848" stroke-width="4"/>
-  <line x1="110" y1="420" x2="402" y2="420" stroke="#2a2848" stroke-width="3"/>
 
   <!-- String lines (6 strings; string 1 = far right) -->
-  <line x1="110"   y1="80" x2="110"   y2="420" stroke="#3a3860" stroke-width="2.3"/>
-  <line x1="168.4" y1="80" x2="168.4" y2="420" stroke="#3a3860" stroke-width="2.5"/>
-  <line x1="226.8" y1="80" x2="226.8" y2="420" stroke="#3a3860" stroke-width="2.7"/>
-  <line x1="285.2" y1="80" x2="285.2" y2="420" stroke="#3a3860" stroke-width="2.9"/>
-  <line x1="343.6" y1="80" x2="343.6" y2="420" stroke="#3a3860" stroke-width="3.1"/>
-  <line x1="402"   y1="80" x2="402"   y2="420" stroke="#3a3860" stroke-width="3.3"/>
+  <line x1="110"   y1="80" x2="110"   y2="342" stroke="#3a3860" stroke-width="2.3"/>
+  <line x1="168.4" y1="80" x2="168.4" y2="342" stroke="#3a3860" stroke-width="2.5"/>
+  <line x1="226.8" y1="80" x2="226.8" y2="342" stroke="#3a3860" stroke-width="2.7"/>
+  <line x1="285.2" y1="80" x2="285.2" y2="342" stroke="#3a3860" stroke-width="2.9"/>
+  <line x1="343.6" y1="80" x2="343.6" y2="342" stroke="#3a3860" stroke-width="3.1"/>
+  <line x1="402"   y1="80" x2="402"   y2="342" stroke="#3a3860" stroke-width="3.3"/>
 
   <!-- Nut -->
   <rect x="104" y="66" width="304" height="14" rx="5" fill="#d4a855" opacity="0.9"/>
@@ -38,8 +37,8 @@
     <circle cx="168.4" cy="296" r="25" fill="#4ECDC4"/> <!-- string 5, fret 3 -->
   </g>
 
-  <!-- "JGL" label -->
-  <text x="256" y="492" text-anchor="middle"
-    fill="#d4a855" font-family="Georgia,'Times New Roman',serif"
-    font-size="50" font-weight="700" opacity="0.9">JGL</text>
+  <!-- "ARCHTONE" label -->
+  <text x="256" y="452" text-anchor="middle"
+    fill="#d4a855" font-family="'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif"
+    font-size="64" font-weight="700" letter-spacing="2" opacity="0.92">ARCHTONE</text>
 </svg>
