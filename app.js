@@ -344,7 +344,7 @@ const ACT_PUR ='var(--act-pur)';
 const ACT_YEL ='var(--act-yel)';
 const UI_FONT  ="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
 const SERIF ="Georgia,'Times New Roman',serif";
-const APP_VERSION='1.0.0';
+const APP_VERSION='2.0';
 const SUPPORT_URL='https://highlandmusicapps.com/support.html';
 
 // ── Voicing tables ───────────────────────────────────────────────────
