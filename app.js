@@ -1141,6 +1141,51 @@ function RatePromptSheet({onClose,onYes,onNo}){
   );
 }
 
+// Keys that can only exist if this install predates the Archtone rename — i.e.
+// the person actually used the app back when it was called Jazz Guitar Lab.
+// Deliberately excludes the keys the app writes for *everyone* within seconds
+// of a first launch (jg-viewMode, jg-theme, jg-dotMode, jg-key), which would
+// make a brand-new user look like a returning one on their second launch.
+const RENAME_KEYS=['jg-path','jg-path-items','jg-streak','jg-last-practice',
+  'jg-play-sessions','jg-level','jg-trial-start','jg-toured','jg-onboard-seen',
+  'jg-faves','jg-form','jg-bpm'];
+
+// ── RenameNoticeSheet ─────────────────────────────────────────────────
+// Shown ONCE, and only to people who already had the app under the old name
+// (see RENAME_KEYS and the jg-rename-seen opt-out in App). A brand-new
+// installer must never see this — "we changed our name" is pure confusion to
+// someone who never knew the old one, and it would be the first thing they
+// ever read. The reassurance that matters is not "same great product" but
+// "your progress and your Pro unlock carried over": that is the actual worry
+// when an icon and a name change by themselves on the home screen.
+function RenameNoticeSheet({onClose}){
+  return e(React.Fragment,null,
+    e('div',{onClick:onClose,style:{position:'fixed',inset:0,zIndex:299,background:'rgba(0,0,0,0.5)'}}),
+    e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:300,
+      background:BG2,borderRadius:'16px 16px 0 0',
+      border:'1px solid '+BORDER,padding:'20px 20px 36px',
+      boxShadow:'0 -8px 32px rgba(0,0,0,0.55)'}},
+      e('div',{style:{width:40,height:4,background:BORDER,borderRadius:2,margin:'0 auto 18px'}}),
+      e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},'🎸'),
+      e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
+        color:'var(--scale-name)',textAlign:'center',marginBottom:10}},
+        'New name, same app'),
+      e('div',{style:{fontSize:'0.92rem',color:'var(--txt)',textAlign:'center',
+        marginBottom:10,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},
+        'Jazz Guitar Lab is now ',
+        e('strong',{style:{fontFamily:"'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif",letterSpacing:'0.02em'}},'Archtone'),'.'),
+      e('div',{style:{fontSize:'0.82rem',color:HINT,textAlign:'center',
+        marginBottom:20,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},
+        'Everything is where you left it — your progress, your streak and your Pro unlock all carried over.'),
+      e('button',{onClick:onClose,style:{
+        width:'100%',padding:'15px',borderRadius:10,cursor:'pointer',
+        fontFamily:UI_FONT,fontSize:'1rem',fontWeight:700,
+        background:GOLD,border:'none',color:'#07070f',minHeight:54}},
+        'Got it')
+    )
+  );
+}
+
 // Classify a keyboard event as a Bluetooth page-turner gesture.
 // Generic pedals emit a wide range of keys depending on their (often hidden)
 // mode — arrows on either axis, Page Up/Down, Space, Backspace, Enter, or media
@@ -1226,8 +1271,12 @@ function AboutSheet({onClose,level,onRestore,onOverview,onPageTour,theme,onToggl
       e('div',{style:{width:40,height:4,background:BORDER,borderRadius:2,margin:'0 auto 18px'}}),
       e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
         color:'var(--scale-name)',textAlign:'center',marginBottom:3}},'Archtone'),
-      e('div',{style:{fontSize:'0.78rem',color:HINT,textAlign:'center',fontFamily:UI_FONT,marginBottom:24}},
+      e('div',{style:{fontSize:'0.78rem',color:HINT,textAlign:'center',fontFamily:UI_FONT,marginBottom:4}},
         'Version '+APP_VERSION+' · '+(level==='pro'?'Pro ✦':'Essentials')),
+      // Kept permanently, not just for the rename release: someone looking
+      // for the old name a year from now should still find the connection.
+      e('div',{style:{fontSize:'0.72rem',color:HINT,textAlign:'center',fontFamily:UI_FONT,marginBottom:24}},
+        'formerly Jazz Guitar Lab'),
       e('a',{href:SUPPORT_URL,target:'_blank',rel:'noopener noreferrer',
         style:{display:'block',width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,textAlign:'center',
@@ -5784,6 +5833,23 @@ function App(){
     track('onboard.profile.skip');
   }
 
+  // ── Rename notice (Jazz Guitar Lab → Archtone) ──────────────────────
+  // Only people who used the app under the old name get told. Fresh installs
+  // are opted out on their very first render, so they never get the notice
+  // later once jg-* keys of their own exist.
+  const [renameNotice,setRenameNotice]=useState(()=>
+    !safeLS('jg-rename-seen')&&RENAME_KEYS.some(k=>safeLS(k,null)!==null));
+  useEffect(()=>{
+    if(safeLS('jg-rename-seen')) return;
+    if(renameNotice) track('rename.notice.shown');
+    else safeLSSet('jg-rename-seen','1'); // brand-new install: never show it
+  },[]);
+  function dismissRenameNotice(){
+    setRenameNotice(false);
+    safeLSSet('jg-rename-seen','1');
+    track('rename.notice.dismissed');
+  }
+
   function overviewNext(){
     if(overviewStep>=tourStepsFor(OVERVIEW_STEPS,level==='pro',onboardProfile).length-1){
       setOverviewStep(null);safeLSSet('jg-toured','1');
@@ -6554,7 +6620,12 @@ function App(){
     ):null,
 
     // ── Rate prompt ──────────────────────────────────────────────────
-    ratePrompt?e(RatePromptSheet,{onClose:()=>setRatePrompt(false),onYes:onRateYes,onNo:onRateNo}):null,
+    ratePrompt&&!renameNotice?e(RatePromptSheet,{onClose:()=>setRatePrompt(false),onYes:onRateYes,onNo:onRateNo}):null,
+
+    // ── Rename notice (once, existing users only, never over a tour) ──
+    renameNotice&&!showOnboard&&overviewStep===null
+      ?e(RenameNoticeSheet,{onClose:dismissRenameNotice})
+      :null,
 
     // ── Onboarding questionnaire (once, right before the first tour) ──
     showOnboard?e(OnboardProfileSheet,{onComplete:completeOnboard,onSkip:skipOnboard}):null,

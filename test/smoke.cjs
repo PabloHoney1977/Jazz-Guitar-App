@@ -142,6 +142,10 @@ const IPHONE14 = {
       // storage:{'jg-onboard-seen':undefined-equivalent} by omitting it — see
       // the dedicated onboarding test, which clears it explicitly below.
       localStorage.setItem('jg-onboard-seen', '1');
+      // Same idea for the one-time rename notice: freshPage sets jg-toured,
+      // which legitimately marks this as a pre-rename install, so without this
+      // the "New name, same app" sheet would cover the UI in every check.
+      localStorage.setItem('jg-rename-seen', '1');
       for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v);
     }, { suppressTour, storage });
     await page.reload({ waitUntil: 'domcontentloaded' });

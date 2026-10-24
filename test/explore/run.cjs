@@ -125,6 +125,7 @@ function generatePersona(rng, forcedDay) {
     goal: pick(GOALS, rng),
     storedState: {
       'jg-toured':         '1',
+      'jg-rename-seen':    '1',
       'jg-level':          hasPro ? 'pro' : 'essentials',
       'jg-streak':         String(streak),
       'jg-last-practice':  day > 0 ? String(Date.now() - 86_400_000) : '',

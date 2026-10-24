@@ -113,6 +113,7 @@ const check = (ok, label, detail) => {
 
     localStorage.setItem('jg-onboard-seen', '1');
     localStorage.setItem('jg-toured', '1');
+    localStorage.setItem('jg-rename-seen', '1'); // keep the rename sheet off the transport
     localStorage.setItem('jg-level', 'pro');
   });
 
