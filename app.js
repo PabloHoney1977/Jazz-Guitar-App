@@ -1186,6 +1186,41 @@ function RenameNoticeSheet({onClose}){
   );
 }
 
+// ── ThemeNoticeSheet ──────────────────────────────────────────────────
+// One-time heads-up for the people the follow-the-phone change visibly
+// affected (see themeNotice in App): their app was dark, their phone is in
+// light mode, and an update turned the app light without asking. Say why, and
+// put the way back one tap away instead of sending them to hunt for a menu.
+function ThemeNoticeSheet({onKeep,onDark}){
+  return e(React.Fragment,null,
+    e('div',{onClick:onKeep,style:{position:'fixed',inset:0,zIndex:299,background:'rgba(0,0,0,0.5)'}}),
+    e('div',{style:{position:'fixed',bottom:0,left:0,right:0,zIndex:300,
+      background:BG2,borderRadius:'16px 16px 0 0',
+      border:'1px solid '+BORDER,padding:'20px 20px 36px',
+      boxShadow:'0 -8px 32px rgba(0,0,0,0.55)'}},
+      e('div',{style:{width:40,height:4,background:BORDER,borderRadius:2,margin:'0 auto 18px'}}),
+      e('div',{style:{fontSize:'1.6rem',textAlign:'center',marginBottom:8}},'☀️'),
+      e('div',{style:{fontFamily:SERIF,fontSize:'1.15rem',fontWeight:700,
+        color:'var(--scale-name)',textAlign:'center',marginBottom:10}},
+        'Now matching your phone'),
+      e('div',{style:{fontSize:'0.85rem',color:HINT,textAlign:'center',
+        marginBottom:20,fontFamily:UI_FONT,lineHeight:1.5,padding:'0 8px'}},
+        'Your phone is set to light mode, so the app is too. You can change this any time in the ··· menu at the top right.'),
+      e('button',{onClick:onKeep,style:{
+        width:'100%',padding:'15px',borderRadius:10,cursor:'pointer',
+        fontFamily:UI_FONT,fontSize:'1rem',fontWeight:700,
+        background:GOLD,border:'none',color:'#07070f',minHeight:54,marginBottom:10}},
+        'Looks good'),
+      e('button',{onClick:onDark,style:{
+        width:'100%',padding:'12px',borderRadius:10,cursor:'pointer',
+        fontFamily:UI_FONT,fontSize:'0.9rem',fontWeight:600,
+        background:'transparent',border:'1px solid '+BORDER,
+        color:'var(--txt)',minHeight:44}},
+        '☾  Switch back to dark')
+    )
+  );
+}
+
 // Classify a keyboard event as a Bluetooth page-turner gesture.
 // Generic pedals emit a wide range of keys depending on their (often hidden)
 // mode — arrows on either axis, Page Up/Down, Space, Backspace, Enter, or media
@@ -1243,7 +1278,7 @@ function attachPedalListener(cb){
 }
 
 // ── AboutSheet ────────────────────────────────────────────────────────
-function AboutSheet({onClose,level,onRestore,onOverview,onPageTour,theme,onToggleTheme}){
+function AboutSheet({onClose,level,onRestore,onOverview,onPageTour,themePref,onThemePref}){
   const [restored,setRestored]=React.useState(null); // null = untried, true/false = result
   const [pedalSeen,setPedalSeen]=React.useState(null);
   // Report the real outcome — claiming "restored ✓" after a failed lookup sends
@@ -1298,12 +1333,24 @@ function AboutSheet({onClose,level,onRestore,onOverview,onPageTour,theme,onToggl
           border:'1px solid '+BORDER,background:'var(--bg)',color:'var(--txt)',
           marginBottom:10,minHeight:44}},
         'Replay app overview tour'):null,
-      onToggleTheme?e('button',{onClick:onToggleTheme,
-        style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
-          fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:600,textAlign:'center',
-          border:'1px solid '+BORDER,background:'var(--bg)',color:'var(--txt)',
-          marginBottom:10,minHeight:44}},
-        theme==='dark'?'☀  Switch to light theme':'☾  Switch to dark theme'):null,
+      // Three-way, not a toggle: "Match phone" is the default, and a two-state
+      // switch can't express it or get back to it once someone taps Light/Dark.
+      onThemePref?e('div',{'data-tour':'appearance',style:{marginBottom:10}},
+        e('div',{style:{fontSize:'0.75rem',color:HINT,fontFamily:UI_FONT,
+          textAlign:'center',marginBottom:6,letterSpacing:'0.04em'}},'Appearance'),
+        e('div',{role:'radiogroup','aria-label':'Appearance',
+          style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}},
+          [['auto','Match phone'],['light','☀ Light'],['dark','☾ Dark']].map(([id,lbl])=>{
+            const on=themePref===id;
+            return e('button',{key:id,role:'radio','aria-checked':on?'true':'false',
+              onClick:()=>onThemePref(id),
+              style:{padding:'12px 4px',borderRadius:10,cursor:'pointer',fontFamily:UI_FONT,
+                fontSize:'0.88rem',fontWeight:on?700:600,textAlign:'center',minHeight:44,
+                border:'1px solid '+(on?GOLD:BORDER),background:on?'var(--bg)':'transparent',
+                color:on?GOLD_TXT:'var(--txt)'}},lbl);
+          })
+        )
+      ):null,
       level==='essentials'?e('button',{
         onClick:handleRestore,
         style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
@@ -2223,8 +2270,8 @@ const OVERVIEW_STEPS=[
    proText:'Identify intervals and chord qualities by ear — all twelve intervals, plus triads, 7th chords, and cadences.',
    goalText:{ear:'This is exactly what you told us you want to focus on.'}},
   {target:'page-tour-btn', view:'guide',
-   title:'Page tours',
-   text:'Each section has its own guided walkthrough. Tap the gold "? Tour" button at the top right whenever you want to learn what you\'re looking at.'},
+   title:'Help, tours & appearance',
+   text:'Tap ··· at the top right any time to tour the page you\'re on, replay this overview, or contact support. It\'s also where you choose light or dark — the app follows your phone\'s setting unless you pick one.'},
   {target:'ear-mode-tabs', view:'quiz',
    essentialsOnly:true,
    title:'One price, everything — forever',
@@ -5783,28 +5830,49 @@ function CircleOfFifthsIcon(){
   );
 }
 
+// ── Theme: follow the phone unless the person picks Light or Dark ────
+// jg-theme-pref is 'auto' | 'light' | 'dark'. Before this setting existed the
+// app saved jg-theme for everyone with a default of 'dark', so a saved 'dark'
+// can't tell a real choice from the default — those people move to 'auto'.
+// A saved 'light' was always a deliberate switch and is kept. The boot script
+// in index.html applies the same rule so the first paint is already right.
+function initialThemePref(){
+  const p=safeLS('jg-theme-pref',null);
+  if(p==='auto'||p==='light'||p==='dark') return p;
+  return safeLS('jg-theme')==='light'?'light':'auto';
+}
+function phonePrefersLight(){
+  try{return !!(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches);}
+  catch(ex){return false;}
+}
+
 // ── App ───────────────────────────────────────────────────────────────
 function App(){
-  const [theme,setTheme]=useState(()=>safeLS('jg-theme','dark'));
+  const [themePref,setThemePref]=useState(initialThemePref);
+  const [phoneLight,setPhoneLight]=useState(phonePrefersLight);
+  // Listen, don't just read once: iOS can switch light/dark by itself at
+  // sunset, and an app on "Match phone" should go along with it.
+  useEffect(()=>{
+    if(!window.matchMedia) return;
+    const mq=window.matchMedia('(prefers-color-scheme: light)');
+    const on=()=>setPhoneLight(mq.matches);
+    if(mq.addEventListener) mq.addEventListener('change',on); else if(mq.addListener) mq.addListener(on);
+    return ()=>{if(mq.removeEventListener) mq.removeEventListener('change',on); else if(mq.removeListener) mq.removeListener(on);};
+  },[]);
+  const theme=themePref==='auto'?(phoneLight?'light':'dark'):themePref;
   const [winW,setWinW]=useState(window.innerWidth);
   useEffect(()=>{
     const onResize=()=>setWinW(window.innerWidth);
     window.addEventListener('resize',onResize);
     return ()=>window.removeEventListener('resize',onResize);
   },[]);
-  function toggleTheme(){
-    const next=theme==='dark'?'light':'dark';
-    setTheme(next);
-    document.documentElement.dataset.theme=next;
-    const m=document.getElementById('theme-meta');
-    if(m) m.content=next==='dark'?'#07070f':'#f5f5fa';
-  }
   useEffect(()=>{
     document.documentElement.dataset.theme=theme;
     const m=document.getElementById('theme-meta');
     if(m) m.content=theme==='dark'?'#07070f':'#f5f5fa';
     safeLSSet('jg-theme',theme);
   },[theme]);
+  useEffect(()=>{safeLSSet('jg-theme-pref',themePref);},[themePref]);
   // Global state
   const [key,setKey]=useState(()=>parseInt(safeLS('jg-key','0'),10));
   const [viewMode,setViewMode]=useState(()=>{const sv=safeLS('jg-viewMode',null);if(sv)return sv;return safeLS('jg-path',null)?'iivi':'guide';}); // 'diatonic'|'iivi'|'custom'|'guide'|'quiz'
@@ -5848,6 +5916,32 @@ function App(){
     setRenameNotice(false);
     safeLSSet('jg-rename-seen','1');
     track('rename.notice.dismissed');
+  }
+
+  // ── Theme-change notice (dark default → follow the phone) ─────────────
+  // Only for people this change visibly affected: an existing install with the
+  // old 'dark' default saved, no theme choice made, and a phone in light mode.
+  // Everyone else is marked 'done' on this first run so it can never fire
+  // later. Read before the jg-theme-pref effect above writes 'auto'.
+  const [themeNotice,setThemeNotice]=useState(()=>{
+    const s=safeLS('jg-theme-notice',null);
+    if(s==='done') return false;
+    if(s==='pending') return true;
+    return safeLS('jg-theme-pref',null)===null&&safeLS('jg-theme',null)==='dark'&&phonePrefersLight();
+  });
+  // Never two "what changed" sheets on one launch: if the rename notice is up,
+  // this one stays pending and shows on the next launch instead.
+  const [themeNoticeDeferred]=useState(()=>renameNotice);
+  useEffect(()=>{
+    safeLSSet('jg-theme-notice',themeNotice?'pending':'done');
+    if(themeNotice&&!themeNoticeDeferred) track('theme.notice.shown');
+  },[]);
+  const themeNoticeVisible=themeNotice&&!themeNoticeDeferred&&!renameNotice&&!showOnboard&&overviewStep===null;
+  function closeThemeNotice(choice){
+    setThemeNotice(false);
+    safeLSSet('jg-theme-notice','done');
+    if(choice==='dark') setThemePref('dark');
+    track('theme.notice.'+choice);
   }
 
   function overviewNext(){
@@ -6552,7 +6646,7 @@ function App(){
           :'No previous purchase found on this Apple ID.');}}):null,
     audioDiag?e(AudioDiagSheet,{onClose:()=>setAudioDiag(false)}):null,
     aboutOpen?e(AboutSheet,{onClose:()=>setAboutOpen(false),level,onRestore:doRestore,
-      theme,onToggleTheme:()=>{toggleTheme();},
+      themePref,onThemePref:p=>{setThemePref(p);track('theme.pref',{pref:p});},
       onPageTour:PAGE_TOURS[viewMode]?()=>{setAboutOpen(false);setPageTourStep(0);setPageTourId(viewMode);}:null,
       onOverview:()=>{setAboutOpen(false);setOverviewStep(0);}}):null,
     popTerm&&GLOSS_DEFS[popTerm]?e(React.Fragment,null,
@@ -6620,11 +6714,16 @@ function App(){
     ):null,
 
     // ── Rate prompt ──────────────────────────────────────────────────
-    ratePrompt&&!renameNotice?e(RatePromptSheet,{onClose:()=>setRatePrompt(false),onYes:onRateYes,onNo:onRateNo}):null,
+    ratePrompt&&!renameNotice&&!themeNoticeVisible?e(RatePromptSheet,{onClose:()=>setRatePrompt(false),onYes:onRateYes,onNo:onRateNo}):null,
 
     // ── Rename notice (once, existing users only, never over a tour) ──
     renameNotice&&!showOnboard&&overviewStep===null
       ?e(RenameNoticeSheet,{onClose:dismissRenameNotice})
+      :null,
+
+    // ── Theme-change notice (once, only if this update changed their look) ──
+    themeNoticeVisible
+      ?e(ThemeNoticeSheet,{onKeep:()=>closeThemeNotice('keep'),onDark:()=>closeThemeNotice('dark')})
       :null,
 
     // ── Onboarding questionnaire (once, right before the first tour) ──

@@ -49,7 +49,7 @@
 //
 // Run:  node test/smoke.cjs
 
-const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+const { chromium } = require(process.env.PW_MODULE || '/opt/node22/lib/node_modules/playwright');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -110,7 +110,7 @@ const IPHONE14 = {
 
   const browser = await chromium.launch({
     headless: true,
-    executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+    executablePath: process.env.PW_BROWSER || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
   });
 
   // ── Helper: new page (third-party requests blocked) ─────────────────────────
@@ -120,6 +120,7 @@ const IPHONE14 = {
     const ctx = await browser.newContext({
       ...IPHONE14,
       serviceWorkers: 'block',
+      colorScheme: 'dark',
       ...extraContextOpts,
     });
     const page = await ctx.newPage();
@@ -374,14 +375,22 @@ const IPHONE14 = {
       await ctx.close();
     });
 
-    // ── 10: Theme toggle ──────────────────────────────────────────────────────
-    await test('Test 10: Dark/light theme toggle', async () => {
-      const { page, ctx } = await freshPage();
-      const before = await page.evaluate(() =>
-        document.documentElement.getAttribute('data-theme') || 'dark'
-      );
-      // The toggle lives in the ··· menu now — the header is a single row and
-      // couldn't hold brand + tier + streak + three buttons without clipping.
+    // ── 10: Appearance — Match phone / Light / Dark ──────────────────────────
+    await test('Test 10: Appearance follows the phone, and Light/Dark override it', async () => {
+      const { page, ctx } = await freshPage(); // phone pinned to dark
+      const themeNow = () => page.evaluate(() =>
+        document.documentElement.getAttribute('data-theme') || 'dark');
+      ok('fresh install on a dark phone starts dark', (await themeNow()) === 'dark');
+
+      // Live: iOS flips light/dark by itself at sunset; "Match phone" follows.
+      await page.emulateMedia({ colorScheme: 'light' });
+      await page.waitForTimeout(250);
+      ok('follows the phone switching to light, live', (await themeNow()) === 'light');
+      await page.emulateMedia({ colorScheme: 'dark' });
+      await page.waitForTimeout(250);
+      ok('follows the phone back to dark, live', (await themeNow()) === 'dark');
+
+      // The control lives in the ··· menu — the header is a single row.
       const opened = await page.evaluate(() => {
         const btn = Array.from(document.querySelectorAll('button'))
           .find(b => /menu, help/i.test(b.getAttribute('aria-label') || ''));
@@ -390,20 +399,35 @@ const IPHONE14 = {
       });
       ok('··· menu button found in header', opened);
       await page.waitForTimeout(250);
-      const toggled = await page.evaluate(() => {
+      const choices = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('[role="radiogroup"][aria-label="Appearance"] [role="radio"]'))
+          .map(b => b.textContent.trim()));
+      ok('Appearance offers Match phone / Light / Dark', choices.length === 3 &&
+        /match phone/i.test(choices[0]) && /light/i.test(choices[1]) && /dark/i.test(choices[2]),
+        choices.join(' | '));
+      const pick = (re) => page.evaluate((src) => {
+        const b = Array.from(document.querySelectorAll('[role="radio"]'))
+          .find(x => new RegExp(src, 'i').test(x.textContent));
+        if (b) b.click();
+        return !!b;
+      }, re);
+
+      await pick('^\\W*light');
+      await page.waitForTimeout(200);
+      ok('choosing Light overrides a dark phone', (await themeNow()) === 'light');
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(600);
+      ok('Light choice survives a relaunch', (await themeNow()) === 'light');
+
+      await page.evaluate(() => {
         const btn = Array.from(document.querySelectorAll('button'))
-          .find(b => /switch to (light|dark) theme/i.test(b.textContent || ''));
-        if (btn) { btn.click(); return true; }
-        return false;
+          .find(b => /menu, help/i.test(b.getAttribute('aria-label') || ''));
+        if (btn) btn.click();
       });
-      ok('theme toggle found in the ··· menu', toggled);
-      if (toggled) {
-        await page.waitForTimeout(200);
-        const after = await page.evaluate(() =>
-          document.documentElement.getAttribute('data-theme') || 'dark'
-        );
-        ok('data-theme flips on toggle', before !== after, `before=${before}, after=${after}`);
-      }
+      await page.waitForTimeout(250);
+      await pick('match phone');
+      await page.waitForTimeout(200);
+      ok('Match phone goes back to following the (dark) phone', (await themeNow()) === 'dark');
       await ctx.close();
     });
 
@@ -502,7 +526,7 @@ const IPHONE14 = {
     // Confirms contrast, color-variable usage, and layout in the light theme.
     await test('Test 16: Visual snapshots — light theme', async () => {
       // Seed jg-theme so the app mounts in light mode without needing a button click.
-      const { page, ctx } = await freshPage({ storage: { 'jg-level': 'pro', 'jg-theme': 'light' } });
+      const { page, ctx } = await freshPage({ storage: { 'jg-level': 'pro', 'jg-theme-pref': 'light' } });
       const shoot = async (name) => {
         await page.waitForTimeout(400);
         const file = path.join(SHOTS_DIR, `${name}.png`);
@@ -1032,7 +1056,7 @@ const IPHONE14 = {
       };
 
       for (const theme of ['dark', 'light']) {
-        const { page, ctx } = await freshPage({ storage: { 'jg-level': 'pro', 'jg-theme': theme } });
+        const { page, ctx } = await freshPage({ storage: { 'jg-level': 'pro', 'jg-theme-pref': theme } });
         for (const [target, label] of [
           ['nav-guide', 'Guide'], ['nav-diatonic', 'Keys'], ['nav-custom', 'Chords'],
           ['nav-iivi', 'Play'], ['nav-quiz', 'Train'],

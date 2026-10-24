@@ -8,7 +8,15 @@
   <meta name="apple-mobile-web-app-title" content="Archtone"/>
   <meta id="theme-meta" name="theme-color" content="#07070f"/>
   <link rel="manifest" href="manifest.json"/>
-  <script>(function(){var t=localStorage.getItem('jg-theme');if(t==='light')document.documentElement.dataset.theme='light';})();</script>
+  <!-- Theme before first paint, so nothing flashes the wrong colour. Same rule
+       as initialThemePref() in app.js: a saved Light/Dark choice wins, else
+       follow the phone; a pre-existing saved 'light' was deliberate and kept. -->
+  <script>(function(){try{
+    var p=localStorage.getItem('jg-theme-pref');
+    if(p!=='auto'&&p!=='light'&&p!=='dark')p=localStorage.getItem('jg-theme')==='light'?'light':'auto';
+    var t=p==='auto'?((window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark'):p;
+    if(t==='light'){document.documentElement.dataset.theme='light';var m=document.getElementById('theme-meta');if(m)m.content='#f5f5fa';}
+  }catch(e){}})();</script>
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg"/>
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
   <title>Archtone</title>

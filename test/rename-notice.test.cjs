@@ -51,7 +51,7 @@ test('dismissing it is remembered, so it cannot nag', () => {
 });
 
 test('it never stacks with another sheet or a tour', () => {
-  assert.ok(has('ratePrompt&&!renameNotice?e(RatePromptSheet'),
+  assert.ok(/ratePrompt&&!renameNotice[^?]*\?e\(RatePromptSheet/.test(SRC),
     'the rate prompt would render underneath the rename notice');
   assert.ok(has('renameNotice&&!showOnboard&&overviewStep===null'),
     'the notice must not cover onboarding or the first-run tour');

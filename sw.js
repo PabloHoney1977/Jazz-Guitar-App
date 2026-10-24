@@ -6,7 +6,7 @@
 // deploys on one cache version), so the shell is now NETWORK-FIRST: online
 // users always run the latest app.js/index.html; offline still works from cache.
 // Stable assets (vendored React, icons, audio) stay cache-first for speed.
-const CACHE = 'jglab-v38';
+const CACHE = 'jglab-v39';
 
 
 // Bundled audio samples — same-origin, precached best-effort so the PWA has
