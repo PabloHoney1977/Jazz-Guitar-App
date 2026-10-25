@@ -118,3 +118,78 @@ workflows:
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID     # set in Codemagic dashboard
         submit_to_testflight: true
         submit_to_app_store: false   # flip to true when ready for production
+
+  # ─────────────────────────────────────────────────────────────────────────
+  android-google-play:
+    name: Archtone — Google Play
+    max_build_duration: 60
+    # macOS instance matches the iOS workflow and includes the Android SDK, so
+    # the free-tier minutes are shared. A `linux_x2` instance also builds Android
+    # (often cheaper/faster) if you'd rather not spend mac minutes — just swap it.
+    instance_type: mac_mini_m2
+
+    # NOTE: no `triggering:` block yet, so this workflow is MANUAL-START ONLY
+    # (run it from the Codemagic dashboard / "Start new build"). It stays manual
+    # until two things exist (see SETUP below): the signing keystore and the
+    # Google Play service account. To auto-build on every push to main like the
+    # iOS workflow, add the same triggering block:
+    #   triggering:
+    #     events: [push]
+    #     branch_patterns:
+    #       - pattern: main
+    #         include: true
+    #         source: true
+
+    environment:
+      # SETUP 1 — SIGNING KEYSTORE (upload key):
+      #   Codemagic → app → Settings → Code signing identities → Android keystores
+      #   → upload the upload-key .jks and give it the reference name below.
+      #   Referencing it here makes Codemagic export CM_KEYSTORE_PATH /
+      #   CM_KEYSTORE_PASSWORD / CM_KEY_ALIAS / CM_KEY_PASSWORD, which
+      #   android/app/build.gradle reads in its release signingConfig.
+      #   (With Google Play App Signing — on by default for new apps — this is an
+      #   UPLOAD key: if it's ever lost it can be reset by Google, so you are not
+      #   locked out of updates. Still store it + its passwords somewhere safe.)
+      android_signing:
+        - archtone_upload_keystore
+
+      node: v22
+      java: 17
+
+    scripts:
+      - name: Install dependencies
+        script: npm install
+
+      - name: Build web assets
+        script: npm run build
+
+      - name: Capacitor sync (android)
+        script: npx cap sync android
+
+      - name: Build signed release AAB
+        script: |
+          cd android
+          # versionCode comes from BUILD_NUMBER (see android/app/build.gradle).
+          ./gradlew bundleRelease
+
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+      - android/app/build/outputs/**/mapping.txt
+
+    # FIRST RELEASE IS MANUAL: Google's API can't publish to a brand-new app until
+    # its first AAB has been uploaded through the Play Console by hand. So for the
+    # very first release, download the .aab artifact from this build and upload it
+    # in Play Console → Internal testing. AFTER that first manual upload, uncomment
+    # the block below to have every later build publish itself to the internal
+    # track as a draft. It needs a GOOGLE PLAY SERVICE ACCOUNT: in Play Console →
+    # Users & permissions create a service account in Google Cloud, grant it
+    # release access, download its JSON key, and add it to a Codemagic variable
+    # group named EXACTLY "google_play_credentials" as a SECURE var
+    # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS (paste the whole JSON). Then add that
+    # group under `environment.groups` and uncomment:
+    #
+    # publishing:
+    #   google_play:
+    #     credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+    #     track: internal
+    #     submit_as_draft: true
