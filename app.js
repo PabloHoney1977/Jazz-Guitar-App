@@ -72,23 +72,28 @@ const Notif=(()=>{
 // key below is filled in — so the live web app / PWA is never affected and
 // early TestFlight builds keep the dev-unlock fallback in doUpgrade().
 //
-// To go live (after Apple Developer enrollment):
-//   1. App Store Connect → create non-consumable IAP, product id `pro_unlock`.
-//   2. revenuecat.com → new project → add the App Store app → create an
-//      entitlement `pro`, attach product `pro_unlock`, put it in the default
-//      offering.
-//   3. Replace __REVENUECAT_IOS_KEY__ with the project's PUBLIC iOS SDK key
-//      (starts with `appl_`). Public key is safe to ship in the client.
+// iOS is live. To bring Google Play online:
+//   1. Play Console → create a managed (non-consumable) product, id `pro_unlock`.
+//   2. revenuecat.com → same project → add the Play Store app → attach product
+//      `pro_unlock` to the existing `pro` entitlement / default offering.
+//   3. Replace __REVENUECAT_ANDROID_KEY__ below with the project's PUBLIC Google
+//      Play SDK key (starts with `goog_`). Public keys are safe to ship.
+// The right key is chosen per platform at runtime (appl_ on iOS, goog_ on
+// Android); an unfilled key fails closed exactly like the pre-live iOS path.
 const IAP=(()=>{
   const ENTITLEMENT='pro';
-  const API_KEY='appl_YuGTDIZwKqHfOVZHGFJkyKRpCmJ'; // RevenueCat public iOS SDK key (appl_…)
+  const IOS_API_KEY='appl_YuGTDIZwKqHfOVZHGFJkyKRpCmJ';   // RevenueCat public iOS SDK key (appl_…)
+  const ANDROID_API_KEY='__REVENUECAT_ANDROID_KEY__';     // RevenueCat public Google Play SDK key (goog_…)
+  function platform(){try{return window?.Capacitor?.getPlatform?.()||'web';}catch(ex){return 'web';}}
+  // RevenueCat's public key is per-store: appl_ for the App Store, goog_ for Play.
+  function apiKey(){return platform()==='android'?ANDROID_API_KEY:IOS_API_KEY;}
   function plug(){return window?.Capacitor?.Plugins?.Purchases||null;}
-  // True only when the native plugin is present AND a real key is configured.
-  function available(){return !!plug()&&!API_KEY.startsWith('__');}
+  // True only when the native plugin is present AND a real key is set for this platform.
+  function available(){return !!plug()&&!apiKey().startsWith('__');}
   let configured=false;
   async function configure(){
-    const P=plug();if(!P||configured||API_KEY.startsWith('__'))return;
-    try{await P.configure({apiKey:API_KEY});configured=true;}catch(ex){}
+    const P=plug();const key=apiKey();if(!P||configured||key.startsWith('__'))return;
+    try{await P.configure({apiKey:key});configured=true;}catch(ex){}
   }
   function entitled(info){
     try{return !!info?.customerInfo?.entitlements?.active?.[ENTITLEMENT];}catch(ex){return false;}
