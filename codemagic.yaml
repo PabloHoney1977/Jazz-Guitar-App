@@ -170,6 +170,7 @@ workflows:
         script: |
           cd android
           # versionCode comes from BUILD_NUMBER (see android/app/build.gradle).
+          chmod +x gradlew   # Windows commits lose the executable bit
           ./gradlew bundleRelease
 
     artifacts:
