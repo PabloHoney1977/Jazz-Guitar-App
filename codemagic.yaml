@@ -154,7 +154,7 @@ workflows:
         - archtone_upload_keystore
 
       node: v22
-      java: 17
+      java: 21   # Capacitor 8 compiles to Java 21 (android/app/capacitor.build.gradle)
 
     scripts:
       - name: Install dependencies
