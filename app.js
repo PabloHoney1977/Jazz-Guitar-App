@@ -83,7 +83,7 @@ const Notif=(()=>{
 const IAP=(()=>{
   const ENTITLEMENT='pro';
   const IOS_API_KEY='appl_YuGTDIZwKqHfOVZHGFJkyKRpCmJ';   // RevenueCat public iOS SDK key (appl_…)
-  const ANDROID_API_KEY='__REVENUECAT_ANDROID_KEY__';     // RevenueCat public Google Play SDK key (goog_…)
+  const ANDROID_API_KEY='goog_rbicQdSfQGhAvPlOxRHumvLKfsr';     // RevenueCat public Google Play SDK key (goog_…)
   function platform(){try{return window?.Capacitor?.getPlatform?.()||'web';}catch(ex){return 'web';}}
   // RevenueCat's public key is per-store: appl_ for the App Store, goog_ for Play.
   function apiKey(){return platform()==='android'?ANDROID_API_KEY:IOS_API_KEY;}
