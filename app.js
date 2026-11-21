@@ -43,16 +43,23 @@ const Notif=(()=>{
     const P=plug();if(!P)return false;
     try{const{display}=await P.requestPermissions();return display==='granted';}catch(ex){return false;}
   }
-  async function schedule(streak){
+  // When the reminder should fire. If today's practice is already done the
+  // next reminder belongs to TOMORROW — firing "practice today" at 7 pm on a
+  // day the user already practised nags exactly the people keeping the streak.
+  // Otherwise: 7 pm today, or tomorrow if 7 pm has already passed.
+  function reminderTime(practicedToday,now=new Date()){
+    const at=new Date(now);at.setHours(19,0,0,0);
+    if(practicedToday||at<=now)at.setDate(at.getDate()+1);
+    return at;
+  }
+  async function schedule(streak,practicedToday=false){
     const P=plug();if(!P)return;
     try{
       // Android channel creation (no-op on iOS)
       await P.createChannel?.({id:CH,name:'Practice reminders',importance:3});
       // Replace any existing reminder
       await P.cancel({notifications:[{id:ID}]});
-      // Fire at 7 pm today; if already past 7 pm, fire tomorrow
-      const at=new Date();at.setHours(19,0,0,0);
-      if(at<=new Date())at.setDate(at.getDate()+1);
+      const at=reminderTime(practicedToday);
       const body=streak>0?`${streak}-day streak — practice today to keep it going`:'Your daily jazz practice is waiting';
       await P.schedule({notifications:[{id:ID,title:'🎸 Archtone',body,
         schedule:{at,allowWhileIdle:true},channelId:CH}]});
@@ -62,7 +69,7 @@ const Notif=(()=>{
     const P=plug();if(!P)return;
     try{await P.cancel({notifications:[{id:ID}]});}catch(ex){}
   }
-  return{requestPermission,schedule,cancel};
+  return{requestPermission,schedule,cancel,reminderTime};
 })();
 
 // ── RevenueCat in-app purchase ────────────────────────────────────────
@@ -6131,8 +6138,9 @@ function App(){
       setTimeout(()=>setStreakAnim(false),900);
     }
     // Schedule tomorrow's reminder (request permission at day 3 when user is invested)
-    if(newStreak===3){Notif.requestPermission().then(()=>Notif.schedule(newStreak));}
-    else{Notif.schedule(newStreak);}
+    // (practicedToday=true → tomorrow's slot, never 7 pm today)
+    if(newStreak===3){Notif.requestPermission().then(()=>Notif.schedule(newStreak,true));}
+    else{Notif.schedule(newStreak,true);}
   }
 
   // On mount: expire a lapsed streak, then queue the reminder if one is at risk
