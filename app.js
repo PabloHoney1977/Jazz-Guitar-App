@@ -279,8 +279,33 @@ const IAP=(()=>{
   // gate dev-only affordances (e.g. the Pro→Essentials revert) so they exist
   // while testing in the browser but never ship as a footgun on device.
   function isNative(){try{return !!window?.Capacitor?.isNativePlatform?.();}catch(ex){return false;}}
-  return{available,checkEntitlement,purchase,restore,isNative};
+  // The store's own localized price string for Pro (e.g. "$14.99", "14,99 €",
+  // "¥2,300", or the sale price during a promotion). null when unavailable.
+  async function price(){
+    if(!available())return null;
+    await configure();if(!configured)return null;
+    try{
+      const offerings=await plug().getOfferings();
+      const ps=offerings?.current?.availablePackages?.[0]?.product?.priceString;
+      return typeof ps==='string'&&ps.trim()?ps.trim():null;
+    }catch(ex){return null;}
+  }
+  return{available,checkEntitlement,purchase,restore,isNative,price};
 })();
+
+// ── Pro price as shown in the app ─────────────────────────────────────
+// Never hardcode the price in copy: the App Store charges in the buyer's own
+// currency, and a sale (e.g. Black Friday) changes it without a new build.
+// Every label reads proPrice(). It starts from the last price the store
+// reported (cached so an offline launch is still right), falls back to the
+// US list price, and the App refreshes it from RevenueCat on every launch.
+const PRO_PRICE_FALLBACK='$14.99';
+let PRO_PRICE=(()=>{const v=safeLS('jg-pro-price','');return v&&v.length<=16?v:PRO_PRICE_FALLBACK;})();
+function proPrice(){return PRO_PRICE;}
+function setProPrice(p){
+  if(typeof p!=='string'||!p.trim()||p.length>16)return false;
+  PRO_PRICE=p.trim();safeLSSet('jg-pro-price',PRO_PRICE);return true;
+}
 
 // ── Dev unlock (web/PWA only) ─────────────────────────────────────────
 // The web build has no App Store bridge, so `doUpgrade` used to hand out Pro
@@ -1235,7 +1260,7 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial,on
         width:'100%',padding:'15px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'1rem',fontWeight:700,
         background:GOLD,border:'none',color:'#07070f',minHeight:54,marginBottom:4}},
-        'Unlock Pro — $14.99'),
+        'Unlock Pro — '+proPrice()),
       // The strongest objection-killer for a one-time price — was previously
       // only in the 'Pro overview' copy, i.e. absent from most impressions.
       e('div',{style:{fontSize:'0.72rem',color:HINT,textAlign:'center',
@@ -2445,7 +2470,7 @@ const OVERVIEW_STEPS=[
   {target:'ear-mode-tabs', view:'quiz',
    essentialsOnly:true,
    title:'One price, everything — forever',
-   text:'Essentials is free: shells, major ii–V–I, 5 ear training intervals. Pro is $14.99 once — no subscription, no future paywalls. Every voicing, play form, standard, ear training mode, and chord type we ever add is included. Look for 🔒 to see what unlocks now.'},
+   text:'Essentials is free: shells, major ii–V–I, 5 ear training intervals. Pro is {PRICE} once — no subscription, no future paywalls. Every voicing, play form, standard, ear training mode, and chord type we ever add is included. Look for 🔒 to see what unlocks now.'},
 ];
 
 const PAGE_TOURS={
@@ -2529,7 +2554,8 @@ function tourStepsFor(steps,isPro,profile){
       return gt?{...s,text:s.text+' '+gt}:s;
     });
   }
-  return out;
+  // Price lives in copy as {PRICE} so it shows the buyer's real store price.
+  return out.map(s=>s.text&&s.text.includes('{PRICE}')?{...s,text:s.text.split('{PRICE}').join(proPrice())}:s);
 }
 
 function TourOverlay({steps,step,onNext,onSkip}){
@@ -5643,7 +5669,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
           e('button',{onClick:()=>onUpgrade('Jazz Standards'),style:{
             width:'100%',padding:'11px 14px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.85rem',fontWeight:700,
             border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:44}},
-            'Unlock Pro — $14.99 once, forever')
+            'Unlock Pro — '+proPrice()+' once, forever')
         ):null,
         // "I've got this" — quieter, after the checklist (it's the last thing you do)
         e('button',{onClick:()=>{
@@ -5681,7 +5707,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
           marginTop:10,width:'100%',padding:'11px 14px',borderRadius:6,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.85rem',fontWeight:700,
           border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:44}},
-          'Unlock Pro — $14.99 once, forever'):null)
+          'Unlock Pro — '+proPrice()+' once, forever'):null)
       :nextStage?e('div',{style:{marginBottom:14,padding:'12px 14px',background:BG2,border:'1px solid '+GOLD+'66',borderRadius:8,
         display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
         e('div',{style:{flex:1,minWidth:170}},
@@ -6212,7 +6238,10 @@ function App(){
     track('app.loaded',{level});
     // Re-grant Pro from the App Store receipt (reinstall / new device).
     IAP.checkEntitlement().then(pro=>{if(pro)goPro();}).catch(()=>{});
+    // Real localized price (and any sale price) from the store.
+    IAP.price().then(p=>{if(p&&p!==proPrice()&&setProPrice(p))setPriceTick(t=>t+1);}).catch(()=>{});
   },[]);
+  const [,setPriceTick]=useState(0); // bump to re-render labels after a price update
   const [iiviPlaying,setIiviPlaying]=useState(false);
   // Clear playing state when navigating away from the play tab
   useEffect(()=>{ if(viewMode!=='iivi') setIiviPlaying(false); },[viewMode]);
@@ -6885,7 +6914,7 @@ function App(){
               display:'block',margin:'0 auto',padding:'9px 24px',borderRadius:6,cursor:'pointer',
               fontFamily:UI_FONT,fontSize:'0.82rem',fontWeight:700,
               border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:40}},
-              'Unlock Pro — $14.99 once')
+              'Unlock Pro — '+proPrice()+' once')
           ):null,
           e('button',{'data-test':'milestone-share',
             onClick:()=>{setStreakMilestone(null);shareStreak('milestone');},

@@ -1110,6 +1110,41 @@ const IPHONE14 = {
       await ctx.close();
     });
 
+    await test('Test 29: paywall shows the store price, not a hardcoded $14.99', async () => {
+      const { page, ctx, jsErrors } = await freshPage({
+        storage: { 'jg-level': 'essentials', 'jg-ear-intro': '1' },
+      });
+      // Fake a native build whose store reports a euro price (as a
+      // European buyer, or any buyer during a sale, would see).
+      await page.addInitScript(() => {
+        window.Capacitor = {
+          isNativePlatform: () => true,
+          Plugins: { Purchases: {
+            configure: async () => {},
+            getCustomerInfo: async () => ({ customerInfo: { entitlements: { active: {} } } }),
+            getOfferings: async () => ({ current: { availablePackages: [{ product: { priceString: '14,99 €' } }] } }),
+          } },
+        };
+      });
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => document.querySelector('#root button') !== null, { timeout: 8000 }).catch(() => {});
+      await page.waitForTimeout(500);
+      await page.click('[data-tour="nav-quiz"]').catch(() => {});
+      await page.waitForTimeout(400);
+      await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button')).find(b => /3 more modes/.test(b.textContent));
+        if (btn) btn.click();
+      });
+      await page.waitForTimeout(400);
+      const text = await page.evaluate(() => document.body.innerText);
+      ok('paywall button shows the store price', text.includes('Unlock Pro — 14,99 €'), text.slice(0, 200));
+      ok('no stray $14.99 once the store price is known', !text.includes('$14.99'));
+      ok('store price cached for offline launches',
+        (await page.evaluate(() => localStorage.getItem('jg-pro-price'))) === '14,99 €');
+      ok('no JS errors', jsErrors.filter(e => !isNoise(e)).length === 0, jsErrors.join(' | '));
+      await ctx.close();
+    });
+
   } finally {
     await browser.close();
     server.close();
