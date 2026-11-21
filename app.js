@@ -82,7 +82,7 @@ const Notif=(()=>{
 //
 // App Store numeric id (App Store Connect → App Information → Apple ID). Until
 // it's filled in, the share text simply goes out without a link.
-const APP_STORE_ID='__APP_STORE_ID__';
+const APP_STORE_ID='6785094978';
 const APP_STORE_URL=APP_STORE_ID.startsWith('__')?'':'https://apps.apple.com/app/id'+APP_STORE_ID;
 const SHARE_MIN_STREAK=3;
 // The milestone card stays up long enough to reach its Share button (was 5.4s).
