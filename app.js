@@ -72,6 +72,155 @@ const Notif=(()=>{
   return{requestPermission,schedule,cancel,reminderTime};
 })();
 
+// ── Streak share card ─────────────────────────────────────────────────
+// A 1080×1080 PNG drawn on a canvas from data already on the phone (streak,
+// best, which of the last 7 days were practised), handed to the iOS share
+// sheet. Nothing leaves the device unless the person sends it themselves, so
+// the "Data Not Collected" privacy label is unaffected. Written in the
+// person's own voice ("I've practiced jazz guitar 21 days in a row") because
+// it is THEIR post; no ad copy and never a ratings ask on the card or text.
+//
+// App Store numeric id (App Store Connect → App Information → Apple ID). Until
+// it's filled in, the share text simply goes out without a link.
+const APP_STORE_ID='__APP_STORE_ID__';
+const APP_STORE_URL=APP_STORE_ID.startsWith('__')?'':'https://apps.apple.com/app/id'+APP_STORE_ID;
+const SHARE_MIN_STREAK=3;
+// The milestone card stays up long enough to reach its Share button (was 5.4s).
+const MILESTONE_MS=9000; // "1 days in a row" isn't something anyone shares
+// Practice history: the last 30 practised dates. Only kept so the card's
+// 7-day row is true — the streak count alone can't show a grace-day gap.
+const PRACTICE_LOG_KEY='jg-practice-log';
+function readPracticeLog(){
+  try{const a=JSON.parse(safeLS(PRACTICE_LOG_KEY,'[]'));return Array.isArray(a)?a.filter(x=>typeof x==='string'):[];}
+  catch(ex){return [];}
+}
+function logPractice(day){
+  const log=readPracticeLog();
+  if(!log.includes(day))log.push(day);
+  safeLSSet(PRACTICE_LOG_KEY,JSON.stringify(log.sort().slice(-30)));
+}
+// The 7 dots, oldest → today. Days before the log existed (installs that
+// predate this feature) fall back to the streak run ending on the last
+// practice day, which is the best that can be known for them.
+function last7Days(streak,lastPractice,log,now=Date.now()){
+  const logged=new Set(log);
+  const first=log.length?log.slice().sort()[0]:null;
+  const run=new Set();
+  if(lastPractice&&streak>0){
+    const end=new Date(lastPractice+'T12:00:00').getTime();
+    for(let i=0;i<Math.min(streak,7+2);i++)run.add(localDateStr(end-i*86400000));
+  }
+  const out=[];
+  for(let i=6;i>=0;i--){
+    const ts=now-i*86400000,day=localDateStr(ts);
+    const on=logged.has(day)||(!(first&&day>=first)&&run.has(day));
+    out.push({day,on,label:'SMTWTFS'[new Date(ts).getDay()]});
+  }
+  return out;
+}
+function streakLine(streak,best){
+  if(streak>=best&&streak>=SHARE_MIN_STREAK)return 'My longest streak yet.';
+  if(streak>=30)return 'A whole month of jazz.';
+  if(streak>=14)return 'Two weeks and counting.';
+  if(streak>=7)return 'One week down.';
+  return 'Building the habit.';
+}
+function streakShareText(streak){
+  return 'I’ve practiced jazz guitar '+streak+' days in a row 🎸 Learning on Archtone'
+    +(APP_STORE_URL?': '+APP_STORE_URL:'');
+}
+const CARD_SERIF="'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif";
+function drawStreakCard({streak,best,days}){
+  const S=1080,P=96,c=document.createElement('canvas');c.width=S;c.height=S;
+  const g=c.getContext('2d');
+  const CREAM='#f2ecdc',MUTED='#a8a8cc',HINTC='#9898bc',GOLDC='#d4a855',DOTS=['#FF6B6B','#4ECDC4','#74C0FC','#FFD43B'];
+  g.fillStyle='#0b0b1a';g.fillRect(0,0,S,S);
+  g.textBaseline='alphabetic';
+  // Brand mark (the app icon's fretboard, drawn at 72px) + wordmark
+  g.save();g.translate(P,88);const k=72/512;g.scale(k,k);
+  g.fillStyle='#111124';g.beginPath();g.roundRect?g.roundRect(0,0,512,512,90):g.rect(0,0,512,512);g.fill();
+  g.strokeStyle='#2a2848';g.lineWidth=8;
+  [158,250,342].forEach(y=>{g.beginPath();g.moveTo(110,y);g.lineTo(402,y);g.stroke();});
+  g.strokeStyle='#3a3860';g.lineWidth=5;
+  [110,168.4,226.8,285.2,343.6,402].forEach(x=>{g.beginPath();g.moveTo(x,80);g.lineTo(x,342);g.stroke();});
+  g.fillStyle=GOLDC;g.fillRect(104,66,304,16);
+  [[285.2,112,0],[343.6,204,2],[226.8,204,3],[168.4,296,1]].forEach(([x,y,i])=>{
+    g.fillStyle=DOTS[i];g.beginPath();g.arc(x,y,30,0,Math.PI*2);g.fill();});
+  g.fillStyle=GOLDC;g.font='700 70px '+CARD_SERIF;g.textAlign='center';g.fillText('ARCHTONE',256,455);
+  g.restore();
+  g.textAlign='left';g.fillStyle=GOLDC;g.font='700 40px '+CARD_SERIF;
+  if('letterSpacing' in g)g.letterSpacing='6px';
+  g.fillText('ARCHTONE',P+96,88+50);
+  if('letterSpacing' in g)g.letterSpacing='0px';
+  // Headline: "I've practiced jazz guitar / 21 days in a row"
+  g.fillStyle=MUTED;g.font='500 44px '+UI_FONT;
+  g.fillText('I’ve practiced jazz guitar',P,340);
+  const num=String(streak);
+  let size=300;g.font='700 '+size+'px '+CARD_SERIF;
+  while(g.measureText(num).width>560&&size>160){size-=10;g.font='700 '+size+'px '+CARD_SERIF;}
+  g.fillStyle=CREAM;g.fillText(num,P-8,340+size*0.86);
+  const nx=P-8+g.measureText(num).width+28,base=340+size*0.86;
+  g.font='700 84px '+CARD_SERIF;
+  g.fillText(streak===1?'day':'days',nx,base-84);g.fillText('in a row',nx,base);
+  g.fillStyle=GOLDC;g.font='400 36px '+UI_FONT;
+  g.fillText(streakLine(streak,best),P,base+76);
+  // Last 7 days
+  const rowY=780;
+  g.fillStyle=HINTC;g.font='600 24px '+UI_FONT;
+  if('letterSpacing' in g)g.letterSpacing='3px';
+  g.fillText('LAST 7 DAYS',P,rowY);
+  if('letterSpacing' in g)g.letterSpacing='0px';
+  days.forEach((d,i)=>{
+    const cx=P+36+i*92,cy=rowY+60,col=DOTS[i%4];
+    g.beginPath();g.arc(cx,cy,34,0,Math.PI*2);
+    if(d.on){g.fillStyle=col;g.fill();}
+    else{g.strokeStyle='#2a2848';g.lineWidth=3;g.stroke();}
+    g.fillStyle=HINTC;g.font='400 22px '+UI_FONT;g.textAlign='center';
+    g.fillText(d.label,cx,cy+66);g.textAlign='left';
+  });
+  // Footer
+  g.fillStyle='#22223a';g.fillRect(P,948,S-2*P,2);
+  g.fillStyle=MUTED;g.font='400 28px '+UI_FONT;
+  const bl='My best so far: ';g.fillText(bl,P,1000);
+  g.fillStyle=CREAM;g.font='600 28px '+UI_FONT;
+  g.fillText(best+' day'+(best===1?'':'s'),P+g.measureText(bl).width+4,1000);
+  g.textAlign='right';g.fillStyle=GOLDC;g.font='600 26px '+UI_FONT;
+  g.fillText('Archtone',S-P,1000);
+  const w=g.measureText('Archtone').width;
+  g.fillStyle=MUTED;g.font='400 26px '+UI_FONT;g.fillText('Learning on ',S-P-w,1000);
+  g.textAlign='left';
+  return c;
+}
+// Returns 'shared' | 'cancelled' | 'downloaded' | 'failed'.
+const ShareCard=(()=>{
+  const plugs=()=>{const P=window?.Capacitor?.Plugins;return P?.Share&&P?.Filesystem?{Share:P.Share,FS:P.Filesystem}:null;};
+  function isCancel(ex){return /cancel|abort/i.test(String(ex?.message||ex?.name||ex));}
+  async function share({streak,best,days}){
+    const canvas=drawStreakCard({streak,best,days});
+    const text=streakShareText(streak),title=streak+'-day jazz guitar streak';
+    const native=plugs();
+    try{
+      if(native){
+        const data=canvas.toDataURL('image/png').split(',')[1];
+        const{uri}=await native.FS.writeFile({path:'archtone-streak.png',data,directory:'CACHE'});
+        await native.Share.share({title,text,files:[uri],dialogTitle:'Share your streak'});
+        return 'shared';
+      }
+      // Built synchronously (not canvas.toBlob) so navigator.share still runs
+      // inside the tap — Safari refuses a share that starts after an await.
+      const bin=atob(canvas.toDataURL('image/png').split(',')[1]);
+      const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+      const blob=new Blob([bytes],{type:'image/png'});
+      const file=new File([blob],'archtone-streak.png',{type:'image/png'});
+      if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],text,title});return 'shared';}
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='archtone-streak.png';
+      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      return 'downloaded';
+    }catch(ex){return isCancel(ex)?'cancelled':'failed';}
+  }
+  return{share};
+})();
+
 // ── RevenueCat in-app purchase ────────────────────────────────────────
 // Unlocks the one-time $14.99 Pro upgrade (App Store product `pro_unlock`,
 // RevenueCat entitlement `pro`). Everything here is a silent no-op in the
@@ -1285,7 +1434,7 @@ function attachPedalListener(cb){
 }
 
 // ── AboutSheet ────────────────────────────────────────────────────────
-function AboutSheet({onClose,level,onRestore,onOverview,onPageTour,themePref,onThemePref}){
+function AboutSheet({onClose,level,onRestore,onOverview,onPageTour,themePref,onThemePref,streak,onShareStreak}){
   const [restored,setRestored]=React.useState(null); // null = untried, true/false = result
   const [pedalSeen,setPedalSeen]=React.useState(null);
   // Report the real outcome — claiming "restored ✓" after a failed lookup sends
@@ -1328,6 +1477,13 @@ function AboutSheet({onClose,level,onRestore,onOverview,onPageTour,themePref,onT
       // Everything the header used to hold. Grouped here so the header can be a
       // single row: help first (contextual tour, then the overview), then the
       // theme preference, which is set once rather than per screen.
+      onShareStreak&&streak>=SHARE_MIN_STREAK?e('button',{'data-test':'menu-share',onClick:onShareStreak,
+        style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,textAlign:'center',
+          display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+          border:'1px solid '+GOLD+'88',background:'var(--bg)',color:GOLD_TXT,
+          marginBottom:10,minHeight:44}},
+        e(ShareIcon),'Share my '+streak+'-day streak'):null,
       onPageTour?e('button',{onClick:onPageTour,
         style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,textAlign:'center',
@@ -1412,6 +1568,13 @@ function ColorLegend(){
   );
 }
 
+// Share glyph (box + up arrow), stroke-only so it takes the button's colour.
+function ShareIcon(){
+  return e('svg',{width:18,height:18,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',
+    strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':'true'},
+    e('path',{d:'M12 3v12'}),e('path',{d:'M7 8l5-5 5 5'}),
+    e('path',{d:'M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5'}));
+}
 // ── BrandMark ─────────────────────────────────────────────────────────
 // Miniature of the app icon: chord grid plus the four chord-tone dots in the
 // same TC palette every fretboard in the app draws with. Inline so it inherits
@@ -6090,6 +6253,13 @@ function App(){
   // A 'yes' locks it out permanently; a decline gets a 60-day cooldown before
   // asking again (SKStoreReviewController throttles further on top of this).
   const RATE_MILESTONES=[7,60,180];
+  // Share the streak card. `source` is where it was tapped (milestone | menu).
+  async function shareStreak(source){
+    const best=Math.max(bestStreak,streak);
+    const days=last7Days(streak,lastPracticeDay,readPracticeLog());
+    const result=await ShareCard.share({streak,best,days});
+    track('share.streak',{source,result,streak,level});
+  }
   function maybeAskRate(newStreak){
     if(safeLS('jg-rate-asked','')==='yes') return;
     if(!RATE_MILESTONES.includes(newStreak)) return;
@@ -6097,8 +6267,8 @@ function App(){
     const daysSinceAsk=lastAsk?Math.floor((Date.now()-new Date(lastAsk+'T00:00:00'))/86400000):Infinity;
     if(daysSinceAsk<60) return;
     safeLSSet('jg-rate-last-ask',localDateStr());
-    // Delay past the streak-milestone card's own 5.4s auto-dismiss so the two don't stack.
-    setTimeout(()=>{setRatePrompt(true);track('rating.prompt.shown',{streak:newStreak,level});},5600);
+    // Delay past the streak-milestone card's own auto-dismiss so the two don't stack.
+    setTimeout(()=>{setRatePrompt(true);track('rating.prompt.shown',{streak:newStreak,level});},MILESTONE_MS+200);
   }
   function onRateYes(){
     setRatePrompt(false);
@@ -6124,10 +6294,11 @@ function App(){
     setLastPracticeDay(today);
     safeLSSet('jg-streak',newStreak);
     safeLSSet('jg-last-practice',today);
+    logPractice(today);
     if(newStreak>bestStreak){setBestStreak(newStreak);safeLSSet('jg-best-streak',newStreak);}
     if(isStreakMilestone(newStreak)){
       setStreakMilestone(newStreak);
-      setTimeout(()=>setStreakMilestone(null),5400);
+      setTimeout(()=>setStreakMilestone(null),MILESTONE_MS);
       track('streak.milestone',{days:newStreak,level});
     }
     maybeAskRate(newStreak);
@@ -6654,6 +6825,7 @@ function App(){
           :'No previous purchase found on this Apple ID.');}}):null,
     audioDiag?e(AudioDiagSheet,{onClose:()=>setAudioDiag(false)}):null,
     aboutOpen?e(AboutSheet,{onClose:()=>setAboutOpen(false),level,onRestore:doRestore,
+      streak,onShareStreak:()=>{setAboutOpen(false);shareStreak('menu');},
       themePref,onThemePref:p=>{setThemePref(p);track('theme.pref',{pref:p});},
       onPageTour:PAGE_TOURS[viewMode]?()=>{setAboutOpen(false);setPageTourStep(0);setPageTourId(viewMode);}:null,
       onOverview:()=>{setAboutOpen(false);setOverviewStep(0);}}):null,
@@ -6684,7 +6856,7 @@ function App(){
       e('div',{onClick:ev=>ev.stopPropagation(),
         style:{width:'min(400px,calc(100vw - 32px))',borderRadius:16,overflow:'hidden',
           boxShadow:'0 -8px 40px rgba(0,0,0,0.7)',
-          animation:'milestoneUp 5.4s cubic-bezier(.22,.68,0,1.2) both'}},
+          animation:'milestoneUp '+(MILESTONE_MS/1000)+'s cubic-bezier(.22,.68,0,1.2) both'}},
         e('div',{style:{
           background:`linear-gradient(135deg,#1a1000 0%,#0d0d1e 100%)`,
           border:'1px solid '+GOLD+'80',borderRadius:16,padding:'22px 24px 18px'}},
@@ -6715,6 +6887,13 @@ function App(){
               border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:40}},
               'Unlock Pro — $14.99 once')
           ):null,
+          e('button',{'data-test':'milestone-share',
+            onClick:()=>{setStreakMilestone(null);shareStreak('milestone');},
+            style:{display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+              margin:'16px auto 0',padding:'10px 22px',borderRadius:10,cursor:'pointer',
+              fontFamily:UI_FONT,fontSize:'0.9rem',fontWeight:700,minHeight:44,
+              border:'1px solid '+GOLD+'88',background:'transparent',color:GOLD_TXT}},
+            e(ShareIcon),'Share my streak'),
           e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT,
             textAlign:'center',marginTop:12}},'Tap to dismiss')
         )
