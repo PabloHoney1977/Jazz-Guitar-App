@@ -1,2 +1,8 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Keep shell scripts and the Gradle wrapper as LF so they stay executable on
+# the Linux/macOS CI build machine, even though this repo is edited on Windows.
+*.sh text eol=lf
+gradlew text eol=lf
+android/gradlew text eol=lf
+
+# Gradle wrapper jar is binary.
+*.jar binary
