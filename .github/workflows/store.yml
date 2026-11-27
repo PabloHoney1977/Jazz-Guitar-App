@@ -1,0 +1,63 @@
+# Store automation. Run it from GitHub → Actions → "Store" → Run workflow (works from the GitHub phone app).
+# Every pull request that touches store/ also gets an offline `check`, with no secrets involved.
+#
+# Repository secrets (Settings → Secrets and variables → Actions):
+#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_CONTENT   App Store Connect API key (paste the whole .p8 file)
+#   PLAY_JSON_KEY_DATA                           Google Play service-account JSON (paste the whole file)
+
+name: Store
+
+on:
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: What to run
+        type: choice
+        default: check
+        options:
+          - check
+          - ios import screenshots:true
+          - ios status
+          - ios metadata
+          - ios submit
+          - android metadata
+          - android promote from:internal to:production
+  pull_request:
+    paths: ["store/**", "fastlane/**"]
+
+permissions:
+  contents: write   # only "import" writes: it commits the refreshed store.yml/screenshots back to the branch it ran on
+
+concurrency:
+  group: store-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  store:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - name: fastlane ${{ inputs.lane || 'check' }}
+        env:
+          LANE: ${{ inputs.lane || 'check' }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          PLAY_JSON_KEY_DATA: ${{ secrets.PLAY_JSON_KEY_DATA }}
+          FASTLANE_SKIP_UPDATE_CHECK: "1"
+          FASTLANE_HIDE_CHANGELOG: "1"
+        # $LANE is word-split on purpose ("ios submit" → two args); it only ever holds a value from the list above.
+        run: bundle exec fastlane $LANE
+      - name: Commit imported listing
+        if: startsWith(inputs.lane, 'ios import') || startsWith(inputs.lane, 'android import')
+        run: |
+          git add store
+          if git diff --cached --quiet; then echo "Live listing already matches store.yml"; exit 0; fi
+          git -c user.name="store-bot" -c user.email="store-bot@users.noreply.github.com" \
+            commit -m "store: import live listing (${LANE})"
+          git push

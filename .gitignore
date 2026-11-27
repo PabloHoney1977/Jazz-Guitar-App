@@ -5,3 +5,10 @@ www/
 test/screenshots/
 # Exploratory agent reports — regenerated each run, not source
 test/explore/reports/
+
+# store kit — generated files and credentials
+fastlane/build/
+fastlane/report.xml
+fastlane/README.md
+*.p8
+*play*key*.json
