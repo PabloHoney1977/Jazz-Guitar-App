@@ -235,3 +235,11 @@ Steps completed and still needed to ship:
 4. **Apple Developer enrollment** — user action required, $99, developer.apple.com. Also enroll in Small Business Program (15% cut → ~$12.74 net per sale).
 5. **Code audit** — re-renders, audio memory leaks, edge cases in `calcVoicing`/`calcFingering`
 6. **Add Capacitor Local Notifications** — practice streak reminders (defer until after first TestFlight build)
+
+## Store automation (fastlane) — added 2026-11-26
+- The App Store listing lives in **`store/store.yml`** (+ `store/screenshots/ios/en-US/`). Edit there, never by hand in App Store Connect, or the next upload overwrites your web edits.
+- Lanes (`fastlane/Fastfile`): `check` (offline), `ios import` (fills TODOs from the live listing), `ios status`, `ios metadata`, `ios submit` (attaches the newest build for `ios.version`, submits, **never auto-releases**). Run locally or via GitHub → Actions → **Store**. Offline check without fastlane: `ruby bin/check.rb`.
+- Secrets: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_CONTENT` as GitHub repo secrets. Never commit a `.p8`.
+- `codemagic.yaml` skips builds when a push only touches `store/`, `fastlane/`, `.github/`, `Gemfile*`, `MANUAL_STEPS.md`.
+- `ios.version` is set to **2.1** (the theme release). Don't run `ios metadata`/`ios submit` against 2.1 until 2.0 is released.
+- One-time clicks with no API (app record, App Privacy, age rating, IAP setup): `MANUAL_STEPS.md`.

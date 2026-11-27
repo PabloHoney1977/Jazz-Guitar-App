@@ -9,3 +9,10 @@ test/explore/reports/
 # Android signing keys must never be committed (kept in OneDrive, uploaded to Codemagic).
 *.jks
 *.keystore
+
+# store kit — generated files and credentials
+fastlane/build/
+fastlane/report.xml
+fastlane/README.md
+*.p8
+*play*key*.json

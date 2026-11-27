@@ -1,0 +1,2 @@
+# Identifiers live in store/store.yml so there is one place to edit.
+# Credentials come from environment variables — see the top of the Fastfile.

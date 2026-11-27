@@ -1,0 +1,38 @@
+# Archtone — everything the App Store shows about it. See MANUAL_STEPS.md and fastlane/Fastfile.
+# First run the Store action with "ios import screenshots:true": it fills the TODOs below from the live listing and keeps what's already written.
+# Anything containing TODO blocks uploads.
+
+app:
+  ios_bundle_id: com.pablohoney.jazzguitarlab   # never changes — pre-rename ID on purpose
+  android_package:                              # not on Google Play yet
+
+ios:
+  version: "2.1"                 # NEXT release (theme follows the phone). 2.0 must be released before touching 2.1.
+  copyright: 2026 Highland Music LLC
+  primary_category: MUSIC
+  secondary_category: EDUCATION
+  automatic_release: false       # keep "Manually release this version"
+  phased_release: false
+  uses_idfa: false
+
+urls:
+  support_url: https://highlandmusicapps.com/TODO
+  marketing_url: https://highlandmusicapps.com/
+  privacy_url: https://highlandmusicapps.com/privacy.html
+
+review:
+  email_address: support@highlandmusicapps.com
+  notes: |
+    No account or login is needed. Everything works offline.
+    Pro features unlock with the one-time "pro_unlock" in-app purchase.
+
+listings:
+  en-US:
+    name: "Archtone: Jazz Guitar Chords"
+    subtitle: TODO
+    keywords: TODO
+    promotional_text: ""
+    description: |
+      TODO — filled by `fastlane ios import`
+    release_notes: |
+      Archtone now follows your phone's light or dark setting. You can still pick Light or Dark yourself in the ··· menu.

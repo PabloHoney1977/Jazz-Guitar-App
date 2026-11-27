@@ -16,6 +16,20 @@ workflows:
           include: true
           source: true
 
+    # Store-listing edits (store/, fastlane/, the Store action) don't change the app,
+    # so they must not start a build — that would put a confusing extra build in TestFlight.
+    when:
+      changeset:
+        includes:
+          - '.'
+        excludes:
+          - 'store/**'
+          - 'fastlane/**'
+          - 'Gemfile'
+          - 'Gemfile.lock'
+          - '.github/**'
+          - 'MANUAL_STEPS.md'
+
     # Workflow-level. Must match the App Store Connect integration name in
     # Codemagic settings → Integrations. Makes the API key available to the
     # `app-store-connect` CLI used in the "Set up code signing" script below.
