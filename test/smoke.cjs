@@ -110,7 +110,7 @@ const IPHONE14 = {
 
   const browser = await chromium.launch({
     headless: true,
-    executablePath: process.env.PW_BROWSER || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+    executablePath: process.env.PW_BROWSER || '/opt/pw-browsers/chromium',
   });
 
   // ── Helper: new page (third-party requests blocked) ─────────────────────────

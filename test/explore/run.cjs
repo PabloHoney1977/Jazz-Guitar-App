@@ -762,7 +762,7 @@ Be specific and cite which persona/step you're drawing from. Prioritise findings
   const port   = server.address().port;
   const browser = await chromium.launch({
     headless: true,
-    executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+    executablePath: process.env.PW_BROWSER || '/opt/pw-browsers/chromium',
   });
 
   console.log(`Running ${count} sessions in parallel (${20} steps each)...\n`);
