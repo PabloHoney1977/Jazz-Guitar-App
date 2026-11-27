@@ -1,11 +1,11 @@
 {
   "name": "jazz-guitar-lab",
   "version": "1.0.0",
-  "description": "Archtone \u2014 learn jazz harmony on guitar",
+  "description": "Archtone — learn jazz harmony on guitar",
   "scripts": {
     "build": "mkdir -p www && cp index.html app.js sw.js manifest.json www/ && cp -r icons www/ && cp -r vendor www/ && cp -r samples www/ && ([ -d audio ] && cp -r audio www/ || true)",
     "sync": "npm run build && npx cap sync ios",
-    "test": "node --test test/theory.test.cjs test/content.test.cjs test/gating.test.cjs test/offline.test.cjs test/rename-notice.test.cjs test/theme.test.cjs",
+    "test": "node --test test/theory.test.cjs test/content.test.cjs test/gating.test.cjs test/offline.test.cjs test/rename-notice.test.cjs test/theme.test.cjs test/notif.test.cjs test/share.test.cjs test/price.test.cjs",
     "test:smoke": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node test/smoke.cjs",
     "test:explore": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node test/explore/run.cjs",
     "test:audio": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node test/audio-engine.cjs"
@@ -16,8 +16,10 @@
     "@capacitor-community/in-app-review": "^8.0.0",
     "@capacitor/cli": "^8.4.0",
     "@capacitor/core": "^8.4.0",
+    "@capacitor/filesystem": "^8.1.5",
     "@capacitor/ios": "^8.4.0",
     "@capacitor/local-notifications": "^8.0.0",
+    "@capacitor/share": "^8.0.3",
     "@revenuecat/purchases-capacitor": "^13.2.0"
   }
 }

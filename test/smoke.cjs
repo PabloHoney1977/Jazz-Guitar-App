@@ -1072,6 +1072,79 @@ const IPHONE14 = {
       }
     });
 
+    await test('Test 28: streak share card from the ··· menu', async () => {
+      const d = new Date();
+      const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      const openMenu = (page) => page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button'))
+          .find(b => /menu, help/i.test(b.getAttribute('aria-label') || ''));
+        if (btn) btn.click();
+        return !!btn;
+      });
+      // Below the minimum streak there is nothing worth sharing: no row.
+      {
+        const { page, ctx } = await freshPage({ storage: { 'jg-streak': '2', 'jg-last-practice': today } });
+        await openMenu(page); await page.waitForTimeout(250);
+        ok('no Share row for a 2-day streak', (await page.$('[data-test="menu-share"]')) === null);
+        await ctx.close();
+      }
+      const { page, ctx, jsErrors } = await freshPage({ storage: { 'jg-streak': '5', 'jg-best-streak': '12', 'jg-last-practice': today } });
+      await openMenu(page); await page.waitForTimeout(250);
+      const row = await page.$('[data-test="menu-share"]');
+      ok('Share row shown for a 5-day streak', !!row);
+      ok('Share row names the streak', row && /5-day streak/.test(await row.textContent()));
+      // Headless Chromium can't share files, so the web fallback downloads the PNG.
+      const [dl] = await Promise.all([
+        page.waitForEvent('download', { timeout: 5000 }).catch(() => null),
+        row ? row.click() : Promise.resolve(),
+      ]);
+      ok('tapping it produces the card image', !!dl && dl.suggestedFilename() === 'archtone-streak.png');
+      if (dl) {
+        const fs = require('fs');
+        const buf = fs.readFileSync(await dl.path());
+        // PNG signature + IHDR width/height = 1080×1080
+        ok('card is a 1080×1080 PNG',
+          buf.slice(1, 4).toString() === 'PNG' && buf.readUInt32BE(16) === 1080 && buf.readUInt32BE(20) === 1080);
+      }
+      ok('no JS errors while sharing', jsErrors.filter(e => !isNoise(e)).length === 0, jsErrors.join(' | '));
+      await ctx.close();
+    });
+
+    await test('Test 29: paywall shows the store price, not a hardcoded $14.99', async () => {
+      const { page, ctx, jsErrors } = await freshPage({
+        storage: { 'jg-level': 'essentials', 'jg-ear-intro': '1' },
+      });
+      // Fake a native build whose store reports a euro price (as a
+      // European buyer, or any buyer during a sale, would see).
+      await page.addInitScript(() => {
+        window.Capacitor = {
+          isNativePlatform: () => true,
+          Plugins: { Purchases: {
+            configure: async () => {},
+            getCustomerInfo: async () => ({ customerInfo: { entitlements: { active: {} } } }),
+            getOfferings: async () => ({ current: { availablePackages: [{ product: { priceString: '14,99 €' } }] } }),
+          } },
+        };
+      });
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => document.querySelector('#root button') !== null, { timeout: 8000 }).catch(() => {});
+      await page.waitForTimeout(500);
+      await page.click('[data-tour="nav-quiz"]').catch(() => {});
+      await page.waitForTimeout(400);
+      await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button')).find(b => /3 more modes/.test(b.textContent));
+        if (btn) btn.click();
+      });
+      await page.waitForTimeout(400);
+      const text = await page.evaluate(() => document.body.innerText);
+      ok('paywall button shows the store price', text.includes('Unlock Pro — 14,99 €'), text.slice(0, 200));
+      ok('no stray $14.99 once the store price is known', !text.includes('$14.99'));
+      ok('store price cached for offline launches',
+        (await page.evaluate(() => localStorage.getItem('jg-pro-price'))) === '14,99 €');
+      ok('no JS errors', jsErrors.filter(e => !isNoise(e)).length === 0, jsErrors.join(' | '));
+      await ctx.close();
+    });
+
   } finally {
     await browser.close();
     server.close();

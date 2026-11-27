@@ -43,16 +43,23 @@ const Notif=(()=>{
     const P=plug();if(!P)return false;
     try{const{display}=await P.requestPermissions();return display==='granted';}catch(ex){return false;}
   }
-  async function schedule(streak){
+  // When the reminder should fire. If today's practice is already done the
+  // next reminder belongs to TOMORROW — firing "practice today" at 7 pm on a
+  // day the user already practised nags exactly the people keeping the streak.
+  // Otherwise: 7 pm today, or tomorrow if 7 pm has already passed.
+  function reminderTime(practicedToday,now=new Date()){
+    const at=new Date(now);at.setHours(19,0,0,0);
+    if(practicedToday||at<=now)at.setDate(at.getDate()+1);
+    return at;
+  }
+  async function schedule(streak,practicedToday=false){
     const P=plug();if(!P)return;
     try{
       // Android channel creation (no-op on iOS)
       await P.createChannel?.({id:CH,name:'Practice reminders',importance:3});
       // Replace any existing reminder
       await P.cancel({notifications:[{id:ID}]});
-      // Fire at 7 pm today; if already past 7 pm, fire tomorrow
-      const at=new Date();at.setHours(19,0,0,0);
-      if(at<=new Date())at.setDate(at.getDate()+1);
+      const at=reminderTime(practicedToday);
       const body=streak>0?`${streak}-day streak — practice today to keep it going`:'Your daily jazz practice is waiting';
       await P.schedule({notifications:[{id:ID,title:'🎸 Archtone',body,
         schedule:{at,allowWhileIdle:true},channelId:CH}]});
@@ -62,7 +69,156 @@ const Notif=(()=>{
     const P=plug();if(!P)return;
     try{await P.cancel({notifications:[{id:ID}]});}catch(ex){}
   }
-  return{requestPermission,schedule,cancel};
+  return{requestPermission,schedule,cancel,reminderTime};
+})();
+
+// ── Streak share card ─────────────────────────────────────────────────
+// A 1080×1080 PNG drawn on a canvas from data already on the phone (streak,
+// best, which of the last 7 days were practised), handed to the iOS share
+// sheet. Nothing leaves the device unless the person sends it themselves, so
+// the "Data Not Collected" privacy label is unaffected. Written in the
+// person's own voice ("I've practiced jazz guitar 21 days in a row") because
+// it is THEIR post; no ad copy and never a ratings ask on the card or text.
+//
+// App Store numeric id (App Store Connect → App Information → Apple ID). Until
+// it's filled in, the share text simply goes out without a link.
+const APP_STORE_ID='6785094978';
+const APP_STORE_URL=APP_STORE_ID.startsWith('__')?'':'https://apps.apple.com/app/id'+APP_STORE_ID;
+const SHARE_MIN_STREAK=3;
+// The milestone card stays up long enough to reach its Share button (was 5.4s).
+const MILESTONE_MS=9000; // "1 days in a row" isn't something anyone shares
+// Practice history: the last 30 practised dates. Only kept so the card's
+// 7-day row is true — the streak count alone can't show a grace-day gap.
+const PRACTICE_LOG_KEY='jg-practice-log';
+function readPracticeLog(){
+  try{const a=JSON.parse(safeLS(PRACTICE_LOG_KEY,'[]'));return Array.isArray(a)?a.filter(x=>typeof x==='string'):[];}
+  catch(ex){return [];}
+}
+function logPractice(day){
+  const log=readPracticeLog();
+  if(!log.includes(day))log.push(day);
+  safeLSSet(PRACTICE_LOG_KEY,JSON.stringify(log.sort().slice(-30)));
+}
+// The 7 dots, oldest → today. Days before the log existed (installs that
+// predate this feature) fall back to the streak run ending on the last
+// practice day, which is the best that can be known for them.
+function last7Days(streak,lastPractice,log,now=Date.now()){
+  const logged=new Set(log);
+  const first=log.length?log.slice().sort()[0]:null;
+  const run=new Set();
+  if(lastPractice&&streak>0){
+    const end=new Date(lastPractice+'T12:00:00').getTime();
+    for(let i=0;i<Math.min(streak,7+2);i++)run.add(localDateStr(end-i*86400000));
+  }
+  const out=[];
+  for(let i=6;i>=0;i--){
+    const ts=now-i*86400000,day=localDateStr(ts);
+    const on=logged.has(day)||(!(first&&day>=first)&&run.has(day));
+    out.push({day,on,label:'SMTWTFS'[new Date(ts).getDay()]});
+  }
+  return out;
+}
+function streakLine(streak,best){
+  if(streak>=best&&streak>=SHARE_MIN_STREAK)return 'My longest streak yet.';
+  if(streak>=30)return 'A whole month of jazz.';
+  if(streak>=14)return 'Two weeks and counting.';
+  if(streak>=7)return 'One week down.';
+  return 'Building the habit.';
+}
+function streakShareText(streak){
+  return 'I’ve practiced jazz guitar '+streak+' days in a row 🎸 Learning on Archtone'
+    +(APP_STORE_URL?': '+APP_STORE_URL:'');
+}
+const CARD_SERIF="'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif";
+function drawStreakCard({streak,best,days}){
+  const S=1080,P=96,c=document.createElement('canvas');c.width=S;c.height=S;
+  const g=c.getContext('2d');
+  const CREAM='#f2ecdc',MUTED='#a8a8cc',HINTC='#9898bc',GOLDC='#d4a855',DOTS=['#FF6B6B','#4ECDC4','#74C0FC','#FFD43B'];
+  g.fillStyle='#0b0b1a';g.fillRect(0,0,S,S);
+  g.textBaseline='alphabetic';
+  // Brand mark (the app icon's fretboard, drawn at 72px) + wordmark
+  g.save();g.translate(P,88);const k=72/512;g.scale(k,k);
+  g.fillStyle='#111124';g.beginPath();g.roundRect?g.roundRect(0,0,512,512,90):g.rect(0,0,512,512);g.fill();
+  g.strokeStyle='#2a2848';g.lineWidth=8;
+  [158,250,342].forEach(y=>{g.beginPath();g.moveTo(110,y);g.lineTo(402,y);g.stroke();});
+  g.strokeStyle='#3a3860';g.lineWidth=5;
+  [110,168.4,226.8,285.2,343.6,402].forEach(x=>{g.beginPath();g.moveTo(x,80);g.lineTo(x,342);g.stroke();});
+  g.fillStyle=GOLDC;g.fillRect(104,66,304,16);
+  [[285.2,112,0],[343.6,204,2],[226.8,204,3],[168.4,296,1]].forEach(([x,y,i])=>{
+    g.fillStyle=DOTS[i];g.beginPath();g.arc(x,y,30,0,Math.PI*2);g.fill();});
+  g.fillStyle=GOLDC;g.font='700 70px '+CARD_SERIF;g.textAlign='center';g.fillText('ARCHTONE',256,455);
+  g.restore();
+  g.textAlign='left';g.fillStyle=GOLDC;g.font='700 40px '+CARD_SERIF;
+  if('letterSpacing' in g)g.letterSpacing='6px';
+  g.fillText('ARCHTONE',P+96,88+50);
+  if('letterSpacing' in g)g.letterSpacing='0px';
+  // Headline: "I've practiced jazz guitar / 21 days in a row"
+  g.fillStyle=MUTED;g.font='500 44px '+UI_FONT;
+  g.fillText('I’ve practiced jazz guitar',P,340);
+  const num=String(streak);
+  let size=300;g.font='700 '+size+'px '+CARD_SERIF;
+  while(g.measureText(num).width>560&&size>160){size-=10;g.font='700 '+size+'px '+CARD_SERIF;}
+  g.fillStyle=CREAM;g.fillText(num,P-8,340+size*0.86);
+  const nx=P-8+g.measureText(num).width+28,base=340+size*0.86;
+  g.font='700 84px '+CARD_SERIF;
+  g.fillText(streak===1?'day':'days',nx,base-84);g.fillText('in a row',nx,base);
+  g.fillStyle=GOLDC;g.font='400 36px '+UI_FONT;
+  g.fillText(streakLine(streak,best),P,base+76);
+  // Last 7 days
+  const rowY=780;
+  g.fillStyle=HINTC;g.font='600 24px '+UI_FONT;
+  if('letterSpacing' in g)g.letterSpacing='3px';
+  g.fillText('LAST 7 DAYS',P,rowY);
+  if('letterSpacing' in g)g.letterSpacing='0px';
+  days.forEach((d,i)=>{
+    const cx=P+36+i*92,cy=rowY+60,col=DOTS[i%4];
+    g.beginPath();g.arc(cx,cy,34,0,Math.PI*2);
+    if(d.on){g.fillStyle=col;g.fill();}
+    else{g.strokeStyle='#2a2848';g.lineWidth=3;g.stroke();}
+    g.fillStyle=HINTC;g.font='400 22px '+UI_FONT;g.textAlign='center';
+    g.fillText(d.label,cx,cy+66);g.textAlign='left';
+  });
+  // Footer
+  g.fillStyle='#22223a';g.fillRect(P,948,S-2*P,2);
+  g.fillStyle=MUTED;g.font='400 28px '+UI_FONT;
+  const bl='My best so far: ';g.fillText(bl,P,1000);
+  g.fillStyle=CREAM;g.font='600 28px '+UI_FONT;
+  g.fillText(best+' day'+(best===1?'':'s'),P+g.measureText(bl).width+4,1000);
+  g.textAlign='right';g.fillStyle=GOLDC;g.font='600 26px '+UI_FONT;
+  g.fillText('Archtone',S-P,1000);
+  const w=g.measureText('Archtone').width;
+  g.fillStyle=MUTED;g.font='400 26px '+UI_FONT;g.fillText('Learning on ',S-P-w,1000);
+  g.textAlign='left';
+  return c;
+}
+// Returns 'shared' | 'cancelled' | 'downloaded' | 'failed'.
+const ShareCard=(()=>{
+  const plugs=()=>{const P=window?.Capacitor?.Plugins;return P?.Share&&P?.Filesystem?{Share:P.Share,FS:P.Filesystem}:null;};
+  function isCancel(ex){return /cancel|abort/i.test(String(ex?.message||ex?.name||ex));}
+  async function share({streak,best,days}){
+    const canvas=drawStreakCard({streak,best,days});
+    const text=streakShareText(streak),title=streak+'-day jazz guitar streak';
+    const native=plugs();
+    try{
+      if(native){
+        const data=canvas.toDataURL('image/png').split(',')[1];
+        const{uri}=await native.FS.writeFile({path:'archtone-streak.png',data,directory:'CACHE'});
+        await native.Share.share({title,text,files:[uri],dialogTitle:'Share your streak'});
+        return 'shared';
+      }
+      // Built synchronously (not canvas.toBlob) so navigator.share still runs
+      // inside the tap — Safari refuses a share that starts after an await.
+      const bin=atob(canvas.toDataURL('image/png').split(',')[1]);
+      const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+      const blob=new Blob([bytes],{type:'image/png'});
+      const file=new File([blob],'archtone-streak.png',{type:'image/png'});
+      if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],text,title});return 'shared';}
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='archtone-streak.png';
+      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      return 'downloaded';
+    }catch(ex){return isCancel(ex)?'cancelled':'failed';}
+  }
+  return{share};
 })();
 
 // ── RevenueCat in-app purchase ────────────────────────────────────────
@@ -123,8 +279,33 @@ const IAP=(()=>{
   // gate dev-only affordances (e.g. the Pro→Essentials revert) so they exist
   // while testing in the browser but never ship as a footgun on device.
   function isNative(){try{return !!window?.Capacitor?.isNativePlatform?.();}catch(ex){return false;}}
-  return{available,checkEntitlement,purchase,restore,isNative};
+  // The store's own localized price string for Pro (e.g. "$14.99", "14,99 €",
+  // "¥2,300", or the sale price during a promotion). null when unavailable.
+  async function price(){
+    if(!available())return null;
+    await configure();if(!configured)return null;
+    try{
+      const offerings=await plug().getOfferings();
+      const ps=offerings?.current?.availablePackages?.[0]?.product?.priceString;
+      return typeof ps==='string'&&ps.trim()?ps.trim():null;
+    }catch(ex){return null;}
+  }
+  return{available,checkEntitlement,purchase,restore,isNative,price};
 })();
+
+// ── Pro price as shown in the app ─────────────────────────────────────
+// Never hardcode the price in copy: the App Store charges in the buyer's own
+// currency, and a sale (e.g. Black Friday) changes it without a new build.
+// Every label reads proPrice(). It starts from the last price the store
+// reported (cached so an offline launch is still right), falls back to the
+// US list price, and the App refreshes it from RevenueCat on every launch.
+const PRO_PRICE_FALLBACK='$14.99';
+let PRO_PRICE=(()=>{const v=safeLS('jg-pro-price','');return v&&v.length<=16?v:PRO_PRICE_FALLBACK;})();
+function proPrice(){return PRO_PRICE;}
+function setProPrice(p){
+  if(typeof p!=='string'||!p.trim()||p.length>16)return false;
+  PRO_PRICE=p.trim();safeLSSet('jg-pro-price',PRO_PRICE);return true;
+}
 
 // ── Dev unlock (web/PWA only) ─────────────────────────────────────────
 // The web build has no App Store bridge, so `doUpgrade` used to hand out Pro
@@ -1079,7 +1260,7 @@ function UpgradeSheet({feature,onClose,onUnlock,trialUsed,trialActive,onTrial,on
         width:'100%',padding:'15px',borderRadius:10,cursor:'pointer',
         fontFamily:UI_FONT,fontSize:'1rem',fontWeight:700,
         background:GOLD,border:'none',color:'#07070f',minHeight:54,marginBottom:4}},
-        'Unlock Pro — $14.99'),
+        'Unlock Pro — '+proPrice()),
       // The strongest objection-killer for a one-time price — was previously
       // only in the 'Pro overview' copy, i.e. absent from most impressions.
       e('div',{style:{fontSize:'0.72rem',color:HINT,textAlign:'center',
@@ -1278,7 +1459,7 @@ function attachPedalListener(cb){
 }
 
 // ── AboutSheet ────────────────────────────────────────────────────────
-function AboutSheet({onClose,level,onRestore,onOverview,onPageTour,themePref,onThemePref}){
+function AboutSheet({onClose,level,onRestore,onOverview,onPageTour,themePref,onThemePref,streak,onShareStreak}){
   const [restored,setRestored]=React.useState(null); // null = untried, true/false = result
   const [pedalSeen,setPedalSeen]=React.useState(null);
   // Report the real outcome — claiming "restored ✓" after a failed lookup sends
@@ -1321,6 +1502,13 @@ function AboutSheet({onClose,level,onRestore,onOverview,onPageTour,themePref,onT
       // Everything the header used to hold. Grouped here so the header can be a
       // single row: help first (contextual tour, then the overview), then the
       // theme preference, which is set once rather than per screen.
+      onShareStreak&&streak>=SHARE_MIN_STREAK?e('button',{'data-test':'menu-share',onClick:onShareStreak,
+        style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
+          fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,textAlign:'center',
+          display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+          border:'1px solid '+GOLD+'88',background:'var(--bg)',color:GOLD_TXT,
+          marginBottom:10,minHeight:44}},
+        e(ShareIcon),'Share my '+streak+'-day streak'):null,
       onPageTour?e('button',{onClick:onPageTour,
         style:{width:'100%',padding:'14px',borderRadius:10,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.95rem',fontWeight:700,textAlign:'center',
@@ -1405,6 +1593,13 @@ function ColorLegend(){
   );
 }
 
+// Share glyph (box + up arrow), stroke-only so it takes the button's colour.
+function ShareIcon(){
+  return e('svg',{width:18,height:18,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',
+    strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':'true'},
+    e('path',{d:'M12 3v12'}),e('path',{d:'M7 8l5-5 5 5'}),
+    e('path',{d:'M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5'}));
+}
 // ── BrandMark ─────────────────────────────────────────────────────────
 // Miniature of the app icon: chord grid plus the four chord-tone dots in the
 // same TC palette every fretboard in the app draws with. Inline so it inherits
@@ -2275,7 +2470,7 @@ const OVERVIEW_STEPS=[
   {target:'ear-mode-tabs', view:'quiz',
    essentialsOnly:true,
    title:'One price, everything — forever',
-   text:'Essentials is free: shells, major ii–V–I, 5 ear training intervals. Pro is $14.99 once — no subscription, no future paywalls. Every voicing, play form, standard, ear training mode, and chord type we ever add is included. Look for 🔒 to see what unlocks now.'},
+   text:'Essentials is free: shells, major ii–V–I, 5 ear training intervals. Pro is {PRICE} once — no subscription, no future paywalls. Every voicing, play form, standard, ear training mode, and chord type we ever add is included. Look for 🔒 to see what unlocks now.'},
 ];
 
 const PAGE_TOURS={
@@ -2359,7 +2554,8 @@ function tourStepsFor(steps,isPro,profile){
       return gt?{...s,text:s.text+' '+gt}:s;
     });
   }
-  return out;
+  // Price lives in copy as {PRICE} so it shows the buyer's real store price.
+  return out.map(s=>s.text&&s.text.includes('{PRICE}')?{...s,text:s.text.split('{PRICE}').join(proPrice())}:s);
 }
 
 function TourOverlay({steps,step,onNext,onSkip}){
@@ -5473,7 +5669,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
           e('button',{onClick:()=>onUpgrade('Jazz Standards'),style:{
             width:'100%',padding:'11px 14px',borderRadius:6,cursor:'pointer',fontFamily:UI_FONT,fontSize:'0.85rem',fontWeight:700,
             border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:44}},
-            'Unlock Pro — $14.99 once, forever')
+            'Unlock Pro — '+proPrice()+' once, forever')
         ):null,
         // "I've got this" — quieter, after the checklist (it's the last thing you do)
         e('button',{onClick:()=>{
@@ -5511,7 +5707,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
           marginTop:10,width:'100%',padding:'11px 14px',borderRadius:6,cursor:'pointer',
           fontFamily:UI_FONT,fontSize:'0.85rem',fontWeight:700,
           border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:44}},
-          'Unlock Pro — $14.99 once, forever'):null)
+          'Unlock Pro — '+proPrice()+' once, forever'):null)
       :nextStage?e('div',{style:{marginBottom:14,padding:'12px 14px',background:BG2,border:'1px solid '+GOLD+'66',borderRadius:8,
         display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
         e('div',{style:{flex:1,minWidth:170}},
@@ -6042,7 +6238,10 @@ function App(){
     track('app.loaded',{level});
     // Re-grant Pro from the App Store receipt (reinstall / new device).
     IAP.checkEntitlement().then(pro=>{if(pro)goPro();}).catch(()=>{});
+    // Real localized price (and any sale price) from the store.
+    IAP.price().then(p=>{if(p&&p!==proPrice()&&setProPrice(p))setPriceTick(t=>t+1);}).catch(()=>{});
   },[]);
+  const [,setPriceTick]=useState(0); // bump to re-render labels after a price update
   const [iiviPlaying,setIiviPlaying]=useState(false);
   // Clear playing state when navigating away from the play tab
   useEffect(()=>{ if(viewMode!=='iivi') setIiviPlaying(false); },[viewMode]);
@@ -6083,6 +6282,13 @@ function App(){
   // A 'yes' locks it out permanently; a decline gets a 60-day cooldown before
   // asking again (SKStoreReviewController throttles further on top of this).
   const RATE_MILESTONES=[7,60,180];
+  // Share the streak card. `source` is where it was tapped (milestone | menu).
+  async function shareStreak(source){
+    const best=Math.max(bestStreak,streak);
+    const days=last7Days(streak,lastPracticeDay,readPracticeLog());
+    const result=await ShareCard.share({streak,best,days});
+    track('share.streak',{source,result,streak,level});
+  }
   function maybeAskRate(newStreak){
     if(safeLS('jg-rate-asked','')==='yes') return;
     if(!RATE_MILESTONES.includes(newStreak)) return;
@@ -6090,8 +6296,8 @@ function App(){
     const daysSinceAsk=lastAsk?Math.floor((Date.now()-new Date(lastAsk+'T00:00:00'))/86400000):Infinity;
     if(daysSinceAsk<60) return;
     safeLSSet('jg-rate-last-ask',localDateStr());
-    // Delay past the streak-milestone card's own 5.4s auto-dismiss so the two don't stack.
-    setTimeout(()=>{setRatePrompt(true);track('rating.prompt.shown',{streak:newStreak,level});},5600);
+    // Delay past the streak-milestone card's own auto-dismiss so the two don't stack.
+    setTimeout(()=>{setRatePrompt(true);track('rating.prompt.shown',{streak:newStreak,level});},MILESTONE_MS+200);
   }
   function onRateYes(){
     setRatePrompt(false);
@@ -6117,10 +6323,11 @@ function App(){
     setLastPracticeDay(today);
     safeLSSet('jg-streak',newStreak);
     safeLSSet('jg-last-practice',today);
+    logPractice(today);
     if(newStreak>bestStreak){setBestStreak(newStreak);safeLSSet('jg-best-streak',newStreak);}
     if(isStreakMilestone(newStreak)){
       setStreakMilestone(newStreak);
-      setTimeout(()=>setStreakMilestone(null),5400);
+      setTimeout(()=>setStreakMilestone(null),MILESTONE_MS);
       track('streak.milestone',{days:newStreak,level});
     }
     maybeAskRate(newStreak);
@@ -6131,8 +6338,9 @@ function App(){
       setTimeout(()=>setStreakAnim(false),900);
     }
     // Schedule tomorrow's reminder (request permission at day 3 when user is invested)
-    if(newStreak===3){Notif.requestPermission().then(()=>Notif.schedule(newStreak));}
-    else{Notif.schedule(newStreak);}
+    // (practicedToday=true → tomorrow's slot, never 7 pm today)
+    if(newStreak===3){Notif.requestPermission().then(()=>Notif.schedule(newStreak,true));}
+    else{Notif.schedule(newStreak,true);}
   }
 
   // On mount: expire a lapsed streak, then queue the reminder if one is at risk
@@ -6646,6 +6854,7 @@ function App(){
           :'No previous purchase found on this Apple ID.');}}):null,
     audioDiag?e(AudioDiagSheet,{onClose:()=>setAudioDiag(false)}):null,
     aboutOpen?e(AboutSheet,{onClose:()=>setAboutOpen(false),level,onRestore:doRestore,
+      streak,onShareStreak:()=>{setAboutOpen(false);shareStreak('menu');},
       themePref,onThemePref:p=>{setThemePref(p);track('theme.pref',{pref:p});},
       onPageTour:PAGE_TOURS[viewMode]?()=>{setAboutOpen(false);setPageTourStep(0);setPageTourId(viewMode);}:null,
       onOverview:()=>{setAboutOpen(false);setOverviewStep(0);}}):null,
@@ -6676,7 +6885,7 @@ function App(){
       e('div',{onClick:ev=>ev.stopPropagation(),
         style:{width:'min(400px,calc(100vw - 32px))',borderRadius:16,overflow:'hidden',
           boxShadow:'0 -8px 40px rgba(0,0,0,0.7)',
-          animation:'milestoneUp 5.4s cubic-bezier(.22,.68,0,1.2) both'}},
+          animation:'milestoneUp '+(MILESTONE_MS/1000)+'s cubic-bezier(.22,.68,0,1.2) both'}},
         e('div',{style:{
           background:`linear-gradient(135deg,#1a1000 0%,#0d0d1e 100%)`,
           border:'1px solid '+GOLD+'80',borderRadius:16,padding:'22px 24px 18px'}},
@@ -6705,8 +6914,15 @@ function App(){
               display:'block',margin:'0 auto',padding:'9px 24px',borderRadius:6,cursor:'pointer',
               fontFamily:UI_FONT,fontSize:'0.82rem',fontWeight:700,
               border:'1px solid '+GOLD,background:GOLD,color:'#07070f',minHeight:40}},
-              'Unlock Pro — $14.99 once')
+              'Unlock Pro — '+proPrice()+' once')
           ):null,
+          e('button',{'data-test':'milestone-share',
+            onClick:()=>{setStreakMilestone(null);shareStreak('milestone');},
+            style:{display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+              margin:'16px auto 0',padding:'10px 22px',borderRadius:10,cursor:'pointer',
+              fontFamily:UI_FONT,fontSize:'0.9rem',fontWeight:700,minHeight:44,
+              border:'1px solid '+GOLD+'88',background:'transparent',color:GOLD_TXT}},
+            e(ShareIcon),'Share my streak'),
           e('div',{style:{fontSize:'0.68rem',color:HINT,fontFamily:UI_FONT,
             textAlign:'center',marginTop:12}},'Tap to dismiss')
         )
