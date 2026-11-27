@@ -10,7 +10,7 @@ const vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const SRC = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
 
-function load(store = {}) {
+function load(store = {}, platform) {
   const start = SRC.indexOf('// ── Streak share card');
   const end = SRC.indexOf('const CARD_SERIF=');
   assert.ok(start > 0 && end > start, 'share-card block not found in app.js');
@@ -22,6 +22,7 @@ function load(store = {}) {
     },
     Date, JSON, Set, Math, String, Array,
   };
+  ctx.window = platform ? { Capacitor: { getPlatform: () => platform } } : {};
   vm.runInNewContext(
     'const safeLS=(key,fb="")=>{const v=localStorage.getItem(key);return v!==null?v:fb;};' +
     'const safeLSSet=(k,v)=>localStorage.setItem(k,v);' + helpers + '\n' +
@@ -106,4 +107,19 @@ test('native share plugins are declared and registered', () => {
   const spm = fs.readFileSync(path.join(ROOT, 'ios/App/CapApp-SPM/Package.swift'), 'utf8');
   assert.match(spm, /CapacitorShare/);
   assert.match(spm, /CapacitorFilesystem/);
+});
+
+// The merge of the share card into the Android build once shipped an Apple
+// App Store link in the Android share text. The link must follow the platform.
+test('share text links to Google Play on Android, the App Store on iOS', () => {
+  const ios = load({}, 'ios').api.streakShareText(12);
+  const android = load({}, 'android').api.streakShareText(12);
+  assert.match(ios, /apps\.apple\.com\/app\/id\d+$/);
+  assert.match(android, /play\.google\.com\/store\/apps\/details\?id=com\.pablohoney\.jazzguitarlab$/);
+  assert.ok(!android.includes('apple.com'), 'Android share text must not link to Apple');
+});
+
+test('no hardcoded "App Store" / "Apple ID" in user-facing purchase copy', () => {
+  assert.ok(!/setPurchaseErr\('The App Store/.test(SRC), 'purchase error names the App Store on every platform');
+  assert.ok(!/No previous purchase found on this Apple ID/.test(SRC), 'restore error names Apple ID on every platform');
 });

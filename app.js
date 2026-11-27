@@ -84,6 +84,15 @@ const Notif=(()=>{
 // it's filled in, the share text simply goes out without a link.
 const APP_STORE_ID='6785094978';
 const APP_STORE_URL=APP_STORE_ID.startsWith('__')?'':'https://apps.apple.com/app/id'+APP_STORE_ID;
+// The same app ships on Google Play. Anything that names the store, the store
+// account or links to a listing must follow the platform it's running on —
+// an Android user being told about "the App Store" or sharing an Apple link
+// is a bug. Capacitor injects window.Capacitor before page scripts run.
+const IS_ANDROID=(()=>{try{return window?.Capacitor?.getPlatform?.()==='android';}catch(ex){return false;}})();
+const PLAY_STORE_URL='https://play.google.com/store/apps/details?id=com.pablohoney.jazzguitarlab';
+const STORE_NAME=IS_ANDROID?'Google Play':'App Store';
+const STORE_ACCOUNT=IS_ANDROID?'Google account':'Apple ID';
+const SHARE_URL=IS_ANDROID?PLAY_STORE_URL:APP_STORE_URL;
 const SHARE_MIN_STREAK=3;
 // The milestone card stays up long enough to reach its Share button (was 5.4s).
 const MILESTONE_MS=9000; // "1 days in a row" isn't something anyone shares
@@ -127,7 +136,7 @@ function streakLine(streak,best){
 }
 function streakShareText(streak){
   return 'I’ve practiced jazz guitar '+streak+' days in a row 🎸 Learning on Archtone'
-    +(APP_STORE_URL?': '+APP_STORE_URL:'');
+    +(SHARE_URL?': '+SHARE_URL:'');
 }
 const CARD_SERIF="'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif";
 function drawStreakCard({streak,best,days}){
@@ -5584,7 +5593,7 @@ function GuideView({openPreset,level,profile,streak,lastPracticeDay,bestStreak,o
            e('div',{style:{fontSize:'0.8rem',color:'var(--hint)',marginBottom:8}},'Set key to B♭. The opening Em7♭5–A7 is a ii–V of D that doesn\'t resolve to D — it dissolves into Cm7–F7 instead, which is the harmonic ambiguity that defines the tune. After that, three ii–V–I chains shift the key center: vm7–I7 to E♭maj7 (key of E♭), then Am7♭5–D7 to Gmaj7 (key of G), then iim7–V7 to B♭maj7 home. Every ii–V you\'ve practiced is in here — Stella just moves through all of them back to back.'),
            e('div',{style:{marginTop:14,padding:'10px 12px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,fontSize:'0.82rem',lineHeight:1.5}},[
              e('b',null,'Use iReal Pro for backing tracks. '),'It\'s a separate app ($21.99, the jazz musician\'s standard tool) with 3,000+ chord charts and playable backing tracks. Archtone teaches the harmony — iReal Pro is where you apply it to real tunes. Get it, search "Autumn Leaves," set the tempo to 80 BPM, and ',term('comp','comp'),' through the changes (play the chords in time through the progression) with what you\'ve learned here. These two apps are designed to work together.',
-             e('div',{style:{marginTop:6,fontSize:'0.76rem',color:'var(--hint)'}},'Search "iReal Pro" on the App Store, or find charts at ',e('span',{style:{textDecoration:'underline',color:'var(--txt)'}},'irealpro.com'),' and ',e('span',{style:{textDecoration:'underline',color:'var(--txt)'}},'jazzstandards.com'),'.')
+             e('div',{style:{marginTop:6,fontSize:'0.76rem',color:'var(--hint)'}},'Search "iReal Pro" on '+(IS_ANDROID?'Google Play':'the App Store')+', or find charts at ',e('span',{style:{textDecoration:'underline',color:'var(--txt)'}},'irealpro.com'),' and ',e('span',{style:{textDecoration:'underline',color:'var(--txt)'}},'jazzstandards.com'),'.')
            ]),
            'What comes after: Drop 3 and Rootless voicings add harmonic depth (Pro). Chord melody (playing the tune inside the chords), reharmonization (re-coloring the chords under a melody), and playing with other humans are the next frontiers. Finding a musician to play with is the single most accelerating thing you can do from here.'],
      items:['Open iReal Pro (or jazzstandards.com) and find Autumn Leaves — look at the changes and map every chord to a shell voicing you know','Play bars 1–4 only at 60 BPM until the two-bar major ii–V–I resolves cleanly to Bbmaj7','Play bars 5–8 at 60 BPM — the minor ii–V–I to Gm. Notice how Am7♭5 has a different pull than Am7','Play all 8 bars without stopping — you\'ve already practiced every chord in this sequence','[Pro] Open BLUE BOSSA in the Play tab (key C, 70 BPM) — play bars 1–8, then let bar 9 arrive and notice the key shift to D♭','[Pro] Open STELLA in the Play tab (key B♭, 65 BPM) — name each key center as the ii–V–I chains arrive: E♭, G, B♭','[Pro] Upgrade to Drop 2 for any standard once the shells are solid','Play your chosen standard in one other key']},
@@ -6209,7 +6218,7 @@ function App(){
     // and log a phantom `upgrade.completed`. Never fall through to dev unlock
     // on device.
     if(IAP.isNative()){
-      setPurchaseErr('The App Store is unavailable right now. Please try again later.');
+      setPurchaseErr(STORE_NAME+' is unavailable right now. Please try again later.');
       track('upgrade.unavailable',{feature:upgradeSheet});
       return;
     }
@@ -6890,7 +6899,7 @@ function App(){
       onRestore:async()=>{if(await doRestore())return;
         setPurchaseErr(isOffline()
           ?'You’re offline, so your purchase can’t be checked right now. Reconnect and tap Restore again.'
-          :'No previous purchase found on this Apple ID.');}}):null,
+          :'No previous purchase found on this '+STORE_ACCOUNT+'.');}}):null,
     audioDiag?e(AudioDiagSheet,{onClose:()=>setAudioDiag(false)}):null,
     aboutOpen?e(AboutSheet,{onClose:()=>setAboutOpen(false),level,onRestore:doRestore,
       streak,onShareStreak:()=>{setAboutOpen(false);shareStreak('menu');},
